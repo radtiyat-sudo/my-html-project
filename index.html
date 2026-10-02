@@ -18,17 +18,25 @@
   --good:#17753f; --good-tint:#e1f3e8; --warn:#8f5200; --warn-tint:#fbefd5; --bad:#b3261e; --bad-tint:#fbe4e1;
   --f-head:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif; --f-body:"Noto Sans Thai","IBM Plex Sans Thai",system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){:root{
+/* โหมดมืด: ตามระบบ (ถ้าไม่ได้เลือกโหมดสว่างเอง) หรือเมื่อกดปุ่มสลับเป็นโหมดมืด */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   color-scheme:dark;
   --bg:#0f1418; --surface:#171d23; --surface-2:#1f2730; --ink:#e8edf2; --muted:#9aa6b2; --line:#2b353f; --grid:#2a333c;
   --accent:#5ea2f2; --accent-tint:#1a2c42; --accent-ink:#0b1117;
   --s1:#3987e5;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --cx:#6b7682;
   --good:#47c283; --good-tint:#15291f; --warn:#e3a43a; --warn-tint:#2d2412; --bad:#f07a6e; --bad-tint:#33191a}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f1418; --surface:#171d23; --surface-2:#1f2730; --ink:#e8edf2; --muted:#9aa6b2; --line:#2b353f; --grid:#2a333c;
+  --accent:#5ea2f2; --accent-tint:#1a2c42; --accent-ink:#0b1117;
+  --s1:#3987e5;
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --cx:#6b7682;
+  --good:#47c283; --good-tint:#15291f; --warn:#e3a43a; --warn-tint:#2d2412; --bad:#f07a6e; --bad-tint:#33191a}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--f-body);padding-inline:16px;padding-block:0 56px}
+body{transition:background-color .2s,color .2s;background:var(--bg);color:var(--ink);font:14px/1.6 var(--f-body);padding-inline:16px;padding-block:0 56px}
 h1,h2,h3{font-family:var(--f-head);margin:0;text-wrap:balance;line-height:1.3}
 .wrap{max-width:1200px;margin-inline:auto}
 button,select,input,textarea{font:inherit;color:inherit}
@@ -163,7 +171,8 @@ tr.click:hover td{background:var(--surface-2)}
 .lvl-edit{display:grid;gap:6px;margin-top:6px}
 .lvl-edit label{font-size:12px;color:var(--muted)}
 .savebar{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 14px;margin-top:16px}
-.savebar .btn{border-color:transparent}
+.savebar .btn{border-color:transparent;color:var(--ink)}
+.savebar .btn.primary{color:var(--accent-ink)}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .step{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-2);display:grid;gap:8px;align-content:start}
 .step h3{font-size:14px}
@@ -230,7 +239,20 @@ tr.click:hover td{background:var(--surface-2)}
 .lvl-line b{color:var(--ink)}
 .sticky-bar{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:8px 12px;box-shadow:0 4px 18px rgba(0,0,0,.18);font-size:13px}
 .sb-score b{font:700 20px var(--f-head);font-variant-numeric:tabular-nums}
-@media (max-width:480px){.lvl{min-height:60px}.lvl b{font-size:22px}.plo-h{padding:10px 12px}.crit-card{padding:12px}}
+/* เกณฑ์ 5 ช่วงคะแนน A-E (เต็ม 10) */
+.bands{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.band{display:grid;gap:4px;align-content:start;border:1px solid var(--line);border-top:3px solid var(--bc,var(--line));border-radius:10px;padding:6px;background:var(--surface);min-width:0}
+.band.good{--bc:var(--good)}.band.warn{--bc:var(--warn)}.band.bad{--bc:var(--bad)}
+.band.on{background:var(--accent-tint);border-color:var(--accent);border-top-color:var(--bc)}
+.band-h{text-align:center;line-height:1.25;padding-bottom:2px}
+.band-h b{display:block;font:700 15px var(--f-head)}
+.band-h small{display:block;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.band-h span{display:block;font-size:10.5px;color:var(--muted)}
+.band .lvl{min-height:40px;padding:4px}
+.band .lvl b{font-size:18px}
+.chip.band-chip{font-variant-numeric:tabular-nums}
+.theme-btn{min-width:44px}
+@media (max-width:480px){.bands{gap:4px}.band{padding:4px}.band-h span{display:none}.band .lvl{min-height:44px}.plo-h{padding:10px 12px}.crit-card{padding:12px}}
 </style>
 </head>
 <body>
@@ -248,11 +270,18 @@ tr.click:hover td{background:var(--surface-2)}
 <script>
 (function(){
 "use strict";
-var LEVELS=[{v:1,n:"ต้องปรับปรุง"},{v:2,n:"พอใช้"},{v:3,n:"ดี"},{v:4,n:"ดีเยี่ยม"}];
+/* เกณฑ์การประเมิน 5 ช่วงคะแนน ใช้เหมือนกันทุก PLO (แต่ละเกณฑ์ให้ 0-10) */
+var MAX=10;
+var BANDS=[{k:"A",n:"สูงกว่าเป้าหมายมาก",min:9,max:10,c:"good"},{k:"B",n:"ตามเป้าหมาย",min:7,max:8,c:"good"},{k:"C",n:"ใกล้เคียงเป้าหมาย",min:5,max:6,c:"warn"},{k:"D",n:"ต่ำกว่าเป้าหมาย",min:3,max:4,c:"bad"},{k:"E",n:"ต่ำกว่าเป้าหมายมาก",min:0,max:2,c:"bad"}];
+function isNum(v){return typeof v==="number"&&!isNaN(v)}
+function bandIdx(v){var r=Math.round(v);for(var i=0;i<BANDS.length;i++)if(r>=BANDS[i].min)return i;return BANDS.length-1}
+function bandRange(b){return b.min+"-"+b.max}
+function scoresOf(b){var o=[];for(var v=b.max;v>=b.min;v--)o.push(v);return o}
+function ten(pct){return pct==null||isNaN(pct)?"–":(pct/10).toFixed(1)}
 var SAMPLE_EMAIL="sample@example.com";
 var G={boot:null,me:{role:"viewer",email:"",name:""},view:"home",facId:null,P:null,tab:"exec",stuId:null,q:"",lq:"",
   exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},items:[],preview:null,importMode:"replace",impText:"",
-  showAdd:false,confirmDel:null,
+  showAdd:false,confirmDel:null,autoDraft:true,theme:null,
   admin:{tab:"prog",facId:null,progId:null,users:null,roster:{text:"",list:null}}};
 
 /* ---------- utils ---------- */
@@ -275,8 +304,14 @@ function canCurr(){return G.me.role==="admin"||G.me.role==="curriculum"}
 function canScore(){return G.me.role==="admin"||G.me.role==="evaluator"}
 function rid(p){return p+Math.random().toString(36).slice(2,10)}
 var ROLE_TH={admin:"ผู้ดูแลระบบ",curriculum:"เจ้าหน้าที่หลักสูตร",evaluator:"อาจารย์ผู้ประเมิน",executive:"ผู้บริหาร (ดูอย่างเดียว)",viewer:"ผู้ชม (ดูอย่างเดียว)"};
-function gen(n,v){return [n+"ไม่ได้หรือไม่เพียงพอ ต้องปรับปรุงอย่างมาก",n+"ได้บางส่วน มีข้อผิดพลาดหรือช่องว่างที่ต้องแก้ไข",n+"ได้ถูกต้องเป็นส่วนใหญ่ มีหลักฐานสนับสนุน แต่ความลึกยังไม่สม่ำเสมอ",n+"ได้ครบถ้วน ถูกต้อง มีหลักฐานอ้างอิง และเชื่อมโยงกับงานของตนเองได้อย่างลึกซึ้ง"][v-1]}
-function desc(c,v){return c.desc&&c.desc[v-1]?c.desc[v-1]:gen(c.name,v)}
+/* ร่างคำอธิบายอัตโนมัติของช่วง i (0=A … 4=E) เมื่อยังไม่ได้เขียนเอง */
+function gen(n,i){return [
+  n+"ได้ครบถ้วน ลึกซึ้ง เกินความคาดหวังของระดับปริญญา มีหลักฐานชัดเจนและเชื่อมโยงกับงานของตนอย่างสร้างสรรค์ (10 = โดดเด่นทุกด้าน, 9 = โดดเด่นเกือบทุกด้าน)",
+  n+"ได้ถูกต้องครบตามเป้าหมาย มีหลักฐานสนับสนุน (8 = ครบและมั่นคง, 7 = ครบแต่ความลึกยังไม่สม่ำเสมอ)",
+  n+"ได้เป็นส่วนใหญ่ แต่ยังมีช่องว่างหรือข้อผิดพลาดที่ต้องแก้ไข (6 = ขาดเล็กน้อย, 5 = ขาดหลายจุด)",
+  n+"ได้บางส่วน มีข้อผิดพลาดสำคัญ ต้องปรับปรุง (4 = ทำได้บางส่วนเมื่อได้รับคำแนะนำ, 3 = ทำได้น้อย)",
+  n+"ไม่ได้หรือไม่มีหลักฐาน (2 = มีความพยายามแต่ไม่ถึงเกณฑ์, 1 = แทบไม่มีหลักฐาน, 0 = ไม่มีเลย)"][i]}
+function desc(c,i){return c.desc&&c.desc[i]?c.desc[i]:gen(c.name,i)}
 function cleanEn(t){return String(t||"").replace(/\(draft wording[^)]*\)/i,"").trim()}
 function facOf(id){return G.boot.faculties.find(function(x){return x.id===id})}
 function progMeta(id){var r=null;G.boot.faculties.forEach(function(f){f.programs.forEach(function(p){if(p.id===id)r=p})});return r}
@@ -289,11 +324,11 @@ function evalsOf(stId){
 }
 function meanOf(list){
   var acc={};
-  list.forEach(function(e){Object.keys(e.scores||{}).forEach(function(c){var v=e.scores[c];if(v)(acc[c]=acc[c]||[]).push(v)})});
+  list.forEach(function(e){Object.keys(e.scores||{}).forEach(function(c){var v=e.scores[c];if(isNum(v))(acc[c]=acc[c]||[]).push(v)})});
   var out={};Object.keys(acc).forEach(function(c){out[c]=acc[c].reduce(function(a,b){return a+b},0)/acc[c].length});
   return out;
 }
-function ploPct(p,sc){var s=0,n=0;p.crit.forEach(function(c){var v=sc[c.id];if(v){s+=v;n++}});return {pct:n?s/(4*n)*100:null,done:n,total:p.crit.length}}
+function ploPct(p,sc){var s=0,n=0;p.crit.forEach(function(c){var v=sc[c.id];if(isNum(v)){s+=v;n++}});return {pct:n?s/(MAX*n)*100:null,done:n,total:p.crit.length}}
 function evalStu(pr,sc){
   var rows=pr.plos.map(function(p){var r=ploPct(p,sc);r.p=p;return r});
   var complete=rows.length>0&&rows.every(function(r){return r.done===r.total});
@@ -443,7 +478,7 @@ function viewExec(){
     var s=status(x.pass,t);
     h+='<div class="plo-row"><div class="plo-head"><b>'+esc(x.p.code)+' <span class="t">'+esc(x.p.th)+'</span></b>'+chip(s)+'</div>'+
       '<div class="track" role="img" aria-label="'+esc(x.p.code)+' ผ่าน '+fmt(x.pass)+'%"><div class="fill" style="width:'+(x.pass==null?0:x.pass)+'%"></div><div class="tgt" style="left:'+t+'%"></div></div>'+
-      '<div class="plo-meta"><span>ผ่าน '+fmt(x.pass)+'%</span><span>คะแนนเฉลี่ย '+fmt(x.mean)+'%</span><span>สัดส่วนในคะแนนรวม '+wpct(pr,x.p)+'%</span></div></div>';
+      '<div class="plo-meta"><span>ผ่าน '+fmt(x.pass)+'%</span><span>คะแนนเฉลี่ย '+ten(x.mean)+'/10</span><span>สัดส่วนในคะแนนรวม '+wpct(pr,x.p)+'%</span></div></div>';
   });
   h+='</section><section class="card"><h2>แผนภาพ PLO ของรุ่น</h2><div class="sub">คะแนนเฉลี่ยต่อ PLO เทียบเกณฑ์ผ่าน (%)</div>'+
     radar(axesOf(pr),[thresholdSeries(pr),{name:"คะแนนเฉลี่ยรุ่น",vals:C.per.map(function(x){return x.mean}),color:"var(--s1)",fill:true,marks:true}])+'</section></div>';
@@ -466,14 +501,14 @@ function viewExec(){
       '<div class="insight"><b>จุดที่ควรเร่งแก้:</b> '+esc(w.p.code)+' '+esc(w.p.th)+' มีนักศึกษาผ่านเพียง '+fmt(w.pass)+'% '+(w.pass<t?'ต่ำกว่าเป้า '+t+'% ควรทบทวนรายวิชา เวิร์กช็อป หรือการให้คำปรึกษาที่เกี่ยวข้อง':'แต่ยังอยู่ในเกณฑ์เป้าหมาย')+'</div>'+
       '<div class="insight"><b>จุดแข็งของรุ่น:</b> '+esc(bt.p.code)+' '+esc(bt.p.th)+' ผ่าน '+fmt(bt.pass)+'% คะแนนเฉลี่ย '+fmt(bt.mean)+'%</div></section>';
   }
-  h+='<section class="card" style="margin-top:16px"><h2>ผลรายคน</h2><div class="sub">คลิกแถวเพื่อเปิดหน้าประเมิน ช่องสีแดงคือ PLO ที่ต่ำกว่าเกณฑ์ '+pr.set.ploPass+'%</div>';
+  h+='<section class="card" style="margin-top:16px"><h2>ผลรายคน</h2><div class="sub">คลิกแถวเพื่อเปิดหน้าประเมิน คะแนน PLO เต็ม 10 ช่องสีแดงคือ PLO ที่ต่ำกว่าเกณฑ์ '+ten(pr.set.ploPass)+'</div>';
   if(!C.ev.length)h+='<div class="empty">ยังไม่มีนักศึกษาในหลักสูตรนี้</div>';
   else{
     h+='<div class="table-scroll"><table><thead><tr><th>รหัส</th><th>นักศึกษา</th>'+pr.plos.map(function(p){return '<th class="num" title="'+esc(p.th)+'">'+esc(p.code)+'</th>'}).join("")+'<th class="num">รวม</th><th class="num">กรรมการ</th><th>สถานะ</th></tr></thead><tbody>';
     C.ev.forEach(function(x){
       var e=x.e,st=!e.complete?{c:"na",t:"กรอกไม่ครบ ("+e.cnt+"/"+e.tot+")",i:"…"}:(e.ok?{c:"good",t:"ผ่าน",i:"✓"}:{c:"bad",t:"ไม่ผ่าน",i:"✕"});
       h+='<tr class="click" data-act="open" data-id="'+esc(x.s.id)+'" tabindex="0"><td>'+esc(x.s.code)+'</td><td>'+esc(x.s.name)+(x.s.sample?' <span class="muted">(ตัวอย่าง)</span>':"")+'</td>'+
-        e.rows.map(function(r){var lw=r.pct!=null&&r.pct<pr.set.ploPass;return '<td class="num'+(lw?' low':'')+'">'+(lw?'▾ ':'')+fmt(r.pct)+'</td>'}).join("")+
+        e.rows.map(function(r){var lw=r.pct!=null&&r.pct<pr.set.ploPass;return '<td class="num'+(lw?' low':'')+'">'+(lw?'▾ ':'')+ten(r.pct)+'</td>'}).join("")+
         '<td class="num"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b></td><td class="num">'+x.n+'</td><td>'+chip(st)+'</td></tr>';
     });
     h+='</tbody></table></div>';
@@ -526,21 +561,24 @@ function viewEval(){
   h+='<div class="row" style="margin-bottom:12px;justify-content:space-between"><div><h2 style="font-size:18px">'+esc(st.name)+(st.sample?' <span class="muted" style="font-size:12px">(ตัวอย่าง)</span>':"")+'</h2><div class="muted" style="font-size:12px">'+(st.code?esc(st.code)+' · ':"")+esc(st.topic)+(st.advisor?' · ที่ปรึกษา '+esc(st.advisor):"")+'</div></div>'+
     '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span><button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
   if(ro)h+='<div class="note"><b>ดูอย่างเดียว</b><span>บทบาทของคุณ ('+esc(ROLE_TH[G.me.role]||G.me.role)+') ไม่มีสิทธิ์ให้คะแนน</span></div>';
-  var tot2=0,myc=0;pr.plos.forEach(function(p){p.crit.forEach(function(c){tot2++;if(mine.scores[c.id])myc++})});
+  var tot2=0,myc=0;pr.plos.forEach(function(p){p.crit.forEach(function(c){tot2++;if(isNum(mine.scores[c.id]))myc++})});
   var idx=pr.students.findIndex(function(s){return s.id===st.id});
   h+='<div class="stu-pick"><button class="btn" data-act="stuprev" aria-label="นักศึกษาคนก่อนหน้า"'+(idx<=0?" disabled":"")+'>‹</button><select id="stu-sel" data-f="stu" aria-label="เลือกนักศึกษา">'+pr.students.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===st.id?" selected":"")+'>'+esc(s.name)+(s.code?" · "+esc(s.code):"")+'</option>'}).join("")+'</select><button class="btn" data-act="stunext" aria-label="นักศึกษาคนถัดไป"'+(idx>=pr.students.length-1?" disabled":"")+'>›</button></div>';
   h+='<div class="grid2" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)"><div class="stack"><div class="scoring">';
-  if(!ro)h+='<div class="howto">แตะระดับ 1-4 ของแต่ละเกณฑ์ (บนคอมพิวเตอร์กดปุ่มเลข 1-4 ได้) ระบบบันทึกให้อัตโนมัติ</div>';
+  if(!ro)h+='<div class="howto">แต่ละเกณฑ์ให้คะแนน 0-10 แบ่งเป็น 5 ช่วง: '+BANDS.map(function(b){return b.k+" "+bandRange(b)+" "+b.n}).join(" · ")+' แตะตัวเลขเพื่อให้คะแนน (บนคอมพิวเตอร์กดเลข 0-9 หรือตัวอักษร A-E เพื่อให้คะแนนสูงสุดของช่วง) ระบบบันทึกให้อัตโนมัติ</div>';
   pr.plos.forEach(function(p,i){
-    var mc=p.crit.filter(function(c){return mine.scores[c.id]}).length;
-    h+='<section class="plo-sec"><header class="plo-h"><div><b>'+esc(p.code)+'</b> '+esc(p.th)+'<div class="muted" style="font-size:11px">เต็ม 100 · สัดส่วนในคะแนนรวม '+wpct(pr,p)+'%</div></div><div class="plo-h-r"><span class="chip '+(mc===p.crit.length?"good":"na")+'">ให้แล้ว '+mc+'/'+p.crit.length+'</span><span class="pp">เฉลี่ยกรรมการ '+fmt(e.rows[i].pct)+'%</span></div></header>';
+    var mc=p.crit.filter(function(c){return isNum(mine.scores[c.id])}).length;
+    h+='<section class="plo-sec"><header class="plo-h"><div><b>'+esc(p.code)+'</b> '+esc(p.th)+'<div class="muted" style="font-size:11px">เต็ม 10 · สัดส่วนในคะแนนรวม '+wpct(pr,p)+'%</div></div><div class="plo-h-r"><span class="chip '+(mc===p.crit.length?"good":"na")+'">ให้แล้ว '+mc+'/'+p.crit.length+'</span><span class="pp">เฉลี่ยกรรมการ '+ten(e.rows[i].pct)+'/10</span></div></header>';
     p.crit.forEach(function(c){
-      var ov=others.map(function(x){return x.scores&&x.scores[c.id]}).filter(Boolean),om=ov.length?(ov.reduce(function(a,b){return a+b},0)/ov.length).toFixed(1):null;
-      var cur=mine.scores[c.id];
-      h+='<div class="crit-card" data-crit="'+esc(c.id)+'" data-done="'+(cur?1:0)+'"><div class="crit-name">'+esc(c.name)+(om?'<small>กรรมการอื่น เฉลี่ย '+om+' ('+ov.length+' คน)</small>':"")+'</div><div class="lvls" role="group" aria-label="ระดับของ '+esc(c.name)+'">';
-      LEVELS.forEach(function(l){h+='<button type="button" class="lvl" data-act="score" data-c="'+esc(c.id)+'" data-v="'+l.v+'" aria-pressed="'+(cur===l.v)+'"'+(ro?" disabled":"")+'><b>'+l.v+'</b><span>'+l.n+'</span></button>'});
-      h+='</div><div class="lvl-desc'+(cur?"":" empty-d")+'">'+(cur?'<b>ระดับ '+cur+' '+LEVELS[cur-1].n+':</b> '+esc(desc(c,cur)):(ro?"ยังไม่มีคะแนนของคุณ":"แตะเพื่อเลือกระดับ"))+'</div>'+
-        '<details class="lvl-all"><summary>ดูคำอธิบายทุกระดับ</summary>'+LEVELS.map(function(l){return '<div class="lvl-line'+(cur===l.v?" on":"")+'"><b>'+l.v+' '+l.n+'</b> '+esc(desc(c,l.v))+'</div>'}).join("")+'</details></div>';
+      var ov=others.map(function(x){return x.scores&&x.scores[c.id]}).filter(isNum),om=ov.length?(ov.reduce(function(a,b){return a+b},0)/ov.length).toFixed(1):null;
+      var cur=mine.scores[c.id],has=isNum(cur),bi=has?bandIdx(cur):-1;
+      h+='<div class="crit-card" data-crit="'+esc(c.id)+'" data-done="'+(has?1:0)+'"><div class="crit-name">'+esc(c.name)+(om?'<small>กรรมการอื่น เฉลี่ย '+om+'/10 ('+ov.length+' คน)</small>':"")+'</div><div class="bands" role="group" aria-label="คะแนนของ '+esc(c.name)+'">';
+      BANDS.forEach(function(b,i){
+        h+='<div class="band '+b.c+(bi===i?" on":"")+'"><div class="band-h"><b>'+b.k+'</b><small>'+bandRange(b)+'</small><span>'+b.n+'</span></div>'+
+          scoresOf(b).map(function(v){return '<button type="button" class="lvl" data-act="score" data-c="'+esc(c.id)+'" data-v="'+v+'" aria-pressed="'+(cur===v)+'" aria-label="'+v+' คะแนน ('+b.k+' '+b.n+')"'+(ro?" disabled":"")+'><b>'+v+'</b></button>'}).join("")+'</div>';
+      });
+      h+='</div><div class="lvl-desc'+(has?"":" empty-d")+'">'+(has?'<b>'+cur+'/10 · '+BANDS[bi].k+' '+BANDS[bi].n+':</b> '+esc(desc(c,bi)):(ro?"ยังไม่มีคะแนนของคุณ":"แตะตัวเลขเพื่อให้คะแนน"))+'</div>'+
+        '<details class="lvl-all"><summary>ดูเกณฑ์ทุกช่วงคะแนน</summary>'+BANDS.map(function(b,i){return '<div class="lvl-line'+(bi===i?" on":"")+'"><b>'+b.k+' ('+bandRange(b)+') '+b.n+'</b> '+esc(desc(c,i))+'</div>'}).join("")+'</details></div>';
     });
     h+='</section>';
   });
@@ -548,7 +586,7 @@ function viewEval(){
   h+='</div><section class="card"><h2>ความเห็นของฉัน</h2><div class="sub">เขียนอิสระ AI จะอ่านความเห็นของกรรมการทุกคนเพื่อดูว่าสอดคล้องกับ PLO ไหนและคะแนนสะท้อนความเห็นหรือไม่</div><textarea id="my-comment" rows="4" data-f="comment" placeholder="เช่น จุดเด่น จุดที่ควรแก้ไข ข้อเสนอแนะ"'+(ro?" disabled":"")+'>'+esc(mine.comment)+'</textarea></section></div>';
   h+='<aside class="stack"><section class="card"><div class="muted" style="font-size:12px">คะแนนรวมเฉลี่ยกรรมการ (เต็ม 100)</div><div class="score"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b>'+
     (e.complete?chip(e.ok?{c:"good",t:"ผ่านเกณฑ์",i:"✓"}:{c:"bad",t:"ไม่ผ่านเกณฑ์",i:"✕"}):chip({c:"na",t:"กรอกไม่ครบ",i:"…"}))+'</div>'+
-    '<div class="prog"><i style="width:'+(e.tot?e.cnt/e.tot*100:0)+'%"></i></div><div class="muted" style="font-size:12px">มีคะแนน '+e.cnt+' / '+e.tot+' เกณฑ์ · ผ่าน PLO '+e.passed+' / '+pr.plos.length+' (ต้อง ≥ '+pr.set.fraction+'%) · คะแนนรวมต้อง ≥ '+pr.set.overall+'</div></section>'+
+    '<div class="prog"><i style="width:'+(e.tot?e.cnt/e.tot*100:0)+'%"></i></div><div class="muted" style="font-size:12px">มีคะแนน '+e.cnt+' / '+e.tot+' เกณฑ์ · เกณฑ์ผ่าน PLO ≥ '+ten(pr.set.ploPass)+'/10 · ผ่าน PLO '+e.passed+' / '+pr.plos.length+' (ต้อง ≥ '+pr.set.fraction+'%) · คะแนนรวมต้อง ≥ '+pr.set.overall+'</div></section>'+
     '<section class="card"><h2>PLO ของนักศึกษา</h2>'+radar(axesOf(pr),[thresholdSeries(pr),{name:st.name,vals:e.rows.map(function(r){return r.pct}),color:"var(--s1)",fill:true,marks:true}])+insights(pr,e)+'</section>'+
     aiCard(pr,st,evs)+'</aside></div></div></div>';
   return h;
@@ -558,8 +596,8 @@ function insights(pr,e){
   if(!sc.length)return '<p class="muted">เลือกระดับในตารางเพื่อดูจุดแข็งและจุดที่ควรพัฒนา</p>';
   var top=sc.slice(0,2),bot=sc.filter(function(r){return r.pct<pr.set.ploPass});
   if(!bot.length)bot=sc.slice(-1);
-  return '<div class="insight"><b>จุดแข็ง:</b> '+top.map(function(r){return esc(r.p.code)+' ('+fmt(r.pct)+'%)'}).join(", ")+'</div>'+
-    '<div class="insight"><b>'+(bot[0].pct<pr.set.ploPass?"ควรปรับปรุง:":"ต่ำสุด:")+'</b> '+bot.map(function(r){return esc(r.p.code)+' ('+fmt(r.pct)+'%)'}).join(", ")+'</div>';
+  return '<div class="insight"><b>จุดแข็ง:</b> '+top.map(function(r){return esc(r.p.code)+' ('+ten(r.pct)+'/10)'}).join(", ")+'</div>'+
+    '<div class="insight"><b>'+(bot[0].pct<pr.set.ploPass?"ควรปรับปรุง:":"ต่ำสุด:")+'</b> '+bot.map(function(r){return esc(r.p.code)+' ('+ten(r.pct)+'/10)'}).join(", ")+'</div>';
 }
 function aiCard(pr,st,evs){
   var a=G.P.ai[st.id],ids=pr.plos.map(function(p){return p.id}),h='<section class="card"><h2>AI วิเคราะห์ความสอดคล้องกับ PLO</h2><div class="sub">อ่านความเห็นกรรมการ แล้วแจกสัดส่วน 100% ให้แต่ละ PLO และตรวจว่าคะแนนรูบริกขัดกับความเห็นหรือไม่</div>';
@@ -585,13 +623,13 @@ function viewIndicators(){
   var pr=G.P;
   if(!pr.plos.length)return emptyPlo();
   var h='<section class="card"><h2>เกณฑ์ตัดสินของหลักสูตร</h2><div class="sub">ใช้ตัดสินผ่านหรือไม่ผ่านจากคะแนนที่อาจารย์ให้</div><div class="kpis" style="margin-bottom:0">'+
-    '<div class="kpi"><div class="l">ผ่านต่อ PLO</div><div class="v">≥ '+pr.set.ploPass+'<small>%</small></div></div><div class="kpi"><div class="l">คะแนนรวม (เต็ม 100)</div><div class="v">≥ '+pr.set.overall+'</div></div>'+
+    '<div class="kpi"><div class="l">ผ่านต่อ PLO (คะแนนเต็ม 10)</div><div class="v">≥ '+ten(pr.set.ploPass)+'<small> (' +pr.set.ploPass+'%)</small></div></div><div class="kpi"><div class="l">คะแนนรวม (เต็ม 100)</div><div class="v">≥ '+pr.set.overall+'</div></div>'+
     '<div class="kpi"><div class="l">สัดส่วน PLO ที่ต้องผ่าน</div><div class="v">'+pr.set.fraction+'<small>%</small></div></div><div class="kpi"><div class="l">เป้านักศึกษาที่ผ่านแต่ละ PLO</div><div class="v">'+pr.set.target+'<small>%</small></div></div></div></section>';
   h+='<div class="stack" style="margin-top:16px">';
   pr.plos.forEach(function(p){
     h+='<section class="card"><div class="plo-head"><h2>'+esc(p.code)+' · '+esc(p.th)+'</h2><span class="chip na">สัดส่วนในคะแนนรวม '+wpct(pr,p)+'%</span></div><p style="margin:6px 0 10px">'+esc(cleanEn(p.en))+'</p>'+
-      '<div class="table-scroll"><table class="pv"><thead><tr><th>เกณฑ์</th>'+LEVELS.map(function(l){return '<th>'+l.v+' '+l.n+'</th>'}).join("")+'</tr></thead><tbody>'+
-      p.crit.map(function(c){return '<tr><td class="wrapt"><b>'+esc(c.name)+'</b></td>'+LEVELS.map(function(l){return '<td class="wrapt">'+esc(desc(c,l.v))+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div></section>';
+      '<div class="table-scroll"><table class="pv"><thead><tr><th rowspan="2">รายละเอียดตัวชี้วัด</th><th colspan="5" style="text-align:center">เกณฑ์การประเมิน (เต็ม 10)</th></tr><tr>'+BANDS.map(function(b){return '<th>'+b.n+'<br>'+b.k+' ('+bandRange(b)+' คะแนน)</th>'}).join("")+'</tr></thead><tbody>'+
+      p.crit.map(function(c){return '<tr><td class="wrapt"><b>'+esc(c.name)+'</b></td>'+BANDS.map(function(b,i){return '<td class="wrapt">'+esc(desc(c,i))+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div></section>';
   });
   h+='</div><p class="muted" style="font-size:12px">แหล่งข้อมูล: '+esc(pr.source)+(canCurr()?' · <a style="color:var(--accent);cursor:pointer" data-act="adminplo">แก้ PLO และรูบริก</a>':"")+'</p>';
   return h;
@@ -602,17 +640,17 @@ function viewIndicators(){
  * ============================================================ */
 var KINDS=[
  ["people","ตารางรายคน","ทั้งหลักสูตร แถวละ 1 คน: รหัส ชื่อ คะแนน PLO แต่ละข้อ คะแนนรวม สถานะ ความเห็น"],
- ["byrater","แยกตามกรรมการ","แถวละ 1 คน ต่อ 1 กรรมการ: ระดับ 1-4 ของทุกเกณฑ์ ความเห็น เวลาบันทึก"],
+ ["byrater","แยกตามกรรมการ","แถวละ 1 คน ต่อ 1 กรรมการ: คะแนน 0-10 ของทุกเกณฑ์ ความเห็น เวลาบันทึก"],
  ["person","รายงานรายบุคคล","เลือกนักศึกษา 1 คน ได้ใบสรุปผล PLO เกณฑ์ ระดับของกรรมการแต่ละคน และความเห็น"],
  ["share","สัดส่วน PLO รวม 100%","ภาพรวมทั้งรุ่น: ออกแบบ ส่วนร่วมจริง และความเห็นอาจารย์ (AI)"]
 ];
 function critCols(pr){var cols=[];pr.plos.forEach(function(p){p.crit.forEach(function(c){cols.push({p:p,c:c})})});return cols}
 function verdict(e){return e.complete?(e.ok?"ผ่าน":"ไม่ผ่าน"):"ยังไม่ครบ"}
 function rowsPeople(pr){
-  var L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","อาจารย์ที่ปรึกษา","จำนวนกรรมการ"].concat(pr.plos.map(function(p){return p.code+" (%)"})).concat(["คะแนนรวม (เต็ม 100)","ผ่าน PLO (ข้อ)","สถานะ","PLO ต่ำสุด","ความเห็นกรรมการ"])];
+  var L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","อาจารย์ที่ปรึกษา","จำนวนกรรมการ"].concat(pr.plos.map(function(p){return p.code+" (เต็ม 10)"})).concat(["คะแนนรวม (เต็ม 100)","ผ่าน PLO (ข้อ)","สถานะ","PLO ต่ำสุด","ความเห็นกรรมการ"])];
   G.P.students.forEach(function(s){
     var ev=evalsOf(s.id),e=evalStu(pr,meanOf(ev)),low=e.rows.filter(function(r){return r.pct!=null}).sort(function(a,b){return a.pct-b.pct})[0];
-    L.push([s.code,s.name,s.topic,s.advisor,ev.filter(function(x){return Object.keys(x.scores).length}).length].concat(e.rows.map(function(r){return r.pct==null?"":+r.pct.toFixed(1)})).concat([e.total==null?"":+e.total.toFixed(1),e.passed+"/"+pr.plos.length,verdict(e),low?low.p.code:"",ev.filter(function(x){return x.comment}).map(function(x){return x.name+": "+x.comment}).join(" | ")]));
+    L.push([s.code,s.name,s.topic,s.advisor,ev.filter(function(x){return Object.keys(x.scores).length}).length].concat(e.rows.map(function(r){return r.pct==null?"":+(r.pct/10).toFixed(1)})).concat([e.total==null?"":+e.total.toFixed(1),e.passed+"/"+pr.plos.length,verdict(e),low?low.p.code:"",ev.filter(function(x){return x.comment}).map(function(x){return x.name+": "+x.comment}).join(" | ")]));
   });
   return L;
 }
@@ -621,7 +659,7 @@ function rowsByRater(pr){
   G.P.students.forEach(function(s){
     evalsOf(s.id).forEach(function(e){
       if(!Object.keys(e.scores).length&&!e.comment)return;
-      L.push([s.code,s.name,s.topic,e.name,e.email].concat(cols.map(function(x){return e.scores[x.c.id]||""})).concat([e.comment,e.updatedAt?new Date(e.updatedAt).toLocaleString("th-TH"):""]));
+      L.push([s.code,s.name,s.topic,e.name,e.email].concat(cols.map(function(x){var v=e.scores[x.c.id];return isNum(v)?v:""})).concat([e.comment,e.updatedAt?new Date(e.updatedAt).toLocaleString("th-TH"):""]));
     });
   });
   return L;
@@ -630,11 +668,11 @@ function rowsPerson(pr,st){
   if(!st)return [["เลือกนักศึกษา"]];
   var ev=evalsOf(st.id).filter(function(x){return Object.keys(x.scores).length||x.comment}),sc=meanOf(ev),e=evalStu(pr,sc),a=G.P.ai[st.id];
   var L=[["รายงานผลการประเมินรายบุคคล"],["หลักสูตร",pr.name],["นักศึกษา",(st.code?st.code+" ":"")+st.name],["หัวข้อวิทยานิพนธ์",st.topic],["อาจารย์ที่ปรึกษา",st.advisor],["กรรมการที่ประเมิน",ev.map(function(x){return x.name}).join(", ")],["สถานะ",verdict(e)],["คะแนนรวม (เต็ม 100)",e.total==null?"":+e.total.toFixed(1)],[],
-    ["PLO","ชื่อ PLO","น้ำหนัก","คะแนน PLO (%)","เกณฑ์ผ่าน (%)","ผล"+(a?"":""),a?"สัดส่วนที่ความเห็นพูดถึง (%)":""]];
-  e.rows.forEach(function(r){L.push([r.p.code,r.p.th,r.p.weight,r.pct==null?"":+r.pct.toFixed(1),pr.set.ploPass,r.pct==null?"":(r.pct>=pr.set.ploPass?"ผ่าน":"ไม่ผ่าน"),a&&a.shares?a.shares[r.p.id]||0:""])});
+    ["PLO","ชื่อ PLO","น้ำหนัก","คะแนน PLO (เต็ม 10)","ช่วง","เกณฑ์ผ่าน (เต็ม 10)","ผล",a?"สัดส่วนที่ความเห็นพูดถึง (%)":""]];
+  e.rows.forEach(function(r){var b=r.pct==null?null:BANDS[bandIdx(r.pct/10)];L.push([r.p.code,r.p.th,r.p.weight,r.pct==null?"":+(r.pct/10).toFixed(1),b?b.k+" "+b.n:"",+(pr.set.ploPass/10).toFixed(1),r.pct==null?"":(r.pct>=pr.set.ploPass?"ผ่าน":"ไม่ผ่าน"),a&&a.shares?a.shares[r.p.id]||0:""])});
   L.push([]);
-  L.push(["PLO","เกณฑ์","ระดับเฉลี่ย"].concat(ev.map(function(x){return x.name})));
-  critCols(pr).forEach(function(x){L.push([x.p.code,x.c.name,sc[x.c.id]?+sc[x.c.id].toFixed(2):""].concat(ev.map(function(y){return y.scores[x.c.id]||""})))});
+  L.push(["PLO","เกณฑ์","คะแนนเฉลี่ย (เต็ม 10)","ช่วง"].concat(ev.map(function(x){return x.name})));
+  critCols(pr).forEach(function(x){var m=sc[x.c.id];L.push([x.p.code,x.c.name,isNum(m)?+m.toFixed(2):"",isNum(m)?BANDS[bandIdx(m)].k:""].concat(ev.map(function(y){var v=y.scores[x.c.id];return isNum(v)?v:""})))});
   L.push([]);L.push(["ความเห็นของกรรมการ"]);
   ev.forEach(function(x){if(x.comment)L.push([x.name,x.comment])});
   if(a&&a.summary){L.push([]);L.push(["สรุปโดย AI",a.summary])}
@@ -753,16 +791,16 @@ function viewAdminPlo(){
   h+=importCard();
   h+='<section class="card" style="margin-top:16px"><h2>เกณฑ์ตัดสินของหลักสูตร</h2><div class="sub">แหล่งข้อมูล: '+esc(pr.source)+'</div>'+
     '<div class="f-grid">'+fld("ชื่อหลักสูตร","text","name",pr.name)+fld("เกณฑ์ผ่านต่อ PLO (%)","number","ploPass",pr.set.ploPass)+fld("เกณฑ์คะแนนรวม (เต็ม 100)","number","overall",pr.set.overall)+fld("สัดส่วน PLO ที่ต้องผ่าน (%)","number","fraction",pr.set.fraction)+fld("เป้า % นักศึกษาที่ผ่านแต่ละ PLO","number","target",pr.set.target)+
-    '</div><p class="muted" style="font-size:12px;margin-bottom:0">ระดับ 1-4 แปลงเป็นเปอร์เซ็นต์ของ PLO ด้วย (ผลรวมระดับ ÷ (4 × จำนวนเกณฑ์)) แล้วถ่วงน้ำหนักเป็นคะแนนรวม 100 ถ้ามีกรรมการหลายคน ใช้ค่าเฉลี่ยระดับต่อเกณฑ์</p></section>';
-  h+='<div class="row" style="margin-block:16px 10px;justify-content:space-between"><h2 style="font-size:16px">PLO ที่ใช้เป็นตัวชี้วัด ('+pr.plos.length+' ข้อ)</h2><span class="chip good">แต่ละ PLO เต็ม 100% · คะแนนรวมเต็ม 100%</span></div><p class="muted" style="font-size:12px;margin:0 0 10px">ตั้งน้ำหนักเท่ากันทุก PLO (เช่น 100 ทั้งหมด) ได้ ระบบคิดคะแนนรวมเป็นค่าเฉลี่ยถ่วงน้ำหนักเต็ม 100% ไม่ต้องให้ผลรวมน้ำหนักเป็น 100 <button class="btn sm" data-act="eqw">ตั้งทุก PLO = 100</button></p><div class="stack">';
+    '</div><p class="muted" style="font-size:12px;margin-bottom:0">ทุก PLO ใช้เกณฑ์การประเมินเดียวกัน: แต่ละเกณฑ์ให้คะแนน 0-10 แบ่ง 5 ช่วง ('+BANDS.map(function(b){return b.k+" "+bandRange(b)+" "+b.n}).join(", ")+') คะแนน PLO = ค่าเฉลี่ยของเกณฑ์ใน PLO นั้น (เต็ม 10) แล้วถ่วงน้ำหนักเป็นคะแนนรวม 100 ถ้ามีกรรมการหลายคน ใช้ค่าเฉลี่ยของกรรมการต่อเกณฑ์ · เกณฑ์ผ่านต่อ PLO '+pr.set.ploPass+'% = '+ten(pr.set.ploPass)+'/10</p></section>';
+  h+='<div class="row" style="margin-block:16px 10px;justify-content:space-between"><h2 style="font-size:16px">PLO ที่ใช้เป็นตัวชี้วัด ('+pr.plos.length+' ข้อ)</h2><span class="row"><span class="chip good">แต่ละ PLO เต็ม 10 · คะแนนรวมเต็ม 100</span>'+(G.boot.aiEnabled&&pr.plos.length?'<button class="btn sm primary" data-act="aidraftall"'+(G.busy.all?" disabled":"")+'>'+(G.busy.all?"AI กำลังร่าง "+G.busy.all+"…":"ให้ AI ร่างเกณฑ์ 5 ช่วงทุก PLO")+'</button>':"")+'</span></div><p class="muted" style="font-size:12px;margin:0 0 10px">ตั้งน้ำหนักเท่ากันทุก PLO (เช่น 100 ทั้งหมด) ได้ ระบบคิดคะแนนรวมเป็นค่าเฉลี่ยถ่วงน้ำหนักเต็ม 100% ไม่ต้องให้ผลรวมน้ำหนักเป็น 100 <button class="btn sm" data-act="eqw">ตั้งทุก PLO = 100</button></p><div class="stack">';
   if(!pr.plos.length)h+='<div class="card empty">ยังไม่มี PLO นำเข้าจากกล่องด้านบน</div>';
   pr.plos.forEach(function(p,pi){
     h+='<div class="ploedit"><div class="pe-top">'+fld("รหัส","text","p:"+pi+":code",p.code)+fld("ชื่อสั้น (ไทย)","text","p:"+pi+":th",p.th)+fld("น้ำหนัก (เทียบกัน)","number","p:"+pi+":weight",p.weight)+'<div class="muted" style="font-size:12px;align-self:end">= '+wpct(pr,p)+'% ของคะแนนรวม</div></div>'+
       '<div class="f"><label for="x-'+pi+'">ข้อความ PLO จากเล่มหลักสูตร</label><textarea id="x-'+pi+'" rows="2" data-f="p:'+pi+':en">'+esc(p.en)+'</textarea></div>';
     p.crit.forEach(function(c,ci){
       h+='<div class="crit"><div class="row"><div class="f" style="flex:1;min-width:200px"><label for="c-'+pi+'-'+ci+'">เกณฑ์ที่ '+(ci+1)+'</label><input type="text" id="c-'+pi+'-'+ci+'" data-f="c:'+pi+':'+ci+':name" value="'+esc(c.name)+'"></div><button class="btn sm danger" data-act="delcrit" data-p="'+pi+'" data-c="'+ci+'">ลบเกณฑ์</button></div>'+
-        '<details><summary>คำอธิบายระดับ 1-4'+(c.desc?" (แก้เองแล้ว)":" (ร่างอัตโนมัติ)")+'</summary><div class="lvl-edit">'+
-        LEVELS.map(function(l){return '<div><label for="d-'+pi+'-'+ci+'-'+l.v+'">ระดับ '+l.v+' '+l.n+'</label><textarea id="d-'+pi+'-'+ci+'-'+l.v+'" rows="2" data-f="d:'+pi+':'+ci+':'+l.v+'">'+esc(desc(c,l.v))+'</textarea></div>'}).join("")+
+        '<details><summary>เกณฑ์การประเมิน 5 ช่วง (A-E)'+(c.desc?" (แก้เองแล้ว)":" (ร่างอัตโนมัติ)")+'</summary><div class="lvl-edit">'+
+        BANDS.map(function(b,bi){return '<div><label for="d-'+pi+'-'+ci+'-'+bi+'">'+b.k+' ('+bandRange(b)+' คะแนน) '+b.n+'</label><textarea id="d-'+pi+'-'+ci+'-'+bi+'" rows="2" data-f="d:'+pi+':'+ci+':'+bi+'">'+esc(desc(c,bi))+'</textarea></div>'}).join("")+
         (c.desc?'<div><button class="btn sm" data-act="resetdesc" data-p="'+pi+'" data-c="'+ci+'">กลับไปใช้ร่างอัตโนมัติ</button></div>':"")+'</div></details></div>';
     });
     h+='<div class="row"><button class="btn sm" data-act="addcrit" data-p="'+pi+'">+ เพิ่มเกณฑ์</button>'+(G.boot.aiEnabled?'<button class="btn sm" data-act="aidraft" data-p="'+pi+'"'+(G.busy.draft===pi?" disabled":"")+'>'+(G.busy.draft===pi?"AI กำลังร่าง…":"ให้ AI ร่างเกณฑ์ใหม่")+'</button>':"")+'<button class="btn sm danger" data-act="delplo" data-p="'+pi+'">ลบ PLO นี้</button></div></div>';
@@ -773,17 +811,17 @@ function viewAdminPlo(){
 }
 function importCard(){
   var pv=G.preview;
-  var h='<section class="card"><h2>นำเข้า PLO จากเล่มหลักสูตร</h2><div class="sub">เลือกวิธีใดวิธีหนึ่ง แล้วกด "แยก PLO" เพื่อตรวจก่อนนำเข้า ระบบจะร่างเกณฑ์รูบริกให้ตามคำกริยาของ PLO แต่ละข้อ</div><div class="steps">'+
+  var h='<section class="card"><h2>นำเข้า PLO จากเล่มหลักสูตร</h2><div class="sub">เลือกวิธีใดวิธีหนึ่ง แล้วกด "แยก PLO" (หรือให้ AI ดึง PLO เมื่อเล่มหลักสูตรไม่ได้เขียนเป็น PLO1, PLO2 …) เพื่อตรวจก่อนนำเข้า จำนวน PLO แต่ละหลักสูตรไม่เท่ากันได้ ทุก PLO ใช้เกณฑ์ 5 ช่วงคะแนนเดียวกัน</div><div class="steps">'+
     '<div class="step"><h3>1) วางข้อความ</h3><span class="muted" style="font-size:12px">วางส่วน PLO ที่ขึ้นต้นด้วย PLO1, PLO2 … ในช่องด้านล่าง</span></div>'+
     '<div class="step"><h3>2) อัปโหลดไฟล์</h3><input type="file" id="imp-file" accept=".txt,.md,.csv,text/plain" aria-label="เลือกไฟล์"><span class="muted" style="font-size:12px">รองรับ .txt .md .csv (ไฟล์ Word/PDF ให้คัดลอกข้อความมาวาง หรือแปลงเป็น Google Docs แล้วใช้วิธีที่ 3)</span></div>'+
     '<div class="step"><h3>3) ลิงก์ Google Docs</h3><input type="text" id="imp-doc" placeholder="วางลิงก์เอกสาร" aria-label="ลิงก์ Google Docs"><button class="btn sm" data-act="fetchdoc"'+(G.busy.doc?" disabled":"")+'>'+(G.busy.doc?"กำลังดึง…":"ดึงข้อความจากเอกสาร")+'</button></div></div>'+
     '<div class="f" style="margin-top:12px"><label for="imp-text">ข้อความ PLO</label><textarea id="imp-text" rows="6" placeholder="PLO1: Exhibit honest, disciplined ...&#10;PLO2: Explain substantial body of knowledge ...">'+esc(G.impText||"")+'</textarea></div>'+
-    '<div class="row" style="margin-top:8px"><button class="btn primary" data-act="parse">แยก PLO</button><span class="muted" style="font-size:12px">หรือกรอกในชีต PLOs / Criteria ของสเปรดชีตหลังบ้านโดยตรง</span></div>';
+    '<div class="row" style="margin-top:8px"><button class="btn primary" data-act="parse">แยก PLO</button>'+(G.boot.aiEnabled?'<button class="btn" data-act="aiparse"'+(G.busy.ext?" disabled":"")+'>'+(G.busy.ext?"AI กำลังอ่านเอกสาร…":"ให้ AI ดึง PLO")+'</button>':"")+'<span class="muted" style="font-size:12px">หรือกรอกในชีต PLOs / Criteria ของสเปรดชีตหลังบ้านโดยตรง</span></div>';
   if(pv){
     h+='<div style="margin-top:14px"><b>พบ '+pv.length+' PLO</b>'+(pv.length?'':' <span class="muted">ไม่พบบรรทัดที่ขึ้นต้นด้วย PLO1, PLO2 …</span>')+'</div>';
     if(pv.length){
       h+='<div class="table-scroll"><table class="pv"><thead><tr><th>รหัส</th><th>ชื่อสั้น (แก้ได้)</th><th>ข้อความ</th><th>เกณฑ์ที่ร่างให้</th></tr></thead><tbody>'+pv.map(function(x,i){return '<tr><td>'+esc(x.code)+'</td><td><input type="text" data-f="pv:'+i+'" value="'+esc(x.titleTh)+'" aria-label="ชื่อสั้น"></td><td class="wrapt">'+esc(x.textEn)+'</td><td class="wrapt">'+esc(x.crit.join(" · "))+'</td></tr>'}).join("")+'</tbody></table></div>'+
-        '<div class="row" style="margin-top:10px"><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:replace"'+(G.importMode==="replace"?" checked":"")+'> แทนที่ PLO เดิมทั้งหมด</label><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:append"'+(G.importMode==="append"?" checked":"")+'> เพิ่มต่อท้าย</label><button class="btn primary" data-act="doimport"'+(G.busy.imp?" disabled":"")+'>'+(G.busy.imp?"กำลังนำเข้า…":"นำเข้า "+pv.length+" PLO")+'</button></div>'+
+        '<div class="row" style="margin-top:10px"><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:replace"'+(G.importMode==="replace"?" checked":"")+'> แทนที่ PLO เดิมทั้งหมด</label><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:append"'+(G.importMode==="append"?" checked":"")+'> เพิ่มต่อท้าย</label>'+(G.boot.aiEnabled?'<label class="row" style="gap:6px"><input type="checkbox" data-f="autodraft"'+(G.autoDraft?" checked":"")+'> ให้ AI ร่างเกณฑ์ 5 ช่วงทุก PLO หลังนำเข้า</label>':"")+'<button class="btn primary" data-act="doimport"'+(G.busy.imp?" disabled":"")+'>'+(G.busy.imp?"กำลังนำเข้า…":"นำเข้า "+pv.length+" PLO")+'</button></div>'+
         (G.importMode==="replace"&&G.P.plos.length&&G.P.evals.length?'<div class="note" style="margin-top:10px;margin-bottom:0"><b>ระวัง</b><span>การแทนที่จะสร้างเกณฑ์ใหม่ คะแนนที่กรรมการกรอกไว้กับเกณฑ์เดิมจะไม่ถูกนำมาคำนวณ</span></div>':"");
     }
   }
@@ -900,7 +938,7 @@ function xBody(x){
  * ============================================================ */
 function render(){
   var m=G.me;
-  $("who").innerHTML='<span>'+esc(m.name)+'</span><span class="chip na">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+(canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
+  $("who").innerHTML=themeBtn()+'<span>'+esc(m.name)+'</span><span class="chip na">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+(canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
   var c='<a data-act="home">หน้าหลัก</a>';
   if(G.view==="faculty"){var f=facOf(G.facId);c+=' › <b>'+esc(f?f.name:"")+'</b>'}
   if(G.view==="program"){var f2=facOf(G.facId);c+=' › <a data-act="fac" data-id="'+esc(G.facId)+'">'+esc(f2?f2.name:G.P.facultyName)+'</a> › <b>'+esc(G.P.name)+'</b>'}
@@ -965,12 +1003,35 @@ function applyField(key,val){
   if(a[0]==="s"){if(a[1]==="name")pr.name=val||pr.name;else pr.set[a[1]]=Math.max(0,Math.min(100,Number(val)||0))}
   else if(a[0]==="p"){var p=pr.plos[+a[1]];if(a[2]==="weight")p.weight=Math.max(0,Number(val)||0);else p[a[2]]=val}
   else if(a[0]==="c"){pr.plos[+a[1]].crit[+a[2]].name=val}
-  else if(a[0]==="d"){var c=pr.plos[+a[1]].crit[+a[2]];if(!c.desc)c.desc=[1,2,3,4].map(function(v){return gen(c.name,v)});c.desc[+a[3]-1]=val}
+  else if(a[0]==="d"){var c=pr.plos[+a[1]].crit[+a[2]];if(!c.desc)c.desc=BANDS.map(function(b,i){return gen(c.name,i)});while(c.desc.length<BANDS.length)c.desc.push(gen(c.name,c.desc.length));c.desc[+a[3]]=val}
   G.dirty=true;
 }
 async function saveProgram(){
   try{G.P=await call("saveProgram",G.P);G.dirty=false;await refreshBoot();render();toast("บันทึกแล้ว")}catch(e){fail(e)}
 }
+
+/** ให้ AI ร่างเกณฑ์ 5 ช่วงทีละ PLO (เรียกทีละข้อเพื่อไม่ให้หมดเวลา) แล้วให้ผู้ใช้ตรวจก่อนบันทึก */
+async function draftAll(){
+  var pr=G.P;if(!pr||G.busy.all)return;
+  if(G.dirty){toast("บันทึกการแก้ไขที่ค้างอยู่ก่อน แล้วค่อยให้ AI ร่างเกณฑ์");return}
+  var ok=0,bad=[];
+  for(var i=0;i<pr.plos.length;i++){
+    var p=pr.plos[i];G.busy.all=(i+1)+"/"+pr.plos.length;renderKeep();
+    try{var d=await call("aiDraftRubric",pr.id,p.id);p.crit=d.map(function(x){return {id:rid("c"),name:x.name,desc:x.bands}});ok++;G.dirty=true}
+    catch(e){bad.push(p.code+": "+errMsg(e))}
+  }
+  G.busy.all=null;renderKeep();
+  toast("AI ร่างเกณฑ์แล้ว "+ok+"/"+pr.plos.length+" PLO"+(bad.length?" (ไม่สำเร็จ: "+bad.join("; ")+")":"")+" ตรวจแก้แล้วกดบันทึก");
+}
+
+/* ---------- theme (สว่าง / มืด) ---------- */
+function sysDark(){try{return window.matchMedia("(prefers-color-scheme: dark)").matches}catch(e){return false}}
+function isDark(){return G.theme?G.theme==="dark":sysDark()}
+function applyTheme(){var r=document.documentElement;if(G.theme)r.setAttribute("data-theme",G.theme);else r.removeAttribute("data-theme")}
+function themeBtn(){var d=isDark();return '<button class="btn sm theme-btn" data-act="theme" aria-label="'+(d?"เปลี่ยนเป็นโหมดสว่าง":"เปลี่ยนเป็นโหมดมืด")+'" title="'+(d?"เปลี่ยนเป็นโหมดสว่าง":"เปลี่ยนเป็นโหมดมืด")+'"><span aria-hidden="true">'+(d?"☀":"☾")+'</span> '+(d?"สว่าง":"มืด")+'</button>'}
+try{var th=localStorage.getItem("plo-theme");if(th==="light"||th==="dark")G.theme=th}catch(e){}
+applyTheme();
+try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){if(!G.theme&&G.boot)render()})}catch(e){}
 
 /* ---------- roster parsing ---------- */
 function splitLine(line,d){
@@ -1031,6 +1092,7 @@ document.addEventListener("change",async function(ev){
     if(f==="expstu"){G.exp.stu=t.value;render();return}
     if(f.indexOf("blend:")===0){G.blend[f.slice(6)]=t.checked;render();return}
     if(f.indexOf("imode:")===0){G.importMode=f.slice(6);render();return}
+    if(f==="autodraft"){G.autoDraft=t.checked;return}
     if(f.indexOf("pv:")===0){G.preview[+f.slice(3)].titleTh=t.value;return}
     if(f==="apfac"){
       var fac=facOf(t.value);G.admin.facId=t.value;
@@ -1065,7 +1127,8 @@ document.addEventListener("change",async function(ev){
 async function act(el){
   var a=el.getAttribute("data-act"),pr=G.P;
   try{
-    if(a==="home"){G.view="home";render();window.scrollTo(0,0)}
+    if(a==="theme"){G.theme=isDark()?"light":"dark";applyTheme();try{localStorage.setItem("plo-theme",G.theme)}catch(e){}renderKeep()}
+    else if(a==="home"){G.view="home";render();window.scrollTo(0,0)}
     else if(a==="fac"){G.facId=el.getAttribute("data-id");G.view="faculty";render();window.scrollTo(0,0)}
     else if(a==="prog"){await goProgram(el.getAttribute("data-id"))}
     else if(a==="cross"){await openCross()}
@@ -1094,7 +1157,7 @@ async function act(el){
     else if(a==="score"){
       var st=stu();if(!st||!canScore())return;
       var me2=myEval(st.id),c=el.getAttribute("data-c"),v=+el.getAttribute("data-v");
-      var wasNew=!me2.scores[c];
+      var wasNew=!isNum(me2.scores[c]);
       if(me2.scores[c]===v)delete me2.scores[c];else me2.scores[c]=v;
       renderKeep();queueSave(st.id);
       if(wasNew&&window.innerWidth<700){var nu2=document.querySelector('.crit-card[data-done="0"]');if(nu2)nu2.scrollIntoView({behavior:"smooth",block:"center"})}
@@ -1146,7 +1209,7 @@ async function act(el){
       if(G.busy.blend||!G.items.length)return;G.busy.blend=true;render();
       try{
         var srcs=G.cross.programs.filter(function(p){return G.blend[p.id]});
-        var list=G.items.map(function(it,i){return {code:"PLO"+(i+1),titleTh:it.plo.th,textEn:cleanEn(it.plo.en),crit:it.plo.crit.map(function(c){return c.name})}});
+        var list=G.items.map(function(it,i){return {code:"PLO"+(i+1),titleTh:it.plo.th,textEn:cleanEn(it.plo.en),crit:it.plo.crit.map(function(c){return {name:c.name,bands:c.desc&&c.desc.length===5?c.desc:null}})}});
         var nr=await call("createProgram",srcs[0].facultyId,"หลักสูตรผสม: "+srcs.map(function(p){return p.name}).join(" + "),"");
         await call("importPlos",nr.id,list,"replace");
         await refreshBoot();G.busy.blend=false;await openAdmin("plo",nr.id);toast("สร้างหลักสูตรใหม่แล้ว ตรวจและแก้ข้อความ PLO ได้ที่นี่");
@@ -1158,10 +1221,19 @@ async function act(el){
       try{G.impText=await call("fetchDocText",u);G.busy.doc=false;render();toast("ดึงข้อความแล้ว กด แยก PLO")}catch(e5){G.busy.doc=false;render();fail(e5)}
     }
     else if(a==="parse"){G.impText=$("imp-text").value;G.preview=await call("parsePloText",G.impText);render()}
+    else if(a==="aiparse"){
+      if(G.busy.ext)return;G.impText=$("imp-text").value;if(!G.impText.trim()){toast("วางข้อความ อัปโหลดไฟล์ หรือดึงจาก Google Docs ก่อน");return}
+      G.busy.ext=true;render();
+      try{G.preview=await call("aiExtractPlos",G.impText);toast("AI พบ "+G.preview.length+" PLO ตรวจแล้วกดนำเข้า")}catch(e10){fail(e10)}
+      G.busy.ext=false;render();
+    }
+    else if(a==="aidraftall"){await draftAll()}
     else if(a==="doimport"){
       if(G.busy.imp)return;G.busy.imp=true;render();
-      try{G.P=await call("importPlos",pr.id,G.preview,G.importMode);G.preview=null;G.impText="";G.dirty=false;await refreshBoot();toast("นำเข้า PLO แล้ว")}catch(e6){fail(e6)}
+      var imported=false;
+      try{G.P=await call("importPlos",pr.id,G.preview,G.importMode);G.preview=null;G.impText="";G.dirty=false;await refreshBoot();imported=true;toast("นำเข้า PLO แล้ว")}catch(e6){fail(e6)}
       G.busy.imp=false;render();
+      if(imported&&G.autoDraft&&G.boot.aiEnabled)await draftAll();
     }
     else if(a==="rparse"){G.admin.roster.text=$("roster-text").value;G.admin.roster.list=parseRoster(G.admin.roster.text);if(!G.admin.roster.list.length)toast("ไม่พบรายชื่อ ตรวจรูปแบบข้อมูลอีกครั้ง");render()}
     else if(a==="rimport"){
@@ -1182,7 +1254,7 @@ async function act(el){
       G.busy.draft=pi;render();
       try{
         var drafts=await call("aiDraftRubric",pr.id,p3.id);
-        p3.crit=drafts.map(function(d){return {id:rid("c"),name:d.name,desc:d.levels}});
+        p3.crit=drafts.map(function(d){return {id:rid("c"),name:d.name,desc:d.bands}});
         G.dirty=true;toast("AI ร่างเกณฑ์ให้แล้ว ตรวจแก้ แล้วกดบันทึก (เกณฑ์เดิมของ PLO นี้จะถูกแทนที่)");
       }catch(e8){fail(e8)}
       G.busy.draft=null;render();
@@ -1200,9 +1272,10 @@ async function act(el){
 }
 document.addEventListener("click",function(ev){var el=ev.target.closest&&ev.target.closest("[data-act]");if(el)act(el)});
 document.addEventListener("keydown",function(ev){
-  if(/^[1-4]$/.test(ev.key)&&ev.target.closest&&!/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)){
+  var kk=String(ev.key||"").toUpperCase(),kb=BANDS.find(function(b){return b.k===kk});
+  if((/^[0-9]$/.test(kk)||kb)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&ev.target.closest&&!/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)){
     var cc=ev.target.closest(".crit-card");
-    if(cc){var bt=cc.querySelector('.lvl[data-v="'+ev.key+'"]');if(bt&&!bt.disabled){ev.preventDefault();act(bt)}}
+    if(cc){var bt=cc.querySelector('.lvl[data-v="'+(kb?kb.max:kk)+'"]');if(bt&&!bt.disabled){ev.preventDefault();act(bt)}}
     return;
   }
   if(ev.key!=="Enter")return;var t=ev.target;

@@ -15,17 +15,29 @@ var SCHEMA = {
   Faculties: ['facultyId', 'name', 'order'],
   Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target'],
   PLOs: ['programId', 'ploId', 'code', 'titleTh', 'textEn', 'weight', 'order'],
-  Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order'],
+  // d1-d4 = คำอธิบายระดับแบบเก่า (1-4); bA-bE = คำอธิบาย 5 ช่วงคะแนนแบบใหม่ (A 9-10, B 7-8, C 5-6, D 3-4, E 0-2)
+  Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order', 'bA', 'bB', 'bC', 'bD', 'bE'],
   Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code'],
   // Evals = หนึ่งแถวต่อกรรมการต่อนักศึกษา (ความเห็น); คะแนนรายเกณฑ์อยู่ในชีต Scores (อ่านง่าย 1 แถวต่อ 1 เกณฑ์)
   Evals: ['evalKey', 'programId', 'studentId', 'email', 'name', 'scoresJson', 'comment', 'updatedAt'],
-  Scores: ['evalKey', 'programId', 'studentId', 'studentCode', 'studentName', 'email', 'evaluator', 'ploCode', 'critId', 'critName', 'level', 'updatedAt'],
+  // level = คะแนน 0-10 เมื่อ scale = 10; แถวเก่าที่ไม่มี scale คือระดับ 1-4 (ระบบแปลงเป็นเต็ม 10 ให้ตอนอ่าน)
+  Scores: ['evalKey', 'programId', 'studentId', 'studentCode', 'studentName', 'email', 'evaluator', 'ploCode', 'critId', 'critName', 'level', 'updatedAt', 'scale'],
   AI: ['studentId', 'programId', 'resultJson', 'updatedAt'],
   CrossAI: ['key', 'resultJson', 'updatedAt'],
   Users: ['email', 'name', 'role', 'programs']
 };
 
 var SAMPLE_EMAIL = 'sample@example.com';
+
+/* เกณฑ์การประเมิน 5 ช่วง ใช้เหมือนกันทุก PLO ทุกหลักสูตร: แต่ละเกณฑ์ให้คะแนน 0-10 */
+var MAX_SCORE = 10;
+var BANDS = [
+  { key: 'A', name: 'สูงกว่าเป้าหมายมาก', min: 9, max: 10 },
+  { key: 'B', name: 'ตามเป้าหมาย', min: 7, max: 8 },
+  { key: 'C', name: 'ใกล้เคียงเป้าหมาย', min: 5, max: 6 },
+  { key: 'D', name: 'ต่ำกว่าเป้าหมาย', min: 3, max: 4 },
+  { key: 'E', name: 'ต่ำกว่าเป้าหมายมาก', min: 0, max: 2 }
+];
 
 /* ============================================================
  * Web app entry
@@ -254,16 +266,16 @@ function seedSampleData() {
         var sid = pid + '_s' + (i + 1);
         var sname = 'นักศึกษาตัวอย่าง ' + (i < 9 ? '0' : '') + (i + 1), scode = 'S' + pid.toUpperCase() + ('0' + (i + 1)).slice(-2);
         students.push({ studentId: sid, programId: pid, code: scode, name: sname, topic: 'หัวข้อวิทยานิพนธ์ตัวอย่าง ' + (i + 1), advisor: 'อาจารย์ที่ปรึกษาตัวอย่าง', sample: true });
-        var base = 2.3 + rnd() * 1.4, sc = {}, pcts = [];
+        var base = 5.2 + rnd() * 3.6, sc = {}, pcts = [];
         prog.plos.forEach(function (p, pi) {
           var sum = 0, n = 0;
           p.crit.forEach(function (c) {
             if (i === 9 && pi >= 3) return;
-            var v = Math.max(1, Math.min(4, Math.round(base + ((bias[pid] || {})[p.code] || 0) + (rnd() - 0.5) * 1.3)));
+            var v = Math.max(0, Math.min(MAX_SCORE, Math.round(base + ((bias[pid] || {})[p.code] || 0) * 2.5 + (rnd() - 0.5) * 3.2)));
             sc[c.id] = v; sum += v; n++;
-            scoreRows.push({ evalKey: sid + '|' + SAMPLE_EMAIL, programId: pid, studentId: sid, studentCode: scode, studentName: sname, email: SAMPLE_EMAIL, evaluator: 'กรรมการตัวอย่าง', ploCode: p.code, critId: c.id, critName: c.name, level: v, updatedAt: new Date().toISOString() });
+            scoreRows.push({ evalKey: sid + '|' + SAMPLE_EMAIL, programId: pid, studentId: sid, studentCode: scode, studentName: sname, email: SAMPLE_EMAIL, evaluator: 'กรรมการตัวอย่าง', ploCode: p.code, critId: c.id, critName: c.name, level: v, updatedAt: new Date().toISOString(), scale: MAX_SCORE });
           });
-          if (n) pcts.push({ code: p.code, pct: sum / (4 * n) });
+          if (n) pcts.push({ code: p.code, pct: sum / (MAX_SCORE * n) });
         });
         pcts.sort(function (a, b) { return b.pct - a.pct; });
         var cm = '', C = COMM_[pid] || {};
@@ -304,6 +316,7 @@ function getBootstrap() {
   return {
     me: me,
     aiEnabled: !!PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY'),
+    bands: BANDS, maxScore: MAX_SCORE,
     sheetUrl: me.role === 'admin' ? ss_().getUrl() : '',
     faculties: fac.filter(function (f) {
       return me.role === 'admin' || prs.some(function (p) { return s_(p.facultyId) === s_(f.facultyId) && inScope_(me, p.programId); });
@@ -333,12 +346,30 @@ function loadProgram_(pid) {
       return {
         id: s_(p.ploId), code: s_(p.code), th: s_(p.titleTh), en: s_(p.textEn), weight: num_(p.weight, 0),
         crit: crits.filter(function (c) { return s_(c.ploId) === s_(p.ploId); }).map(function (c) {
-          var d = [s_(c.d1), s_(c.d2), s_(c.d3), s_(c.d4)];
-          return { id: s_(c.critId), name: s_(c.name), desc: d.join('') ? d : null };
+          return { id: s_(c.critId), name: s_(c.name), desc: bandDesc_(c) };
         })
       };
     })
   };
+}
+
+/**
+ * คำอธิบาย 5 ช่วง [A,B,C,D,E] ของเกณฑ์ หรือ null ถ้ายังไม่ได้เขียน (หน้าเว็บจะใช้ร่างอัตโนมัติ)
+ * ข้อมูลรุ่นเก่า (d1-d4) ย้ายมาให้: ระดับ 4→A, 3→B, 2→C, 1→D และ E ใช้ร่างอัตโนมัติ
+ */
+function bandDesc_(c) {
+  var b = [s_(c.bA), s_(c.bB), s_(c.bC), s_(c.bD), s_(c.bE)];
+  if (b.join('')) return b;
+  var d = [s_(c.d4), s_(c.d3), s_(c.d2), s_(c.d1), ''];
+  return d.join('') ? d : null;
+}
+
+/** แปลงคะแนนจากชีตเป็นเต็ม 10: แถวที่ไม่มี scale เป็นข้อมูลเก่าระดับ 1-4 */
+function toScore10_(v, scale) {
+  v = Number(v);
+  if (v === null || isNaN(v)) return null;
+  if (Number(scale) === MAX_SCORE) return v >= 0 && v <= MAX_SCORE ? v : null;
+  return v >= 1 && v <= 4 ? v * MAX_SCORE / 4 : null;
 }
 
 /** รวมความเห็น (Evals) กับคะแนนรายเกณฑ์ (Scores) เป็นรายการประเมินต่อกรรมการ; รองรับข้อมูลรุ่นเก่าที่เก็บเป็น scoresJson */
@@ -346,12 +377,17 @@ function loadEvals_(pid) {
   var byKey = {};
   readAll_('Scores').forEach(function (r) {
     if (pid && s_(r.programId) !== pid) return;
-    var k = s_(r.evalKey), v = Number(r.level);
-    if (v >= 1 && v <= 4) (byKey[k] = byKey[k] || {})[s_(r.critId)] = v;
+    if (r.level === '' || r.level === null) return;
+    var k = s_(r.evalKey), v = toScore10_(r.level, r.scale);
+    if (v !== null) (byKey[k] = byKey[k] || {})[s_(r.critId)] = v;
   });
   return readAll_('Evals').filter(function (e) { return !pid || s_(e.programId) === pid; }).map(function (e) {
     var sc = byKey[s_(e.evalKey)];
-    if (!sc) { sc = {}; try { sc = JSON.parse(s_(e.scoresJson) || '{}'); } catch (x) { } }
+    if (!sc) {
+      sc = {};
+      var old = {}; try { old = JSON.parse(s_(e.scoresJson) || '{}'); } catch (x) { }
+      Object.keys(old).forEach(function (c) { var v = toScore10_(old[c], 4); if (v !== null) sc[c] = v; });
+    }
     return { studentId: s_(e.studentId), programId: s_(e.programId), email: s_(e.email), name: s_(e.name), scores: sc, comment: s_(e.comment), updatedAt: s_(e.updatedAt) };
   });
 }
@@ -385,7 +421,7 @@ function getCrossData() {
     var list = byStu[sid] || [], real = list.filter(function (x) { return x.real; });
     if (real.length) list = real;
     var acc = {};
-    list.forEach(function (x) { Object.keys(x.scores).forEach(function (c) { if (x.scores[c]) (acc[c] = acc[c] || []).push(x.scores[c]); }); });
+    list.forEach(function (x) { Object.keys(x.scores).forEach(function (c) { var v = x.scores[c]; if (typeof v === 'number') (acc[c] = acc[c] || []).push(v); }); });
     var out = {};
     Object.keys(acc).forEach(function (c) { out[c] = acc[c].reduce(function (a, b) { return a + b; }, 0) / acc[c].length; });
     return out;
@@ -516,8 +552,8 @@ function saveProgram(prog) {
       var ploId = s_(p.id) || uid_('l');
       plos.push({ programId: pid, ploId: ploId, code: s_(p.code), titleTh: s_(p.th), textEn: s_(p.en), weight: Math.max(0, num_(p.weight, 0)), order: i + 1 });
       p.crit.forEach(function (c, ci) {
-        var d = c.desc || ['', '', '', ''];
-        crits.push({ programId: pid, ploId: ploId, critId: s_(c.id) || uid_('c'), name: s_(c.name), d1: s_(d[0]), d2: s_(d[1]), d3: s_(d[2]), d4: s_(d[3]), order: ci + 1 });
+        var b = c.desc || ['', '', '', '', ''];
+        crits.push({ programId: pid, ploId: ploId, critId: s_(c.id) || uid_('c'), name: s_(c.name), d1: '', d2: '', d3: '', d4: '', order: ci + 1, bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]) });
       });
     });
     writeAll_('PLOs', readAll_('PLOs').filter(function (p) { return s_(p.programId) !== pid; }).concat(plos));
@@ -542,13 +578,15 @@ function importPlos(pid, list, mode) {
       oldC = readAll_('Criteria').filter(function (c) { return s_(c.programId) === pid; });
     }
     var plos = [], crits = [], start = oldP.length;
-    var w = Math.floor(100 / list.length), rest = 100 - w * list.length;
     list.forEach(function (it, i) {
       var ploId = uid_('l');
       var text = s_(it.textEn);
-      plos.push({ programId: pid, ploId: ploId, code: s_(it.code) || ('PLO' + (start + i + 1)), titleTh: s_(it.titleTh) || shortTitle_(text), textEn: text, weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? num_(it.weight, w) : 100, order: start + i + 1 });
-      var names = (it.crit && it.crit.length) ? it.crit : draftCriteria_(text + ' ' + s_(it.titleTh));
-      names.forEach(function (n, ci) { crits.push({ programId: pid, ploId: ploId, critId: uid_('c'), name: s_(n), d1: '', d2: '', d3: '', d4: '', order: ci + 1 }); });
+      plos.push({ programId: pid, ploId: ploId, code: s_(it.code) || ('PLO' + (start + i + 1)), titleTh: s_(it.titleTh) || shortTitle_(text), textEn: text, weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? Math.max(0, num_(it.weight, 100)) : 100, order: start + i + 1 });
+      var cs = (it.crit && it.crit.length) ? it.crit : draftCriteria_(text + ' ' + s_(it.titleTh));
+      cs.forEach(function (c, ci) {
+        var name = typeof c === 'object' && c ? c.name : c, b = (c && c.bands && c.bands.length === 5) ? c.bands : ['', '', '', '', ''];
+        crits.push({ programId: pid, ploId: ploId, critId: uid_('c'), name: s_(name), d1: '', d2: '', d3: '', d4: '', order: ci + 1, bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]) });
+      });
     });
     writeAll_('PLOs', keepP.concat(oldP, plos));
     writeAll_('Criteria', keepC.concat(oldC, crits));
@@ -612,6 +650,8 @@ function updateStudent(pid, sid, fields) {
 function deleteStudent(pid, sid) {
   needP_(['admin', 'curriculum'], pid);
   return withLock_(function () {
+    // กันลบนักศึกษาของหลักสูตรอื่นที่ไม่ได้รับผิดชอบ
+    if (!readAll_('Students').some(function (s) { return s_(s.studentId) === s_(sid) && s_(s.programId) === s_(pid); })) throw new Error('ไม่พบนักศึกษาในหลักสูตรนี้');
     writeAll_('Students', readAll_('Students').filter(function (s) { return s_(s.studentId) !== s_(sid); }));
     writeAll_('Evals', readAll_('Evals').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
     writeAll_('Scores', readAll_('Scores').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
@@ -637,9 +677,10 @@ function saveEval(pid, sid, scores, comment) {
     var now = new Date().toISOString(), key = sid + '|' + me.email;
     var rows = [];
     Object.keys(scores || {}).forEach(function (k) {
+      if (scores[k] === null || scores[k] === '') return;
       var v = Math.round(Number(scores[k]));
-      if (!meta[k] || !(v >= 1 && v <= 4)) return;
-      rows.push({ evalKey: key, programId: pid, studentId: sid, studentCode: s_(st.code), studentName: s_(st.name), email: me.email, evaluator: me.name, ploCode: meta[k].ploCode, critId: k, critName: meta[k].name, level: v, updatedAt: now });
+      if (!meta[k] || !(v >= 0 && v <= MAX_SCORE)) return;
+      rows.push({ evalKey: key, programId: pid, studentId: sid, studentCode: s_(st.code), studentName: s_(st.name), email: me.email, evaluator: me.name, ploCode: meta[k].ploCode, critId: k, critName: meta[k].name, level: v, updatedAt: now, scale: MAX_SCORE });
     });
     writeAll_('Scores', readAll_('Scores').filter(function (r) { return s_(r.evalKey) !== key; }).concat(rows));
     var head = { evalKey: key, programId: pid, studentId: sid, email: me.email, name: me.name, scoresJson: '', comment: s_(comment).slice(0, 4000), updatedAt: now };
@@ -726,21 +767,31 @@ function draftCriteria_(text) {
 
 /* ============================================================
  * AI (Anthropic API) — ต้องตั้ง Script property: ANTHROPIC_API_KEY
- *   ตัวเลือก: CLAUDE_MODEL (ค่าตั้งต้น claude-sonnet-4-5 — ตรวจชื่อรุ่นล่าสุดที่เอกสาร Anthropic)
+ *   ตัวเลือก: CLAUDE_MODEL (ค่าตั้งต้น claude-opus-5-5)
+ *   เปิด server-side fallback ไว้: ถ้าตัวกรองความปลอดภัยปฏิเสธคำขอ API จะลองรุ่นสำรองให้เองในคำขอเดียวกัน
  * ============================================================ */
-function callClaude_(prompt, maxTokens) {
+function callClaude_(prompt, maxTokens, effort) {
   var props = PropertiesService.getScriptProperties();
   var key = props.getProperty('ANTHROPIC_API_KEY');
   if (!key) throw new Error('ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ใน Script properties');
   var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify({ model: props.getProperty('CLAUDE_MODEL') || 'claude-sonnet-4-5', max_tokens: maxTokens || 1500, messages: [{ role: 'user', content: prompt }] })
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
+    payload: JSON.stringify({
+      model: props.getProperty('CLAUDE_MODEL') || 'claude-opus-5-5',
+      max_tokens: maxTokens || 4000,
+      output_config: { effort: effort || 'medium' },
+      fallbacks: 'default',
+      messages: [{ role: 'user', content: prompt }]
+    })
   });
   var code = res.getResponseCode(), body = res.getContentText();
   if (code !== 200) throw new Error('เรียก AI ไม่สำเร็จ (' + code + '): ' + body.slice(0, 200));
-  var txt = '';
-  try { txt = JSON.parse(body).content.map(function (b) { return b.text || ''; }).join(''); } catch (e) { throw new Error('รูปแบบคำตอบ AI ไม่ถูกต้อง'); }
+  var txt = '', msg;
+  try { msg = JSON.parse(body); } catch (e) { throw new Error('รูปแบบคำตอบ AI ไม่ถูกต้อง'); }
+  if (msg.stop_reason === 'refusal') throw new Error('AI ปฏิเสธคำขอนี้ ลองปรับข้อความแล้วลองใหม่');
+  if (msg.stop_reason === 'max_tokens') throw new Error('คำตอบ AI ยาวเกินกำหนด ลองแบ่งข้อความให้สั้นลง');
+  txt = (msg.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text || ''; }).join('');
   var a = txt.indexOf('{'), b = txt.lastIndexOf('}');
   if (a < 0 || b < a) throw new Error('AI ตอบรูปแบบไม่ถูกต้อง ลองใหม่อีกครั้ง');
   try { return JSON.parse(txt.slice(a, b + 1)); } catch (e2) { throw new Error('AI ตอบ JSON ไม่สมบูรณ์ ลองใหม่อีกครั้ง'); }
@@ -774,9 +825,9 @@ function aiAnalyzeStudent(pid, sid) {
   var plos = prog.plos.map(function (p) {
     var s = 0, n = 0;
     p.crit.forEach(function (c) { (acc[c.id] || []).forEach(function (v) { s += v; n++; }); });
-    return { id: p.id, code: p.code, ชื่อ: p.th, ข้อความ: p.en.replace(/\(draft wording[^)]*\)/i, ''), คะแนนรูบริกเฉลี่ยเปอร์เซ็นต์: n ? Math.round(s / (4 * n) * 100) : null, เกณฑ์: p.crit.map(function (c) { return c.name; }) };
+    return { id: p.id, code: p.code, ชื่อ: p.th, ข้อความ: p.en.replace(/\(draft wording[^)]*\)/i, ''), คะแนนเฉลี่ยเต็ม10: n ? Math.round(s / n * 10) / 10 : null, เกณฑ์: p.crit.map(function (c) { return c.name; }) };
   });
-  var prompt = 'คุณช่วยวิเคราะห์การประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา\nงาน: อ่านความเห็นของกรรมการ แล้วแมปว่าความเห็นกล่าวถึงผลลัพธ์การเรียนรู้ (PLO) ข้อใดบ้างและสัดส่วนเท่าไร พร้อมตรวจว่าคะแนนรูบริกสอดคล้องกับความเห็นหรือไม่\n\nPLO ของหลักสูตร ' + prog.name + ' (พร้อมคะแนนรูบริกเฉลี่ยของ PLO นั้น):\n' + JSON.stringify(plos) +
+  var prompt = 'คุณช่วยวิเคราะห์การประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา\nงาน: อ่านความเห็นของกรรมการ แล้วแมปว่าความเห็นกล่าวถึงผลลัพธ์การเรียนรู้ (PLO) ข้อใดบ้างและสัดส่วนเท่าไร พร้อมตรวจว่าคะแนนรูบริกสอดคล้องกับความเห็นหรือไม่\n\nPLO ของหลักสูตร ' + prog.name + ' (พร้อมคะแนนเฉลี่ยของ PLO นั้น เต็ม 10 โดย 9-10 สูงกว่าเป้าหมายมาก, 7-8 ตามเป้าหมาย, 5-6 ใกล้เคียงเป้าหมาย, 3-4 ต่ำกว่าเป้าหมาย, 0-2 ต่ำกว่าเป้าหมายมาก):\n' + JSON.stringify(plos) +
     '\n\nความเห็นของกรรมการ:\n' + withC.map(function (e, i) { return (i + 1) + '. ' + e.name + ': ' + e.comment; }).join('\n') +
     '\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น รูปแบบ:\n{"shares":{"<id ของ PLO>":จำนวนเต็ม},"evidence":{"<id>":["ข้อความสั้น ๆ ที่ยกมาจากความเห็นจริง"]},"flags":[{"plo":"<id>","type":"ขัดแย้ง" หรือ "ไม่มีหลักฐานในความเห็น" หรือ "คะแนนไม่สะท้อนความเห็น","note":"อธิบายสั้น ๆ ภาษาไทย"}],"summary":"สรุป 1-2 ประโยคภาษาไทย"}\nกติกา: shares ต้องมี id ของทุก PLO รวมกันได้ 100 โดยแบ่งตามสัดส่วนเนื้อหาความเห็นที่เกี่ยวกับ PLO นั้น (0 ถ้าไม่ได้พูดถึง) ห้ามแต่งความเห็นขึ้นเอง ใช้เฉพาะ id ที่ให้ไว้';
   var r = callClaude_(prompt, 1500);
@@ -794,18 +845,56 @@ function aiAnalyzeStudent(pid, sid) {
   return result;
 }
 
-/** AI ร่างเกณฑ์รูบริก 4 ระดับสำหรับ PLO เดียว ให้กรรมการตรวจแก้ก่อนบันทึก */
+var BAND_GUIDE_ = 'ช่วงคะแนน (เต็ม 10 ใช้เหมือนกันทุก PLO):\n' +
+  'A = 9-10 สูงกว่าเป้าหมายมาก\nB = 7-8 ตามเป้าหมาย\nC = 5-6 ใกล้เคียงเป้าหมาย\nD = 3-4 ต่ำกว่าเป้าหมาย\nE = 0-2 ต่ำกว่าเป้าหมายมาก\n' +
+  'คำอธิบายแต่ละช่วงต้องบอกเป็นรูปธรรมว่านักศึกษาต้องแสดงอะไร (สังเกตได้จากเล่มวิทยานิพนธ์ การนำเสนอ หรือการตอบคำถาม) และบอกด้วยว่าอะไรทำให้ได้คะแนนบนหรือล่างของช่วง ' +
+  'เช่น ช่วง A: "...  ได้ 10 เมื่อ ... ได้ 9 เมื่อ ..." ช่วง E ให้บอกว่า 0, 1, 2 ต่างกันอย่างไร เขียนภาษาไทย กระชับ แต่ละช่วงไม่เกิน 3 ประโยค';
+
+function cleanBands_(r, maxN) {
+  return (r && r.criteria || []).slice(0, maxN || 3).filter(function (c) { return c && c.name && c.bands && c.bands.length === 5; }).map(function (c) {
+    return { name: String(c.name).slice(0, 160), bands: c.bands.map(function (x) { return String(x).slice(0, 500); }) };
+  });
+}
+
+/** AI ร่างเกณฑ์ 5 ช่วงคะแนน (A-E เต็ม 10) สำหรับ PLO เดียว ให้เจ้าหน้าที่ตรวจแก้ก่อนบันทึก */
 function aiDraftRubric(pid, ploId) {
   needP_(['admin', 'curriculum'], pid);
   var prog = loadProgram_(s_(pid));
   var p = prog && prog.plos.filter(function (x) { return x.id === s_(ploId); })[0];
   if (!p) throw new Error('ไม่พบ PLO');
-  var prompt = 'ช่วยร่างเกณฑ์รูบริกสำหรับประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา ให้สอดคล้องกับ PLO นี้ของหลักสูตร "' + prog.name + '":\n' + p.code + ': ' + p.en.replace(/\(draft wording[^)]*\)/i, '') + '\n\n' +
-    'สร้าง 2-3 เกณฑ์ที่วัดได้จากการสอบวิทยานิพนธ์ แต่ละเกณฑ์มีคำอธิบาย 4 ระดับ (1 ต้องปรับปรุง, 2 พอใช้, 3 ดี, 4 ดีเยี่ยม) เป็นภาษาไทย กระชับ สังเกตได้ แยกระดับชัดเจน\nตอบเป็น JSON เท่านั้น: {"criteria":[{"name":"ชื่อเกณฑ์ขึ้นต้นด้วยคำว่า การ...","levels":["ระดับ1","ระดับ2","ระดับ3","ระดับ4"]}]}';
-  var r = callClaude_(prompt, 1500);
-  var list = (r.criteria || []).slice(0, 3).filter(function (c) { return c && c.name && c.levels && c.levels.length === 4; }).map(function (c) { return { name: String(c.name).slice(0, 160), levels: c.levels.map(function (x) { return String(x).slice(0, 300); }) }; });
+  var prompt = 'ช่วยร่างเกณฑ์การประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา ให้สอดคล้องกับ PLO นี้ของหลักสูตร "' + prog.name + '":\n' + p.code + ' ' + p.th + ': ' + p.en.replace(/\(draft wording[^)]*\)/i, '') + '\n\n' +
+    'สร้าง 1-3 ตัวชี้วัด (เกณฑ์) ที่วัดได้จากการสอบวิทยานิพนธ์ แต่ละตัวชี้วัดมีคำอธิบาย 5 ช่วงคะแนน\n' + BAND_GUIDE_ +
+    '\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น: {"criteria":[{"name":"ชื่อตัวชี้วัดขึ้นต้นด้วยคำว่า การ...","bands":["ช่วง A","ช่วง B","ช่วง C","ช่วง D","ช่วง E"]}]}';
+  var list = cleanBands_(callClaude_(prompt, 4000, 'low'), 3);
   if (!list.length) throw new Error('AI ไม่ได้ส่งเกณฑ์ที่ใช้ได้ ลองใหม่อีกครั้ง');
   return list;
+}
+
+/**
+ * AI ดึง PLO จากข้อความเล่มหลักสูตร (รูปแบบใดก็ได้ จำนวน PLO เท่าไรก็ได้)
+ * คืน [{code,titleTh,textEn,crit}] เพื่อแสดงตัวอย่างก่อนนำเข้า เกณฑ์ 5 ช่วงให้ร่างต่อทีละ PLO ด้วย aiDraftRubric
+ */
+function aiExtractPlos(text) {
+  need_(['admin', 'curriculum']);
+  text = String(text || '').trim();
+  if (text.length < 20) throw new Error('วางข้อความจากเล่มหลักสูตรก่อน');
+  if (text.length > 60000) throw new Error('ข้อความยาวเกินไป (เกิน 60,000 ตัวอักษร) ให้วางเฉพาะส่วนที่มี PLO');
+  var prompt = 'นี่คือข้อความจากเล่มหลักสูตรระดับบัณฑิตศึกษา:\n<doc>\n' + text + '\n</doc>\n\n' +
+    'งาน: ดึงผลลัพธ์การเรียนรู้ระดับหลักสูตร (PLO) ทุกข้อตามที่เขียนไว้ในเอกสาร ไม่แต่งเพิ่ม ไม่รวมหรือแยกข้อเอง ถ้าเอกสารใช้ชื่ออื่น เช่น ผลลัพธ์การเรียนรู้ที่คาดหวัง หรือ ELO ก็ให้นับเป็น PLO ' +
+    'ไม่ต้องดึงผลลัพธ์ระดับรายวิชา (CLO) หรือผลลัพธ์ย่อย (Sub-PLO) ถ้ามีทั้ง PLO และข้อย่อย ให้ใช้ระดับ PLO\n' +
+    'ตอบเป็น JSON เท่านั้น: {"plos":[{"code":"PLO1","titleTh":"ชื่อสั้นภาษาไทยไม่เกิน 40 ตัวอักษร","text":"ข้อความ PLO ตามต้นฉบับ (ภาษาเดิมของเอกสาร)"}]}';
+  var r = callClaude_(prompt, 8000, 'low');
+  var seen = {}, out = [];
+  (r && r.plos || []).forEach(function (p, i) {
+    var body = s_(p && p.text).trim();
+    if (body.length < 4) return;
+    var code = s_(p.code).replace(/\s+/g, '').toUpperCase() || ('PLO' + (i + 1));
+    if (seen[code]) return;
+    seen[code] = true;
+    out.push({ code: code.slice(0, 20), titleTh: s_(p.titleTh).trim().slice(0, 56) || shortTitle_(body), textEn: body.slice(0, 2000), crit: draftCriteria_(body) });
+  });
+  if (!out.length) throw new Error('AI ไม่พบ PLO ในข้อความนี้');
+  return out.slice(0, 30);
 }
 
 /** AI เทียบ PLO ข้ามหลักสูตร + ร่าง PLO หลักสูตรผสมผสาน */
