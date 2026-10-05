@@ -1,0 +1,153 @@
+// ทดสอบตรรกะฝั่งเซิร์ฟเวอร์ด้วยตัวจำลอง GAS: node dev/test.mjs
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+
+const root = new URL('..', import.meta.url).pathname;
+const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Code.gs'];
+
+function boot(email) {
+  const ctx = { console, TextEncoder, crypto, btoa, localStorage: undefined, location: { href: '' } };
+  vm.createContext(ctx);
+  vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), ctx);
+  ctx.__opts = { email, reset: true };
+  vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger=__g.Logger, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp;', ctx);
+  vm.runInContext(GS.map(f => readFileSync(root + 'src/' + f, 'utf8')).join('\n'), ctx);
+  // รีเซ็ตแคชผู้ใช้ทุกครั้งที่เรียก api (จำลองการเรียกแยก execution)
+  const call = (action, payload) => { vm.runInContext('CURRENT_USER_ = null; for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k];', ctx); return JSON.parse(JSON.stringify(ctx.api(action, payload))); };
+  call.setEmail = e => { ctx.__opts.email = e; };
+  return call;
+}
+
+let pass = 0;
+const t = (name, fn) => { fn(); pass++; console.log('✓', name); };
+const api = boot('admin@mahidol.ac.th');
+
+t('first visitor becomes admin', () => { const r = api('bootstrap', {}); assert.equal(r.ok, true); assert.equal(r.user.role, 'admin'); });
+const seeded = api('seedSample', {});
+t('seed sample data', () => { assert.equal(seeded.ok, true); assert.equal(seeded.data.faculty, 16); assert.equal(seeded.model.settings.SAMPLE_DATA, 'true'); });
+const m = seeded.model;
+const E = m.window.end;
+const pub = (pid, pred) => m.publications.find(p => p.personId === pid && pred(p));
+
+t('weights follow ก.พ.อ./สกอ. defaults', () => {
+  assert.equal(pub('FS01', p => p.database === 'scopus' && p.quartile === 'Q1').weight, 1);
+  assert.equal(pub('FS01', p => p.database === 'tci1').weight, 0.8);
+  assert.equal(pub('FS03', p => p.database === 'tci2').weight, 0.6);
+  assert.equal(pub('FS06', p => p.database === 'tci3').weight, 0);
+  assert.equal(pub('FS09', p => p.type === 'proceedings_nat').weight, 0.2);
+  assert.equal(pub('FS10', p => p.type === 'patent').weight, 1);
+});
+t('5-year window, expiring and expired flags', () => {
+  assert.equal(m.window.start, E - 4);
+  const old = pub('FS02', () => true);
+  assert.equal(old.expired, true); assert.equal(old.inWindow, false);
+  assert.equal(pub('FS03', p => p.year === E - 4).expiring, true);
+});
+t('faculty evaluation counts only verified in-window weighted works', () => {
+  const f = id => m.faculty.find(x => x.id === id).eval;
+  assert.equal(f('FS01').count, 4); assert.equal(f('FS01').meets, true);
+  assert.equal(f('FS02').count, 0); assert.equal(f('FS02').status, 'none');
+  assert.equal(f('FS06').count, 1); // tci3 ไม่นับ, proceedings รอตรวจ
+  assert.equal(f('FS09').qualOk, false); // ป.โท ไม่มีตำแหน่ง ผศ.
+});
+t('smart alerts', () => {
+  const keys = m.alerts.map(a => a.key);
+  ['no_pubs', 'expiring', 'below', 'qual', 'curriculum', 'pending'].forEach(k => assert.ok(keys.includes(k), k));
+  assert.ok(m.alerts.find(a => a.key === 'no_pubs').items.some(i => i.name === 'Dr.David Miller'));
+});
+t('expert evaluation matches reference screenshot (นภา ตัวอย่างดี)', () => {
+  const x = m.experts.find(e => e.id === 'XS01').eval;
+  assert.equal(x.results['2548'].pass, true);
+  assert.equal(x.results['2558'].workValue, 'นานาชาติ 1/5');
+  assert.equal(x.results['2565'].workValue, 'ฐานที่ยอมรับ 2/10');
+  assert.equal(x.pass, false);
+  assert.deepEqual([x.counts.intl, x.counts.nat, x.counts.notCounted], [1, 1, 1]);
+  assert.equal(m.experts.find(e => e.id === 'XS02').eval.pass, true);
+});
+t('curriculum CS04 passes standard', () => { assert.equal(m.curricula.find(c => c.id === 'CS04').eval.pass, true); });
+t('assessment indicator 4.2', () => {
+  const a = api('assess', { curriculumId: 'CS01', year: E }).data;
+  assert.equal(a.indicators.length, 3); assert.ok(a.overall > 0 && a.overall <= 5);
+  assert.equal(a.indicators[0].value, 100);
+});
+t('validation: ค.ศ. year rejected', () => {
+  const r = api('savePublication', { personId: 'FS01', title: 'x', year: 2024, type: 'journal', database: 'scopus' });
+  assert.equal(r.ok, false); assert.match(r.error, /พ\.ศ\./);
+});
+t('admin creates, edits and deletes a publication', () => {
+  let r = api('savePublication', { personId: 'FS05', title: 'New Paper', year: E, type: 'journal', database: 'scopus', quartile: 'Q2' });
+  assert.equal(r.ok, true); assert.equal(r.data.status, 'pending');
+  const id = r.data.id;
+  r = api('verifyPublications', { ids: [id], decision: 'verified' }); assert.equal(r.ok, true);
+  assert.equal(r.model.faculty.find(f => f.id === 'FS05').eval.count, 1);
+  r = api('verifyPublications', { ids: [id], decision: 'rejected' }); assert.equal(r.ok, false, 'reject needs reason');
+  r = api('deletePublication', { id }); assert.equal(r.ok, true);
+});
+t('reports render', () => {
+  ['faculty', 'pubs'].forEach(type => { const r = api('exportReport', { type }); assert.equal(r.ok, true); assert.ok(r.data.html.includes('<table')); assert.ok(r.data.base64.length > 100); });
+  assert.equal(api('exportReport', { type: 'expert', expertId: 'XS01' }).ok, true);
+  assert.equal(api('exportReport', { type: 'assessment', curriculumId: 'CS02', year: E }).ok, true);
+});
+
+// ----- สิทธิ์ตามบทบาท (ผ่าน view-as ของ Admin) -----
+t('lecturer: own data only, cannot edit others or verify', () => {
+  assert.equal(api('setViewAs', { role: 'lecturer', facultyId: 'FS03' }).ok, true);
+  const r = api('bootstrap', {});
+  assert.equal(r.user.role, 'lecturer');
+  assert.ok(r.model.publications.every(p => p.personId === 'FS03'));
+  assert.equal(r.model.experts.length, 0);
+  assert.equal(api('savePublication', { personId: 'FS01', title: 'x', year: E, type: 'book' }).ok, false);
+  const own = api('savePublication', { personId: 'FS03', title: 'mine', year: E, type: 'book' });
+  assert.equal(own.ok, true);
+  assert.equal(api('verifyPublications', { ids: [own.data.id], decision: 'verified' }).ok, false);
+  const verified = r.model.publications.find(p => p.status === 'verified');
+  assert.equal(api('deletePublication', { id: verified.id }).ok, false);
+  assert.equal(api('saveSettings', { W_Q1: 2 }).ok, false);
+});
+t('chair: verifies own curriculum but not own work', () => {
+  api('setViewAs', { role: 'chair', facultyId: 'FS04' });
+  const r = api('bootstrap', {});
+  assert.equal(JSON.stringify(r.user.curriculumIds), '["CS02"]');
+  const fs06 = r.model.publications.find(p => p.personId === 'FS06' && p.status === 'pending');
+  assert.equal(api('verifyPublications', { ids: [fs06.id], decision: 'verified' }).ok, true);
+  const own = api('savePublication', { personId: 'FS04', title: 'chair own', year: E, type: 'book' });
+  assert.equal(api('verifyPublications', { ids: [own.data.id], decision: 'verified' }).ok, false);
+  const other = r.model.publications.find(p => p.personId === 'FS07');
+  assert.equal(api('verifyPublications', { ids: [other.id], decision: 'pending' }).ok, false);
+  assert.equal(api('saveCurriculum', { nameTh: 'x' }).ok, false);
+});
+t('executive is read-only', () => {
+  api('setViewAs', { role: 'executive' });
+  assert.equal(api('savePublication', { personId: 'FS01', title: 'x', year: E, type: 'book' }).ok, false);
+  assert.equal(api('exportReport', { type: 'faculty' }).ok, true);
+  api('setViewAs', { role: 'admin' });
+});
+t('weights are configurable', () => {
+  const r = api('saveSettings', { W_Q2: '0.9' }); assert.equal(r.ok, true);
+  assert.equal(r.model.publications.find(p => p.database === 'scopus' && p.quartile === 'Q2').weight, 0.9);
+  assert.equal(api('saveSettings', { W_Q2: '9' }).ok, false);
+  api('resetWeights', {});
+});
+t('unknown user denied unless guest allowed; mapped user gets role', () => {
+  api.setEmail('stranger@example.com');
+  assert.equal(api('bootstrap', {}).ok, false);
+  api.setEmail('admin@mahidol.ac.th');
+  api('saveSettings', { ALLOW_GUEST: true });
+  api.setEmail('stranger@example.com');
+  const g = api('bootstrap', {}); assert.equal(g.ok, true); assert.equal(g.user.role, 'executive');
+  api.setEmail('lecturer.demo@example.ac.th');
+  const l = api('bootstrap', {}); assert.equal(l.user.role, 'lecturer'); assert.equal(l.user.facultyId, 'FS03');
+  assert.equal(api('setViewAs', { role: 'admin' }).ok, false);
+  api.setEmail('admin@mahidol.ac.th');
+  api('saveSettings', { ALLOW_GUEST: false });
+});
+t('clear sample keeps real data', () => {
+  const keep = api('savePublication', { personId: 'FS01', title: 'real', year: E, type: 'book' });
+  assert.equal(keep.ok, true);
+  const r = api('clearSample', {});
+  assert.equal(r.ok, true); assert.equal(r.model.faculty.length, 0);
+  // ผลงานจริงของอาจารย์ตัวอย่างยังอยู่ (ไม่ใช่ข้อมูลตัวอย่าง)
+  assert.equal(r.model.publications.filter(p => p.title === 'real').length, 1);
+});
+console.log(`\n${pass} tests passed`);

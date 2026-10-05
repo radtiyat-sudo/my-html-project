@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= appName ?></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    // ตั้งธีมก่อนแสดงผล เพื่อไม่ให้หน้าจอกะพริบ
+    (function () { try { var t = localStorage.getItem('mugr-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
+  </script>
+  <?!= include('Styles') ?>
+</head>
+<body>
+  <div class="busy" id="busy"></div>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo"><svg class="i lg" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
+        <div><div class="brand-title"><?= appName ?></div><div class="brand-sub">บัณฑิตวิทยาลัย · มหิดล (MUGR)</div></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="side-foot"><span class="live-dot"></span><span id="side-foot">บันทึกบน Google Sheets</span></div>
+    </aside>
+    <div class="backdrop" id="backdrop"></div>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="เมนู"></button>
+        <h1 id="page-title">กำลังโหลด…</h1>
+        <div class="search">
+          <svg class="i sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="global-search" placeholder="ค้นหาอาจารย์ / ผลงาน..." autocomplete="off" aria-label="ค้นหา">
+          <div class="search-results" id="search-results"></div>
+        </div>
+        <button class="icon-btn" id="theme-btn" aria-label="สลับโหมดมืด/สว่าง" title="สลับโหมดมืด/สว่าง"></button>
+        <div class="dropdown">
+          <div class="user-chip" id="user-chip" tabindex="0"></div>
+          <div class="dropdown-menu" id="user-menu"></div>
+        </div>
+        <button class="icon-btn" id="logout-btn" aria-label="ออกจากระบบ" title="ออกจากระบบ"></button>
+      </header>
+      <main class="content" id="content">
+        <div class="loading"><div><div class="spinner"></div>กำลังโหลดข้อมูล…</div></div>
+      </main>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+  <div class="toasts" id="toasts"></div>
+  <?!= include('App') ?>
+</body>
+</html>
