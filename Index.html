@@ -196,7 +196,7 @@
       'Prof.', 'Assoc.', 'Asst.', 'Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Miss'
     ];
     function normalizeName(name) {
-      let s = String(name || '').replace(/[​-‍﻿]/g, '').trim();
+      let s = String(name || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
       let changed = true;
       while (changed) {
         changed = false;

@@ -16,7 +16,7 @@ const NAME_PREFIXES = [
 
 /** ตัดคำนำหน้าทั้งหมด แล้วลบช่องว่าง/เครื่องหมาย เพื่อใช้เป็น key เปรียบเทียบชื่อ */
 function normalizeName(name) {
-  let s = String(name || '').replace(/[​-‍﻿]/g, '').trim();
+  let s = String(name || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
   let changed = true;
   while (changed) {
     changed = false;
