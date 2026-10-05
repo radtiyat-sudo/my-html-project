@@ -4,99 +4,171 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>แจ้งอาจารย์ GRAS.02</title>
+  <title>ระบบ GRAS.02</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     .toast-enter { animation: slideIn .3s ease-out; }
     @keyframes slideIn { from { transform: translateY(-1rem); opacity: 0; } to { transform: none; opacity: 1; } }
+    .tab-btn[aria-selected="true"] { background: #fff; color: #4338ca; box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
   </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 text-slate-800">
 
-  <!-- Toast -->
   <div id="toast" class="fixed top-4 right-4 left-4 sm:left-auto z-50 hidden"></div>
 
   <!-- Header -->
-  <header class="bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow-lg">
-    <div class="max-w-6xl mx-auto px-4 py-6">
-      <p class="text-indigo-100 text-sm">ระบบแจ้งอาจารย์</p>
-      <h1 class="text-2xl sm:text-3xl font-bold leading-tight">GRAS.02 การแต่งตั้งผู้มีความรู้ความเชี่ยวชาญและประสบการณ์สูง</h1>
+  <header class="bg-gradient-to-r from-indigo-700 via-purple-600 to-sky-500 text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 pt-6 pb-4">
+      <p class="text-indigo-100 text-sm">ระบบตรวจสอบและแจ้งเตือน GRAS.02</p>
+      <h1 class="text-xl sm:text-3xl font-bold leading-tight">ผู้มีความรู้ความเชี่ยวชาญและประสบการณ์สูง</h1>
       <a href="https://lookerstudio.google.com/u/0/reporting/901e903e-65f2-49c3-9654-55b731796e26"
          target="_blank" rel="noopener"
          class="inline-flex items-center gap-1 mt-3 text-sm bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full transition">
-        📊 ดูรายงาน GRAS.02 (Looker Studio) ↗
+        📊 ดูรายงาน Looker Studio ↗
       </a>
+      <nav class="mt-5 flex gap-1 bg-white/15 p-1 rounded-xl w-full sm:w-fit overflow-x-auto" role="tablist">
+        <button class="tab-btn flex-1 sm:flex-none whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold" data-tab="check" aria-selected="true">🔍 ตรวจสอบซ้ำ</button>
+        <button class="tab-btn flex-1 sm:flex-none whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold" data-tab="expiry" aria-selected="false">⏰ ครบวาระ <span id="alertBadge" class="hidden ml-1 bg-rose-500 text-white text-xs px-1.5 rounded-full"></span></button>
+        <button class="tab-btn flex-1 sm:flex-none whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold" data-tab="notify" aria-selected="false">📝 แจ้งอาจารย์</button>
+      </nav>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-8 grid gap-8 lg:grid-cols-5">
+  <main class="max-w-6xl mx-auto px-4 py-6">
 
-    <!-- Form -->
-    <section class="lg:col-span-2">
-      <div class="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">📝 บันทึกข้อมูล</h2>
-        <form id="dataForm" class="space-y-4" novalidate>
-          <div>
-            <label for="date" class="block text-sm font-medium mb-1">วันที่</label>
-            <input type="date" id="date" name="date" required
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <div>
-            <label for="name" class="block text-sm font-medium mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
-            <input type="text" id="name" name="name" required placeholder="เช่น นายสมชาย ใจดี"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <div>
-            <label for="details" class="block text-sm font-medium mb-1">รายละเอียด / หมายเหตุ</label>
-            <textarea id="details" name="details" rows="4" placeholder="ระบุรายละเอียดการยื่น GRAS.02 หรือข้อความถึงอาจารย์"
-                      class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-          </div>
-          <div>
-            <label for="amount" class="block text-sm font-medium mb-1">จำนวนเงิน / ค่าตัวเลข <span class="text-slate-400">(ถ้ามี)</span></label>
-            <input type="number" id="amount" name="amount" step="any" min="0" placeholder="0.00"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <button type="submit" id="submitBtn"
-                  class="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg shadow transition">
-            <span id="btnText">💾 บันทึกข้อมูล</span>
-          </button>
-        </form>
+    <!-- Stats -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+        <p class="text-xs text-slate-500">ผู้เชี่ยวชาญทั้งหมด (คน)</p>
+        <p id="statTotal" class="text-3xl font-bold">-</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-emerald-100 p-4">
+        <p class="text-xs text-emerald-600">อยู่ในวาระ (Active)</p>
+        <p id="statActive" class="text-3xl font-bold text-emerald-600">-</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-4">
+        <p class="text-xs text-amber-600">ใกล้ครบวาระ (≤ <span class="warnDays">180</span> วัน)</p>
+        <p id="statExpiring" class="text-3xl font-bold text-amber-500">-</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-rose-100 p-4">
+        <p class="text-xs text-rose-600">ครบวาระแล้ว</p>
+        <p id="statExpired" class="text-3xl font-bold text-rose-600">-</p>
       </div>
     </section>
 
-    <!-- Table -->
-    <section class="lg:col-span-3">
+    <!-- Tab: duplicate check -->
+    <section id="tab-check" class="tab-panel">
+      <div class="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+        <h2 class="text-lg font-semibold mb-1">ตรวจสอบก่อนเสนอแต่งตั้ง</h2>
+        <p class="text-sm text-slate-500 mb-4">พิมพ์ชื่อหรือนามสกุล (ไม่ต้องใส่คำนำหน้า/ตำแหน่ง) ระบบจะบอกว่าเคยแต่งตั้งแล้วหรือไม่ เพื่อไม่ให้เสนอซ้ำ</p>
+        <input type="search" id="checkInput" placeholder="เช่น เจริญ กระบวนรัตน์"
+               class="w-full text-lg rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div id="checkResult" class="mt-5 space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- Tab: expiry -->
+    <section id="tab-expiry" class="tab-panel hidden">
       <div class="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <h2 class="text-lg font-semibold flex items-center gap-2">
-            📋 ประวัติข้อมูล
-            <span id="count" class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">0</span>
-          </h2>
+          <div>
+            <h2 class="text-lg font-semibold">สถานะวาระ <span class="termYears">5</span> ปี</h2>
+            <p class="text-xs text-slate-400">ข้อมูล ณ <span id="generatedAt">-</span> · ระบบส่งอีเมลแจ้งเตือนอัตโนมัติทุกวันเมื่อเหลือ 180 / 90 / 30 วัน และเมื่อครบวาระ</p>
+          </div>
           <div class="flex gap-2">
-            <input type="search" id="search" placeholder="🔍 ค้นหา..."
-                   class="flex-1 sm:w-48 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button id="refreshBtn" title="รีเฟรช"
-                    class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">🔄</button>
+            <select id="statusFilter" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+              <option value="alert">ใกล้ครบ + ครบวาระแล้ว</option>
+              <option value="expiring">ใกล้ครบวาระ</option>
+              <option value="expired">ครบวาระแล้ว</option>
+              <option value="active">Active</option>
+              <option value="all">ทั้งหมด</option>
+            </select>
+            <button id="refreshExperts" title="รีเฟรช" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">🔄</button>
           </div>
         </div>
-        <p class="text-xs text-slate-400 mb-3">อัปเดตอัตโนมัติทุก 15 วินาที · ล่าสุด <span id="lastUpdated">-</span></p>
-
         <div class="overflow-x-auto rounded-lg border border-slate-200">
           <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-slate-600">
+            <thead class="bg-purple-50 text-slate-600">
               <tr>
-                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap">วันที่</th>
-                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap">ชื่อ-นามสกุล</th>
-                <th class="px-3 py-2 text-left font-semibold">รายละเอียด / หมายเหตุ</th>
-                <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">จำนวนเงิน</th>
+                <th class="px-3 py-2 text-left font-semibold">ชื่อ-นามสกุล</th>
+                <th class="px-3 py-2 text-left font-semibold">เสนอจาก / หลักสูตร</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">ได้รับแต่งตั้ง</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">สิ้นสุด</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">วันครบวาระ</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">สถานะ</th>
               </tr>
             </thead>
-            <tbody id="tableBody" class="divide-y divide-slate-100">
-              <tr><td colspan="4" class="px-3 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>
+            <tbody id="expiryBody" class="divide-y divide-slate-100">
+              <tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: notify form (เดิม) -->
+    <section id="tab-notify" class="tab-panel hidden">
+      <div class="grid gap-6 lg:grid-cols-5">
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+          <h2 class="text-lg font-semibold mb-4">📝 บันทึกข้อมูลแจ้งอาจารย์</h2>
+          <form id="dataForm" class="space-y-4" novalidate>
+            <div>
+              <label for="date" class="block text-sm font-medium mb-1">วันที่</label>
+              <input type="date" id="date" required
+                     class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label for="name" class="block text-sm font-medium mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+              <input type="text" id="name" required placeholder="ชื่อผู้มีความรู้ความเชี่ยวชาญฯ"
+                     class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <div id="nameCheck" class="mt-2 text-sm"></div>
+            </div>
+            <div>
+              <label for="details" class="block text-sm font-medium mb-1">รายละเอียด / หมายเหตุ</label>
+              <textarea id="details" rows="4" placeholder="ระบุรายละเอียดการยื่น GRAS.02 หรือข้อความถึงอาจารย์"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+            <div>
+              <label for="amount" class="block text-sm font-medium mb-1">จำนวนเงิน / ค่าตัวเลข <span class="text-slate-400">(ถ้ามี)</span></label>
+              <input type="number" id="amount" step="any" min="0" placeholder="0.00"
+                     class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button type="submit" id="submitBtn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg shadow transition">
+              💾 บันทึกข้อมูล
+            </button>
+          </form>
+        </div>
+
+        <div class="lg:col-span-3 bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+            <h2 class="text-lg font-semibold flex items-center gap-2">📋 ประวัติการแจ้ง
+              <span id="count" class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">0</span>
+            </h2>
+            <div class="flex gap-2">
+              <input type="search" id="search" placeholder="🔍 ค้นหา..."
+                     class="flex-1 sm:w-48 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <button id="refreshBtn" title="รีเฟรช" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">🔄</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">อัปเดตอัตโนมัติทุก 15 วินาที · ล่าสุด <span id="lastUpdated">-</span></p>
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-50 text-slate-600">
+                <tr>
+                  <th class="px-3 py-2 text-left font-semibold whitespace-nowrap">วันที่</th>
+                  <th class="px-3 py-2 text-left font-semibold whitespace-nowrap">ชื่อ-นามสกุล</th>
+                  <th class="px-3 py-2 text-left font-semibold">รายละเอียด / หมายเหตุ</th>
+                  <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">จำนวนเงิน</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-100">
+                <tr><td colspan="4" class="px-3 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -104,72 +176,248 @@
 
   <script>
     const REFRESH_MS = 15000;
-    let allRows = [];
-
     const $ = id => document.getElementById(id);
 
+    let experts = [];     // จาก getExperts()
+    let notifyRows = [];  // จาก getData()
+
+    /* ---------- utils ---------- */
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ต้องตรงกับ NAME_PREFIXES / normalizeName() ใน Experts.gs
+    const NAME_PREFIXES = [
+      'ศาสตราจารย์เกียรติคุณ', 'ผู้ช่วยศาสตราจารย์', 'รองศาสตราจารย์', 'ศาสตราจารย์', 'อาจารย์',
+      'ทันตแพทย์หญิง', 'ทันตแพทย์', 'นายแพทย์', 'แพทย์หญิง', 'เภสัชกรหญิง', 'เภสัชกร',
+      'นายสัตวแพทย์', 'สัตวแพทย์หญิง', 'ว่าที่ร้อยตรีหญิง', 'ว่าที่ร้อยตรี', 'นางสาว', 'นาง', 'นาย',
+      'ศ.ดร.', 'รศ.ดร.', 'ผศ.ดร.', 'ศ.นพ.', 'รศ.นพ.', 'ผศ.นพ.', 'ศ.พญ.', 'รศ.พญ.', 'ผศ.พญ.',
+      'ศ.', 'รศ.', 'ผศ.', 'อ.', 'ดร.', 'นพ.', 'พญ.', 'ทพ.', 'ทพญ.', 'ภก.', 'ภญ.', 'สพ.', 'น.ส.',
+      'Prof.', 'Assoc.', 'Asst.', 'Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Miss'
+    ];
+    function normalizeName(name) {
+      let s = String(name || '').replace(/[​-‍﻿]/g, '').trim();
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const p of NAME_PREFIXES) {
+          if (s.toLowerCase().startsWith(p.toLowerCase()) && s.length > p.length) {
+            s = s.slice(p.length).trim();
+            changed = true;
+          }
+        }
+      }
+      return s.toLowerCase().replace(/[\s.\-,()]/g, '');
+    }
+
+    /** คืนรายชื่อที่ตรงกับคำค้น: ทุกคำ (คั่นด้วยช่องว่าง) ต้องอยู่ในชื่อ */
+    function findExperts(query) {
+      const tokens = String(query).trim().split(/\s+/).map(normalizeName).filter(Boolean);
+      if (!tokens.length) return [];
+      return experts.filter(e => tokens.every(t => e.key.includes(t)));
+    }
+
+    function showToast(message, type = 'success') {
+      const color = type === 'success' ? 'bg-emerald-500' : 'bg-rose-500';
+      const icon = type === 'success' ? '✅' : '⚠️';
+      $('toast').innerHTML = `<div class="toast-enter ${color} text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
+        <span>${icon}</span><span>${escapeHtml(message)}</span></div>`;
+      $('toast').classList.remove('hidden');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => $('toast').classList.add('hidden'), 3500);
+    }
+
+    const STATUS_STYLE = {
+      active:   'bg-emerald-100 text-emerald-700',
+      expiring: 'bg-amber-100 text-amber-700',
+      expired:  'bg-rose-100 text-rose-700',
+      pending:  'bg-sky-100 text-sky-700',
+      unknown:  'bg-slate-100 text-slate-600'
+    };
+
+    function statusBadge(e) {
+      let extra = '';
+      if (e.daysLeft != null) {
+        extra = e.daysLeft < 0 ? ` (เกิน ${Math.abs(e.daysLeft)} วัน)` : e.status === 'expiring' ? ` (เหลือ ${e.daysLeft} วัน)` : '';
+      }
+      return `<span class="inline-block whitespace-nowrap text-xs font-semibold px-2 py-1 rounded-full ${STATUS_STYLE[e.status]}">${escapeHtml(e.statusLabel + extra)}</span>`;
+    }
+
+    /** สรุปผลต่อ 1 คน (อาจมีหลายแถว/หลายหลักสูตร) */
+    function verdictFor(records) {
+      const has = s => records.find(r => r.status === s);
+      const latest = records.filter(r => r.daysLeft != null).sort((a, b) => b.daysLeft - a.daysLeft)[0];
+      if (has('active')) {
+        const r = has('active');
+        return { tone: 'rose', icon: '⛔', title: 'เคยแต่งตั้งแล้ว และยังอยู่ในวาระ — ไม่ต้องแต่งตั้งซ้ำ',
+                 desc: `วาระสิ้นสุด ${escapeHtml(r.endText || r.endThai)} (ครบวาระ ${escapeHtml(r.endThai)} · เหลือ ${r.daysLeft} วัน)` };
+      }
+      if (has('expiring')) {
+        const r = has('expiring');
+        return { tone: 'amber', icon: '⏰', title: `ใกล้ครบวาระ — เหลือ ${r.daysLeft} วัน`,
+                 desc: `ครบวาระ ${escapeHtml(r.endThai)} สามารถเตรียมเสนอแต่งตั้งวาระใหม่ได้` };
+      }
+      if (has('pending')) {
+        return { tone: 'sky', icon: '🕓', title: 'อยู่ระหว่างการพิจารณา — ไม่ต้องยื่นซ้ำ',
+                 desc: `สถานะ: ${escapeHtml(has('pending').statusLabel)}` };
+      }
+      if (has('expired')) {
+        return { tone: 'emerald', icon: '🔁', title: 'ครบวาระแล้ว — เสนอแต่งตั้งใหม่ได้',
+                 desc: latest ? `ครบวาระเมื่อ ${escapeHtml(latest.endThai)}` : '' };
+      }
+      return { tone: 'slate', icon: '❓', title: 'พบชื่อ แต่ไม่ทราบวันครบวาระ', desc: 'กรุณาตรวจสอบคอลัมน์ "ได้รับแต่งตั้ง/สิ้นสุด" ในชีต' };
+    }
+
+    const TONE = {
+      rose: 'border-rose-200 bg-rose-50 text-rose-800',
+      amber: 'border-amber-200 bg-amber-50 text-amber-800',
+      sky: 'border-sky-200 bg-sky-50 text-sky-800',
+      emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+      slate: 'border-slate-200 bg-slate-50 text-slate-700'
+    };
+
+    /* ---------- tab: ตรวจสอบซ้ำ ---------- */
+    function renderCheck() {
+      const q = $('checkInput').value;
+      const box = $('checkResult');
+      if (!q.trim()) { box.innerHTML = ''; return; }
+
+      const matches = findExperts(q);
+      if (!matches.length) {
+        box.innerHTML = `<div class="rounded-xl border ${TONE.emerald} p-4">
+          <p class="font-semibold text-lg">✅ ไม่พบชื่อนี้ในระบบ — เสนอแต่งตั้งได้</p>
+          <p class="text-sm mt-1">ลองค้นด้วยนามสกุลอย่างเดียวอีกครั้ง เพื่อป้องกันการสะกดชื่อต่างกัน</p></div>`;
+        return;
+      }
+
+      const groups = {};
+      matches.forEach(m => (groups[m.key] = groups[m.key] || []).push(m));
+
+      box.innerHTML = `<p class="text-sm text-slate-500">พบ ${Object.keys(groups).length} คน</p>` +
+        Object.values(groups).map(recs => {
+          const v = verdictFor(recs);
+          return `<div class="rounded-xl border ${TONE[v.tone]} p-4">
+            <p class="text-base font-bold">${escapeHtml(recs[0].name)}</p>
+            <p class="font-semibold mt-1">${v.icon} ${v.title}</p>
+            <p class="text-sm mt-0.5">${v.desc}</p>
+            <div class="mt-3 overflow-x-auto bg-white rounded-lg border border-slate-200">
+              <table class="min-w-full text-xs sm:text-sm text-slate-700">
+                <thead class="bg-slate-50"><tr>
+                  <th class="px-2 py-1.5 text-left">เสนอจาก</th><th class="px-2 py-1.5 text-left">หลักสูตร</th>
+                  <th class="px-2 py-1.5 text-left">ความเชี่ยวชาญ</th>
+                  <th class="px-2 py-1.5 text-center">วาระ</th><th class="px-2 py-1.5 text-center">สถานะ</th>
+                </tr></thead>
+                <tbody class="divide-y divide-slate-100">${recs.map(r => `<tr>
+                  <td class="px-2 py-1.5">${escapeHtml(r.dept) || '-'}</td>
+                  <td class="px-2 py-1.5">${escapeHtml(r.program) || '-'}</td>
+                  <td class="px-2 py-1.5">${escapeHtml(r.expertise) || '-'}</td>
+                  <td class="px-2 py-1.5 text-center whitespace-nowrap">${escapeHtml(r.startText || '-')} – ${escapeHtml(r.endText || '-')}</td>
+                  <td class="px-2 py-1.5 text-center">${statusBadge(r)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        }).join('');
+    }
+
+    /* ---------- tab: ครบวาระ ---------- */
+    function renderExpiry() {
+      const f = $('statusFilter').value;
+      const rows = experts
+        .filter(e => f === 'all' || (f === 'alert' ? ['expiring', 'expired'].includes(e.status) : e.status === f))
+        .sort((a, b) => (a.daysLeft ?? 1e9) - (b.daysLeft ?? 1e9));
+
+      $('expiryBody').innerHTML = rows.length ? rows.map(e => `
+        <tr class="hover:bg-purple-50/40">
+          <td class="px-3 py-2 font-medium">${escapeHtml(e.name)}</td>
+          <td class="px-3 py-2 text-slate-600">${escapeHtml(e.dept)}<div class="text-xs text-slate-400">${escapeHtml(e.program)}</div></td>
+          <td class="px-3 py-2 text-center">${escapeHtml(e.startText || '-')}</td>
+          <td class="px-3 py-2 text-center">${escapeHtml(e.endText || '-')}</td>
+          <td class="px-3 py-2 text-center whitespace-nowrap">${escapeHtml(e.endThai)}</td>
+          <td class="px-3 py-2 text-center">${statusBadge(e)}</td>
+        </tr>`).join('')
+        : `<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">ไม่มีรายการ</td></tr>`;
+    }
+
+    function renderStats() {
+      const people = s => new Set(experts.filter(e => !s || e.status === s).map(e => e.key)).size;
+      $('statTotal').textContent = people();
+      $('statActive').textContent = people('active');
+      $('statExpiring').textContent = people('expiring');
+      $('statExpired').textContent = people('expired');
+
+      const alerts = experts.filter(e => e.status === 'expiring' || e.status === 'expired').length;
+      $('alertBadge').textContent = alerts;
+      $('alertBadge').classList.toggle('hidden', !alerts);
+    }
+
+    function loadExperts() {
+      google.script.run
+        .withSuccessHandler(res => {
+          experts = res.records || [];
+          document.querySelectorAll('.warnDays').forEach(el => (el.textContent = res.warnDays));
+          document.querySelectorAll('.termYears').forEach(el => (el.textContent = res.termYears));
+          $('generatedAt').textContent = res.generatedAt;
+          renderStats();
+          renderCheck();
+          renderExpiry();
+          renderNameCheck();
+        })
+        .withFailureHandler(err => {
+          $('expiryBody').innerHTML = `<tr><td colspan="6" class="px-3 py-8 text-center text-rose-500">${escapeHtml(err.message)}</td></tr>`;
+          showToast('โหลดรายชื่อผู้เชี่ยวชาญไม่สำเร็จ: ' + err.message, 'error');
+        })
+        .getExperts();
+    }
+
+    /* ---------- tab: แจ้งอาจารย์ ---------- */
     function todayISO() {
       const d = new Date();
       d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
       return d.toISOString().slice(0, 10);
     }
-
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
-
     function thaiDate(iso) {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
       if (!m) return iso;
-      return new Date(+m[1], m[2] - 1, +m[3])
-        .toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+      return new Date(+m[1], m[2] - 1, +m[3]).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
     }
-
     function formatAmount(v) {
-      return v === '' || v == null ? '-' :
-        Number(v).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return v === '' || v == null ? '-' : Number(v).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function showToast(message, type = 'success') {
-      const colors = type === 'success'
-        ? 'bg-emerald-500'
-        : 'bg-rose-500';
-      const icon = type === 'success' ? '✅' : '⚠️';
-      const toast = $('toast');
-      toast.innerHTML = `<div class="toast-enter ${colors} text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
-        <span>${icon}</span><span>${escapeHtml(message)}</span></div>`;
-      toast.classList.remove('hidden');
-      clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => toast.classList.add('hidden'), 3500);
+    /** เตือนทันทีในฟอร์ม ถ้าชื่อที่พิมพ์เคยได้รับแต่งตั้งแล้ว */
+    function renderNameCheck() {
+      const q = $('name').value;
+      const el = $('nameCheck');
+      if (normalizeName(q).length < 3) { el.innerHTML = ''; return; }
+      const matches = findExperts(q);
+      if (!matches.length) {
+        el.innerHTML = '<span class="text-emerald-600">✅ ไม่พบชื่อนี้ในรายชื่อผู้ได้รับแต่งตั้ง</span>';
+        return;
+      }
+      const v = verdictFor(matches.filter(m => m.key === matches[0].key));
+      el.innerHTML = `<div class="rounded-lg border ${TONE[v.tone]} px-3 py-2">${v.icon} <b>${escapeHtml(matches[0].name)}</b>: ${v.title}
+        ${matches.length > 1 ? `<div class="text-xs mt-1">พบชื่อคล้ายกัน ${new Set(matches.map(m => m.key)).size} คน — ดูรายละเอียดที่แท็บ "ตรวจสอบซ้ำ"</div>` : ''}</div>`;
     }
 
     function renderTable() {
       const q = $('search').value.trim().toLowerCase();
-      const rows = q
-        ? allRows.filter(r => [r.date, r.name, r.details, r.amount].join(' ').toLowerCase().includes(q))
-        : allRows;
-
+      const rows = q ? notifyRows.filter(r => [r.date, r.name, r.details, r.amount].join(' ').toLowerCase().includes(q)) : notifyRows;
       $('count').textContent = rows.length;
-
-      if (!rows.length) {
-        $('tableBody').innerHTML = `<tr><td colspan="4" class="px-3 py-8 text-center text-slate-400">
-          ${q ? 'ไม่พบข้อมูลที่ค้นหา' : 'ยังไม่มีข้อมูล'}</td></tr>`;
-        return;
-      }
-
-      $('tableBody').innerHTML = rows.map(r => `
+      $('tableBody').innerHTML = rows.length ? rows.map(r => `
         <tr class="hover:bg-indigo-50/50">
           <td class="px-3 py-2 whitespace-nowrap" title="บันทึกเมื่อ ${escapeHtml(r.timestamp)}">${escapeHtml(thaiDate(r.date))}</td>
           <td class="px-3 py-2 font-medium whitespace-nowrap">${escapeHtml(r.name)}</td>
           <td class="px-3 py-2 whitespace-pre-line text-slate-600">${escapeHtml(r.details) || '-'}</td>
           <td class="px-3 py-2 text-right tabular-nums">${formatAmount(r.amount)}</td>
-        </tr>`).join('');
+        </tr>`).join('')
+        : `<tr><td colspan="4" class="px-3 py-8 text-center text-slate-400">${q ? 'ไม่พบข้อมูลที่ค้นหา' : 'ยังไม่มีข้อมูล'}</td></tr>`;
     }
 
     function loadData() {
       google.script.run
         .withSuccessHandler(rows => {
-          allRows = rows || [];
+          notifyRows = rows || [];
           renderTable();
           $('lastUpdated').textContent = new Date().toLocaleTimeString('th-TH');
         })
@@ -177,46 +425,45 @@
         .getData();
     }
 
-    function setLoading(isLoading) {
-      $('submitBtn').disabled = isLoading;
-      $('btnText').textContent = isLoading ? '⏳ กำลังบันทึก...' : '💾 บันทึกข้อมูล';
-    }
-
     $('dataForm').addEventListener('submit', e => {
       e.preventDefault();
-      const form = {
-        date: $('date').value,
-        name: $('name').value.trim(),
-        details: $('details').value.trim(),
-        amount: $('amount').value
-      };
+      const form = { date: $('date').value, name: $('name').value.trim(), details: $('details').value.trim(), amount: $('amount').value };
+      if (!form.name) { showToast('กรุณากรอกชื่อ-นามสกุล', 'error'); $('name').focus(); return; }
 
-      if (!form.name) {
-        showToast('กรุณากรอกชื่อ-นามสกุล', 'error');
-        $('name').focus();
-        return;
-      }
-
-      setLoading(true);
+      const btn = $('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ กำลังบันทึก...';
       google.script.run
         .withSuccessHandler(res => {
-          setLoading(false);
+          btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูล';
           showToast(res.message || 'บันทึกข้อมูลสำเร็จ');
           $('dataForm').reset();
           $('date').value = todayISO();
+          $('nameCheck').innerHTML = '';
           loadData();
         })
         .withFailureHandler(err => {
-          setLoading(false);
+          btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูล';
           showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
         })
         .saveData(form);
     });
 
+    /* ---------- tabs & events ---------- */
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b === btn));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + btn.dataset.tab));
+    }));
+
+    $('checkInput').addEventListener('input', renderCheck);
+    $('statusFilter').addEventListener('change', renderExpiry);
+    $('refreshExperts').addEventListener('click', loadExperts);
+    $('name').addEventListener('input', renderNameCheck);
     $('search').addEventListener('input', renderTable);
     $('refreshBtn').addEventListener('click', loadData);
 
     $('date').value = todayISO();
+    loadExperts();
     loadData();
     setInterval(() => { if (!document.hidden) loadData(); }, REFRESH_MS);
   </script>

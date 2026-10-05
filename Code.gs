@@ -9,7 +9,7 @@ const HEADERS = ['เวลาที่บันทึก', 'วันที่'
 /** แสดงหน้าเว็บ */
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('แจ้งอาจารย์ GRAS.02')
+    .setTitle('ระบบ GRAS.02')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
