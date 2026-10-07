@@ -137,7 +137,7 @@ function openExpertSheet_() {
     : SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.EXPERT_SHEET_NAME);
   if (!sheet) {
-    throw new Error('ไม่พบแผ่นงาน "' + CONFIG.EXPERT_SHEET_NAME + '" — ตั้งค่า EXPERT_SHEET_NAME ใน Config.gs');
+    throw new Error('ไม่พบแผ่นงาน "' + CONFIG.EXPERT_SHEET_NAME + '" — ตั้งค่า EXPERT_SHEET_NAME ในส่วน CONFIG ด้านบนของ Code.gs');
   }
   return sheet;
 }
