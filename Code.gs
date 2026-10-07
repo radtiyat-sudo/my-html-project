@@ -3,7 +3,9 @@
  * 1) ตรวจสอบซ้ำก่อนเสนอแต่งตั้ง  2) สถานะ/แจ้งเตือนครบวาระ 5 ปีอัตโนมัติ  3) ฟอร์มแจ้งอาจารย์
  *
  * วิธีใช้: วางไฟล์นี้ใน Code.gs และสร้างไฟล์ HTML ชื่อ Index
- * แก้เฉพาะส่วน "ตั้งค่า" (CONFIG) ด้านล่าง แล้วรันฟังก์ชัน setupDailyTrigger 1 ครั้ง
+ * 1) รันฟังก์ชัน testSetup เพื่อตรวจว่าระบบหาแท็บรายชื่อและคอลัมน์เจอ (ไม่ส่งอีเมล ไม่เขียนชีต)
+ * 2) รันฟังก์ชัน setupDailyTrigger 1 ครั้ง เพื่อเปิดแจ้งเตือนอัตโนมัติ
+ * ไม่จำเป็นต้องแก้ CONFIG — ระบบหาแท็บรายชื่อและหัวตารางให้เอง
  */
 
 // =====================================================================
@@ -11,12 +13,11 @@
 // =====================================================================
 const CONFIG = {
   // ----- แหล่งข้อมูลรายชื่อผู้มีความรู้ความเชี่ยวชาญฯ -----
-  // ID ของ Spreadsheet (ส่วนระหว่าง /d/ และ /edit ใน URL) เว้นว่าง = ใช้ไฟล์ที่ผูกกับสคริปต์นี้
-  EXPERT_SPREADSHEET_ID: '',
-  // ชื่อแผ่นงานที่มีรายชื่อ + ภาคการศึกษาที่ได้รับแต่งตั้ง/สิ้นสุด
-  EXPERT_SHEET_NAME: 'Experts',
-  // แถวที่เป็นหัวตาราง
-  HEADER_ROW: 1,
+  // ID ของ Spreadsheet (ส่วนระหว่าง /d/ และ /edit ใน URL)
+  // ใช้เมื่อสคริปต์ไม่ได้เปิดจาก "ส่วนขยาย → Apps Script" ของชีตนี้
+  EXPERT_SPREADSHEET_ID: '1fxnuxi2RY8tgVzRG4DL_HDBsxavct0ALCcT_HaZDQJs',
+  // ชื่อแท็บรายชื่อ — เว้นว่าง = ให้ระบบหาเองจากหัวตาราง
+  EXPERT_SHEET_NAME: '',
 
   // คำที่ใช้หาคอลัมน์จากหัวตาราง (ไล่ตามลำดับ ใช้คอลัมน์แรกที่หัวตารางมีคำนั้น)
   // ถ้าหัวตารางในชีตใช้คำอื่น ให้เพิ่มคำเข้าไปในรายการ
@@ -57,7 +58,7 @@ const CONFIG = {
   },
 
   // ----- แจ้งเตือนอัตโนมัติ -----
-  // อีเมลผู้รับ (หลายคนได้) เว้นว่าง = ส่งถึงเจ้าของสคริปต์
+  // อีเมลผู้รับอีเมลสรุป เช่น ['a@mahidol.ac.th', 'b@mahidol.ac.th'] — เว้นว่าง = ส่งถึงบัญชีที่รันสคริปต์
   ALERT_EMAILS: [],
   // ส่งแจ้งเตือนเมื่อเหลือ <= กี่วัน (แต่ละรายจะได้แจ้งเตือนครั้งเดียวต่อระดับ) 0 = ครบวาระแล้ว
   ALERT_THRESHOLDS: [180, 90, 30, 0],
@@ -149,15 +150,58 @@ function parseTermDate_(value, which) {
   return null;
 }
 
-function openExpertSheet_() {
-  const ss = CONFIG.EXPERT_SPREADSHEET_ID
-    ? SpreadsheetApp.openById(CONFIG.EXPERT_SPREADSHEET_ID)
-    : SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.EXPERT_SHEET_NAME);
-  if (!sheet) {
-    throw new Error('ไม่พบแผ่นงาน "' + CONFIG.EXPERT_SHEET_NAME + '" — ตั้งค่า EXPERT_SHEET_NAME ในส่วน CONFIG ด้านบนของ Code.gs');
+/** ไฟล์ชีตที่ใช้งาน: ไฟล์ที่ผูกกับสคริปต์ ถ้าไม่มีให้เปิดจาก EXPERT_SPREADSHEET_ID */
+function getSpreadsheet_() {
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  if (!CONFIG.EXPERT_SPREADSHEET_ID) {
+    throw new Error('สคริปต์ไม่ได้ผูกกับชีต — เปิด Apps Script จากเมนู ส่วนขยาย → Apps Script ในชีต หรือใส่ EXPERT_SPREADSHEET_ID');
   }
-  return sheet;
+  return SpreadsheetApp.openById(CONFIG.EXPERT_SPREADSHEET_ID);
+}
+
+const HEADER_SCAN_ROWS = 5;   // หาแถวหัวตารางภายใน 5 แถวแรก
+
+/** อ่านหัวตารางของแท็บ: คืน { headerRow, headers, col } หรือ null ถ้าไม่ใช่ตารางรายชื่อ */
+function detectHeader_(sheet) {
+  const lastCol = sheet.getLastColumn();
+  const rows = Math.min(HEADER_SCAN_ROWS, sheet.getLastRow());
+  if (!lastCol || !rows) return null;
+  const top = sheet.getRange(1, 1, rows, lastCol).getDisplayValues();
+  for (let i = 0; i < top.length; i++) {
+    const headers = top[i].map(h => String(h).replace(/\s+/g, ' ').trim());
+    try {
+      return { headerRow: i + 1, headers, col: mapColumns_(headers) };
+    } catch (e) { /* ยังไม่ใช่แถวหัวตาราง */ }
+  }
+  return null;
+}
+
+/** หาแท็บรายชื่อ: ใช้ EXPERT_SHEET_NAME ถ้าระบุ ไม่งั้นไล่หาแท็บที่หัวตารางมี "ชื่อ" + "ได้รับแต่งตั้ง"/"สิ้นสุด"/"วันที่ได้รับอนุมัติ" */
+function openExpertSheet_() {
+  const ss = getSpreadsheet_();
+  const sheets = ss.getSheets();
+  const names = sheets.map(sh => sh.getName());
+
+  if (CONFIG.EXPERT_SHEET_NAME) {
+    const sheet = ss.getSheetByName(CONFIG.EXPERT_SHEET_NAME);
+    if (!sheet) {
+      throw new Error('ไม่พบแท็บ "' + CONFIG.EXPERT_SHEET_NAME + '" — แท็บที่มี: ' + names.join(', ') +
+        ' (หรือเว้น EXPERT_SHEET_NAME ว่างไว้ให้ระบบหาเอง)');
+    }
+    const found = detectHeader_(sheet);
+    if (!found) throw new Error('แท็บ "' + CONFIG.EXPERT_SHEET_NAME + '" ไม่มีหัวคอลัมน์ "ชื่อ" และ "ได้รับแต่งตั้ง"/"สิ้นสุด"');
+    return Object.assign({ sheet }, found);
+  }
+
+  const skip = [CONFIG.ALERT_LOG_SHEET, SHEET_NAME];
+  for (const sheet of sheets) {
+    if (skip.indexOf(sheet.getName()) !== -1) continue;
+    const found = detectHeader_(sheet);
+    if (found) return Object.assign({ sheet }, found);
+  }
+  throw new Error('หาแท็บรายชื่อไม่เจอ — ต้องมีหัวคอลัมน์ที่มีคำว่า "ชื่อ" และ "ได้รับแต่งตั้ง" หรือ "สิ้นสุด" ' +
+    'ภายใน 5 แถวแรก (แท็บที่มี: ' + names.join(', ') + ')');
 }
 
 /** หา index คอลัมน์ (0-based) จากหัวตาราง ตามคำใน CONFIG.COLUMNS */
@@ -196,14 +240,12 @@ function computeStatus_(approval, endDate, today) {
 
 /** อ่านรายชื่อทั้งหมดพร้อมสถานะ (ใช้ภายในสคริปต์ — มี Date object) */
 function readExperts_() {
-  const sheet = openExpertSheet_();
+  const { sheet, headerRow, headers, col } = openExpertSheet_();
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
-  const headers = sheet.getRange(CONFIG.HEADER_ROW, 1, 1, lastCol).getDisplayValues()[0].map(h => h.trim());
-  const col = mapColumns_(headers);
-  if (lastRow <= CONFIG.HEADER_ROW) return { sheet, headers, records: [] };
+  if (lastRow <= headerRow) return { sheet, headerRow, headers, col, records: [] };
 
-  const range = sheet.getRange(CONFIG.HEADER_ROW + 1, 1, lastRow - CONFIG.HEADER_ROW, lastCol);
+  const range = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, lastCol);
   const values = range.getValues();
   const display = range.getDisplayValues();
   const today = midnight_(new Date());
@@ -227,7 +269,7 @@ function readExperts_() {
     const status = computeStatus_(get(r, 'd', 'approval'), endDate, today);
 
     records.push({
-      row: CONFIG.HEADER_ROW + 1 + r,
+      row: headerRow + 1 + r,
       name,
       key: normalizeName(name),
       dept: String(get(r, 'd', 'dept')),
@@ -245,7 +287,7 @@ function readExperts_() {
       status
     });
   });
-  return { sheet, headers, records };
+  return { sheet, headerRow, headers, col, records };
 }
 
 /** แยกอีเมลจากเซลล์ (คั่นด้วย , ; ช่องว่าง หรือขึ้นบรรทัดใหม่) เก็บเฉพาะที่รูปแบบถูกต้อง */
@@ -299,24 +341,24 @@ function getExperts() {
 }
 
 /** หาคอลัมน์ตามชื่อหัวตาราง ถ้าไม่มีให้สร้างต่อท้าย คืนเลขคอลัมน์ (1-based) */
-function ensureColumn_(sheet, headers, title) {
+function ensureColumn_(sheet, headerRow, headers, title) {
   const idx = headers.indexOf(title);
   if (idx !== -1) return idx + 1;
   const colNum = sheet.getLastColumn() + 1;
-  sheet.getRange(CONFIG.HEADER_ROW, colNum).setValue(title).setFontWeight('bold');
+  sheet.getRange(headerRow, colNum).setValue(title).setFontWeight('bold');
   headers.push(title);
   return colNum;
 }
 
 /** เขียนสถานะ/วันครบวาระ/วันคงเหลือ กลับลงชีต (เฉพาะ 3 คอลัมน์ที่ระบบสร้าง) */
-function writeBackStatus_(sheet, headers, records) {
+function writeBackStatus_(sheet, headerRow, headers, records) {
   if (!records.length) return;
-  const statusCol = ensureColumn_(sheet, headers, CONFIG.STATUS_COLUMN);
-  const endCol = ensureColumn_(sheet, headers, CONFIG.END_DATE_COLUMN);
-  const daysCol = ensureColumn_(sheet, headers, CONFIG.DAYS_LEFT_COLUMN);
+  const statusCol = ensureColumn_(sheet, headerRow, headers, CONFIG.STATUS_COLUMN);
+  const endCol = ensureColumn_(sheet, headerRow, headers, CONFIG.END_DATE_COLUMN);
+  const daysCol = ensureColumn_(sheet, headerRow, headers, CONFIG.DAYS_LEFT_COLUMN);
 
-  const firstRow = CONFIG.HEADER_ROW + 1;
-  const n = sheet.getLastRow() - CONFIG.HEADER_ROW;
+  const firstRow = headerRow + 1;
+  const n = sheet.getLastRow() - headerRow;
   const status = Array.from({ length: n }, () => ['']);
   const ends = Array.from({ length: n }, () => ['']);
   const days = Array.from({ length: n }, () => ['']);
@@ -334,7 +376,7 @@ function writeBackStatus_(sheet, headers, records) {
 }
 
 function getAlertLogSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   let log = ss.getSheetByName(CONFIG.ALERT_LOG_SHEET);
   if (!log) {
     log = ss.insertSheet(CONFIG.ALERT_LOG_SHEET);
@@ -350,8 +392,8 @@ function getAlertLogSheet_() {
  * แต่ละรายจะได้รับแจ้งครั้งเดียวต่อระดับใน ALERT_THRESHOLDS (เช่น 180 / 90 / 30 / 0 วัน)
  */
 function checkExpiryAndNotify() {
-  const { sheet, headers, records } = readExperts_();
-  if (CONFIG.WRITE_BACK_STATUS) writeBackStatus_(sheet, headers, records);
+  const { sheet, headerRow, headers, records } = readExperts_();
+  if (CONFIG.WRITE_BACK_STATUS) writeBackStatus_(sheet, headerRow, headers, records);
 
   const log = getAlertLogSheet_();
   const sent = new Set(
@@ -485,6 +527,37 @@ function sendAlertEmail_(due) {
   });
 }
 
+/**
+ * รันจากหน้า Editor เพื่อตรวจการตั้งค่า (อ่านอย่างเดียว: ไม่ส่งอีเมล ไม่เขียนชีต)
+ * ดูผลที่ "บันทึกการดำเนินการ" ด้านล่างหน้าจอ
+ */
+function testSetup() {
+  const lines = [];
+  const ss = getSpreadsheet_();
+  lines.push('✅ ไฟล์ชีต: ' + ss.getName());
+  lines.push('   แท็บทั้งหมด: ' + ss.getSheets().map(sh => sh.getName()).join(', '));
+
+  const { sheet, headerRow, headers, col, records } = readExperts_();
+  lines.push('✅ แท็บรายชื่อ: "' + sheet.getName() + '" (หัวตารางแถวที่ ' + headerRow + ')');
+  Object.keys(col).forEach(f => {
+    lines.push('   ' + (col[f] === -1 ? '— ' : '✓ ') + f + ': ' +
+      (col[f] === -1 ? 'ไม่พบ (' + CONFIG.COLUMNS[f][0] + ')' : '"' + headers[col[f]] + '"'));
+  });
+
+  const count = s => records.filter(r => r.status.code === s).length;
+  lines.push('✅ อ่านได้ ' + records.length + ' แถว: Active ' + count('active') + ', ใกล้ครบวาระ ' + count('expiring') +
+    ', ครบวาระแล้ว ' + count('expired') + ', รอพิจารณา ' + count('pending') + ', ไม่ทราบวัน ' + count('unknown'));
+  records.slice(0, 3).forEach(r => lines.push('   ตัวอย่าง: ' + r.name + ' → ครบวาระ ' + thaiDate_(r.endDate) +
+    ' (' + r.status.label + (r.status.daysLeft != null ? ', เหลือ ' + r.status.daysLeft + ' วัน' : '') + ')'));
+  lines.push('✅ อีเมลสรุปจะส่งถึง: ' +
+    (CONFIG.ALERT_EMAILS.length ? CONFIG.ALERT_EMAILS.join(', ') : Session.getEffectiveUser().getEmail()));
+  lines.push('ถ้าถูกต้องแล้ว ให้รัน setupDailyTrigger ต่อได้เลย');
+
+  const text = lines.join('\n');
+  console.log(text);
+  return text;
+}
+
 /** รันครั้งเดียวจากหน้า Editor: ตั้งเวลาตรวจสอบและแจ้งเตือนอัตโนมัติทุกวัน */
 function setupDailyTrigger() {
   ScriptApp.getProjectTriggers()
@@ -501,10 +574,10 @@ function setupDailyTrigger() {
 }
 
 // =====================================================================
-// หน้าเว็บ และฟอร์มแจ้งอาจารย์ (บันทึกลงแผ่นงาน Sheet1)
+// หน้าเว็บ และฟอร์มแจ้งอาจารย์ (บันทึกลงแท็บ "แจ้งอาจารย์" — ระบบสร้างให้เอง)
 // =====================================================================
 
-const SHEET_NAME = 'Sheet1';
+const SHEET_NAME = 'แจ้งอาจารย์';
 const HEADERS = ['เวลาที่บันทึก', 'วันที่', 'ชื่อ-นามสกุล', 'รายละเอียด / หมายเหตุ', 'จำนวนเงิน'];
 
 /** แสดงหน้าเว็บ */
@@ -515,9 +588,9 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/** คืนค่า Sheet1 และสร้างแถวหัวตารางหากยังไม่มี */
+/** คืนค่าแท็บฟอร์มแจ้งอาจารย์ และสร้างแถวหัวตารางหากยังไม่มี */
 function getSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
 
@@ -539,7 +612,7 @@ function safeText_(value) {
 }
 
 /**
- * บันทึกข้อมูลลงแถวถัดไปของ Sheet1
+ * บันทึกข้อมูลลงแถวถัดไปของแท็บฟอร์มแจ้งอาจารย์
  * @param {{date: string, name: string, details: string, amount: string|number}} form
  */
 function saveData(form) {
