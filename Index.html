@@ -62,7 +62,7 @@
     <section id="tab-check" class="tab-panel">
       <div class="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
         <h2 class="text-lg font-semibold mb-1">ตรวจสอบก่อนเสนอแต่งตั้ง</h2>
-        <p class="text-sm text-slate-500 mb-4">พิมพ์ชื่อหรือนามสกุล (ไม่ต้องใส่คำนำหน้า/ตำแหน่ง) ระบบจะบอกว่าเคยแต่งตั้งแล้วหรือไม่ เพื่อไม่ให้เสนอซ้ำ</p>
+        <p class="text-sm text-slate-500 mb-4">พิมพ์ชื่อ นามสกุล หรืออีเมลของผู้เชี่ยวชาญ (ไม่ต้องใส่คำนำหน้า/ตำแหน่ง) ระบบจะบอกว่าเคยแต่งตั้งแล้วหรือไม่ เพื่อไม่ให้เสนอซ้ำ</p>
         <input type="search" id="checkInput" placeholder="เช่น เจริญ กระบวนรัตน์"
                class="w-full text-lg rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
         <div id="checkResult" class="mt-5 space-y-4"></div>
@@ -210,11 +210,17 @@
       return s.toLowerCase().replace(/[\s.\-,()]/g, '');
     }
 
-    /** คืนรายชื่อที่ตรงกับคำค้น: ทุกคำ (คั่นด้วยช่องว่าง) ต้องอยู่ในชื่อ */
+    /** คืนรายชื่อที่ตรงกับคำค้น: ทุกคำ (คั่นด้วยช่องว่าง) ต้องอยู่ในชื่อ หรือในอีเมลผู้ได้รับแต่งตั้ง */
     function findExperts(query) {
-      const tokens = String(query).trim().split(/\s+/).map(normalizeName).filter(Boolean);
+      const isPrefix = w => NAME_PREFIXES.some(p => p.toLowerCase() === w.toLowerCase());
+      const tokens = String(query).trim().split(/\s+/)
+        .filter(w => !isPrefix(w))          // ตัดคำนำหน้าที่พิมพ์แยกคำ เช่น "ดร. สมชาย"
+        .map(normalizeName).filter(Boolean);
       if (!tokens.length) return [];
-      return experts.filter(e => tokens.every(t => e.key.includes(t)));
+      return experts.filter(e => {
+        const mail = normalizeName(e.expertEmails);
+        return tokens.every(t => e.key.includes(t)) || (mail && tokens.every(t => mail.includes(t)));
+      });
     }
 
     function showToast(message, type = 'success') {
