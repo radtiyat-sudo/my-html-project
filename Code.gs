@@ -28,11 +28,15 @@ const CONFIG = {
     expertise: ['ความเชี่ยวชาญ'],
     start:     ['ได้รับแต่งตั้ง', 'วันที่แต่งตั้ง', 'เริ่ม'],
     end:       ['สิ้นสุด', 'หมดวาระ', 'หมดอายุ'],
-    approval:  ['สถานะการแต่งตั้ง']
+    approval:  ['สถานะการแต่งตั้ง'],
+    // วันที่ได้รับอนุมัติ เช่น 7/10/2569 — ใช้เป็นวันเริ่มนับวาระ
+    approvedDate: ['วันที่ได้รับอนุมัติ', 'วันที่อนุมัติ', 'อนุมัติเมื่อ', 'วันอนุมัติ']
   },
 
   // ----- กฎวาระการแต่งตั้ง -----
-  TERM_YEARS: 5,          // ใช้คำนวณวันสิ้นสุดเมื่อคอลัมน์ "สิ้นสุด" ว่าง
+  // วันครบวาระ = วันที่ได้รับอนุมัติ + TERM_YEARS ปี  (เช่น 7/10/2569 → 7/10/2574)
+  // ถ้าไม่มีวันที่อนุมัติ จะใช้ "ได้รับแต่งตั้ง" + 5 ปี หรือคอลัมน์ "สิ้นสุด" ตามลำดับ
+  TERM_YEARS: 5,
   WARN_DAYS: 180,         // เหลือน้อยกว่าหรือเท่ากับกี่วัน ถือว่า "ใกล้ครบวาระ"
 
   // แปลง "ภาค/ปีการศึกษา" เช่น 2/2568 เป็นวันที่
@@ -104,7 +108,11 @@ function midnight_(d) {
  * @param {'start'|'end'} which ใช้ต้นภาคหรือปลายภาค เมื่อค่าเป็น ภาค/ปี
  */
 function parseTermDate_(value, which) {
-  if (value instanceof Date && !isNaN(value)) return midnight_(value);
+  if (value instanceof Date && !isNaN(value)) {
+    // พิมพ์ปี พ.ศ. ลงเซลล์วันที่ (เช่น 7/10/2569) Sheets จะเก็บเป็นปี ค.ศ. 2569 → แปลงกลับ
+    const y = value.getFullYear() > 2400 ? value.getFullYear() - 543 : value.getFullYear();
+    return new Date(y, value.getMonth(), value.getDate());
+  }
   const s = String(value || '').trim();
   if (!s) return null;
 
@@ -145,17 +153,19 @@ function openExpertSheet_() {
 /** หา index คอลัมน์ (0-based) จากหัวตาราง ตามคำใน CONFIG.COLUMNS */
 function mapColumns_(headers) {
   const own = [CONFIG.STATUS_COLUMN, CONFIG.DAYS_LEFT_COLUMN, CONFIG.END_DATE_COLUMN];
+  const taken = [];
   const map = {};
   Object.keys(CONFIG.COLUMNS).forEach(field => {
     map[field] = -1;
     for (const kw of CONFIG.COLUMNS[field]) {
-      const idx = headers.findIndex(h => h && own.indexOf(h) === -1 && h.indexOf(kw) !== -1);
-      if (idx !== -1) { map[field] = idx; break; }
+      const idx = headers.findIndex((h, i) =>
+        h && own.indexOf(h) === -1 && taken.indexOf(i) === -1 && h.indexOf(kw) !== -1);
+      if (idx !== -1) { map[field] = idx; taken.push(idx); break; }
     }
   });
   if (map.name === -1) throw new Error('ไม่พบคอลัมน์ชื่อ — ตรวจสอบ CONFIG.COLUMNS.name');
-  if (map.start === -1 && map.end === -1) {
-    throw new Error('ไม่พบคอลัมน์ "ได้รับแต่งตั้ง" หรือ "สิ้นสุด" — ตรวจสอบ CONFIG.COLUMNS');
+  if (map.approvedDate === -1 && map.start === -1 && map.end === -1) {
+    throw new Error('ไม่พบคอลัมน์ "วันที่ได้รับอนุมัติ" / "ได้รับแต่งตั้ง" / "สิ้นสุด" — ตรวจสอบ CONFIG.COLUMNS');
   }
   return map;
 }
@@ -195,11 +205,15 @@ function readExperts_() {
     const name = String(get(r, 'd', 'name')).trim();
     if (!name) return;
 
+    const approvedDate = col.approvedDate === -1 ? null : parseTermDate_(values[r][col.approvedDate], 'start');
     const startDate = col.start === -1 ? null : parseTermDate_(values[r][col.start], 'start');
-    let endDate = col.end === -1 ? null : parseTermDate_(values[r][col.end], 'end');
-    if (!endDate && startDate) {
-      endDate = new Date(startDate.getFullYear() + CONFIG.TERM_YEARS, startDate.getMonth(), startDate.getDate() - 1);
-    }
+    const addTerm = d => new Date(d.getFullYear() + CONFIG.TERM_YEARS, d.getMonth(), d.getDate());
+
+    // วันครบวาระ: วันที่ได้รับอนุมัติ + 5 ปี → ได้รับแต่งตั้ง + 5 ปี → คอลัมน์สิ้นสุด
+    let endDate = null;
+    if (approvedDate) endDate = addTerm(approvedDate);
+    else if (startDate) endDate = addTerm(startDate);
+    else if (col.end !== -1) endDate = parseTermDate_(values[r][col.end], 'end');
     const status = computeStatus_(get(r, 'd', 'approval'), endDate, today);
 
     records.push({
@@ -213,6 +227,7 @@ function readExperts_() {
       startText: String(get(r, 'd', 'start')),
       endText: String(get(r, 'd', 'end')),
       approval: String(get(r, 'd', 'approval')),
+      approvedDate,
       startDate,
       endDate,
       status
@@ -226,6 +241,11 @@ function thaiDate_(d) {
   if (!d) return '-';
   const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   return d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+}
+
+/** วันที่แบบตัวเลข พ.ศ. เช่น 7/10/2574 */
+function thaiNumericDate_(d) {
+  return d.getDate() + '/' + (d.getMonth() + 1) + '/' + (d.getFullYear() + 543);
 }
 
 /**
@@ -247,6 +267,7 @@ function getExperts() {
       startText: r.startText,
       endText: r.endText,
       endThai: thaiDate_(r.endDate),
+      approvedThai: r.approvedDate ? thaiDate_(r.approvedDate) : '',
       approval: r.approval,
       status: r.status.code,
       statusLabel: r.status.label,
@@ -281,12 +302,12 @@ function writeBackStatus_(sheet, headers, records) {
   records.forEach(r => {
     const i = r.row - firstRow;
     status[i][0] = r.status.label;
-    ends[i][0] = r.endDate || '';
+    ends[i][0] = r.endDate ? thaiNumericDate_(r.endDate) : '';
     days[i][0] = r.status.daysLeft == null ? '' : r.status.daysLeft;
   });
 
   sheet.getRange(firstRow, statusCol, n, 1).setValues(status);
-  sheet.getRange(firstRow, endCol, n, 1).setValues(ends).setNumberFormat('dd/mm/yyyy');
+  sheet.getRange(firstRow, endCol, n, 1).setNumberFormat('@').setValues(ends);
   sheet.getRange(firstRow, daysCol, n, 1).setValues(days);
 }
 

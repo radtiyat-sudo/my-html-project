@@ -94,9 +94,9 @@
               <tr>
                 <th class="px-3 py-2 text-left font-semibold">ชื่อ-นามสกุล</th>
                 <th class="px-3 py-2 text-left font-semibold">เสนอจาก / หลักสูตร</th>
-                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">ได้รับแต่งตั้ง</th>
-                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">สิ้นสุด</th>
-                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">วันครบวาระ</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">วันที่ได้รับอนุมัติ</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">วันครบวาระ (+<span class="termYears">5</span> ปี)</th>
+                <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">เหลือ (วัน)</th>
                 <th class="px-3 py-2 text-center font-semibold whitespace-nowrap">สถานะ</th>
               </tr>
             </thead>
@@ -250,7 +250,7 @@
       if (has('active')) {
         const r = has('active');
         return { tone: 'rose', icon: '⛔', title: 'เคยแต่งตั้งแล้ว และยังอยู่ในวาระ — ไม่ต้องแต่งตั้งซ้ำ',
-                 desc: `วาระสิ้นสุด ${escapeHtml(r.endText || r.endThai)} (ครบวาระ ${escapeHtml(r.endThai)} · เหลือ ${r.daysLeft} วัน)` };
+                 desc: `${r.approvedThai ? 'อนุมัติเมื่อ ' + escapeHtml(r.approvedThai) + ' · ' : ''}ครบวาระ ${escapeHtml(r.endThai)} (เหลือ ${r.daysLeft} วัน)` };
       }
       if (has('expiring')) {
         const r = has('expiring');
@@ -311,7 +311,7 @@
                   <td class="px-2 py-1.5">${escapeHtml(r.dept) || '-'}</td>
                   <td class="px-2 py-1.5">${escapeHtml(r.program) || '-'}</td>
                   <td class="px-2 py-1.5">${escapeHtml(r.expertise) || '-'}</td>
-                  <td class="px-2 py-1.5 text-center whitespace-nowrap">${escapeHtml(r.startText || '-')} – ${escapeHtml(r.endText || '-')}</td>
+                  <td class="px-2 py-1.5 text-center whitespace-nowrap">${escapeHtml(r.approvedThai || r.startText || '-')} – ${escapeHtml(r.endThai)}</td>
                   <td class="px-2 py-1.5 text-center">${statusBadge(r)}</td></tr>`).join('')}
                 </tbody>
               </table>
@@ -331,9 +331,9 @@
         <tr class="hover:bg-purple-50/40">
           <td class="px-3 py-2 font-medium">${escapeHtml(e.name)}</td>
           <td class="px-3 py-2 text-slate-600">${escapeHtml(e.dept)}<div class="text-xs text-slate-400">${escapeHtml(e.program)}</div></td>
-          <td class="px-3 py-2 text-center">${escapeHtml(e.startText || '-')}</td>
-          <td class="px-3 py-2 text-center">${escapeHtml(e.endText || '-')}</td>
+          <td class="px-3 py-2 text-center whitespace-nowrap">${escapeHtml(e.approvedThai || e.startText || '-')}</td>
           <td class="px-3 py-2 text-center whitespace-nowrap">${escapeHtml(e.endThai)}</td>
+          <td class="px-3 py-2 text-center tabular-nums">${e.daysLeft == null ? '-' : e.daysLeft}</td>
           <td class="px-3 py-2 text-center">${statusBadge(e)}</td>
         </tr>`).join('')
         : `<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">ไม่มีรายการ</td></tr>`;
