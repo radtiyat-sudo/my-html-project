@@ -268,6 +268,14 @@
       return { tone: 'slate', icon: '❓', title: 'พบชื่อ แต่ไม่ทราบวันครบวาระ', desc: 'กรุณาตรวจสอบคอลัมน์ "ได้รับแต่งตั้ง/สิ้นสุด" ในชีต' };
     }
 
+    /** แสดงอีเมลผู้ได้รับแต่งตั้ง / ผู้ยื่น (ถ้ามี) */
+    function emailLine(e) {
+      const parts = [];
+      if (e.expertEmails) parts.push('ผู้ได้รับแต่งตั้ง: ' + escapeHtml(e.expertEmails));
+      if (e.submitterEmails) parts.push('ผู้ยื่น: ' + escapeHtml(e.submitterEmails));
+      return parts.length ? `<div class="text-xs text-slate-500 mt-0.5 break-all">📧 ${parts.join(' · ')}</div>` : '';
+    }
+
     const TONE = {
       rose: 'border-rose-200 bg-rose-50 text-rose-800',
       amber: 'border-amber-200 bg-amber-50 text-amber-800',
@@ -298,6 +306,7 @@
           const v = verdictFor(recs);
           return `<div class="rounded-xl border ${TONE[v.tone]} p-4">
             <p class="text-base font-bold">${escapeHtml(recs[0].name)}</p>
+            ${emailLine(recs.find(r => r.expertEmails || r.submitterEmails) || recs[0])}
             <p class="font-semibold mt-1">${v.icon} ${v.title}</p>
             <p class="text-sm mt-0.5">${v.desc}</p>
             <div class="mt-3 overflow-x-auto bg-white rounded-lg border border-slate-200">
@@ -329,7 +338,7 @@
 
       $('expiryBody').innerHTML = rows.length ? rows.map(e => `
         <tr class="hover:bg-purple-50/40">
-          <td class="px-3 py-2 font-medium">${escapeHtml(e.name)}</td>
+          <td class="px-3 py-2 font-medium">${escapeHtml(e.name)}${emailLine(e)}</td>
           <td class="px-3 py-2 text-slate-600">${escapeHtml(e.dept)}<div class="text-xs text-slate-400">${escapeHtml(e.program)}</div></td>
           <td class="px-3 py-2 text-center whitespace-nowrap">${escapeHtml(e.approvedThai || e.startText || '-')}</td>
           <td class="px-3 py-2 text-center whitespace-nowrap">${escapeHtml(e.endThai)}</td>

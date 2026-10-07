@@ -21,6 +21,10 @@ const CONFIG = {
   // คำที่ใช้หาคอลัมน์จากหัวตาราง (ไล่ตามลำดับ ใช้คอลัมน์แรกที่หัวตารางมีคำนั้น)
   // ถ้าหัวตารางในชีตใช้คำอื่น ให้เพิ่มคำเข้าไปในรายการ
   COLUMNS: {
+    // คอลัมน์อีเมล (ใส่ไว้บนสุด เพื่อไม่ให้ "อีเมลผู้ได้รับแต่งตั้ง" ถูกจับเป็นคอลัมน์ "ได้รับแต่งตั้ง")
+    // ในเซลล์ใส่ได้หลายอีเมล คั่นด้วย , หรือ ; หรือขึ้นบรรทัดใหม่
+    expertEmail:    ['เมลผู้ได้รับแต่งตั้ง', 'เมลผู้ได้รับการแต่งตั้ง', 'เมลผู้เชี่ยวชาญ', 'เมลผู้ทรงคุณวุฒิ'],
+    submitterEmail: ['เมลผู้ยื่น', 'เมลผู้เสนอ', 'เมลผู้ขอ'],
     name:      ['ชื่อ-นามสกุล', 'ชื่อ - นามสกุล', 'ชื่อ'],
     dept:      ['เสนอจาก', 'ส่วนงาน'],
     program:   ['หลักสูตร'],
@@ -59,6 +63,12 @@ const CONFIG = {
   ALERT_THRESHOLDS: [180, 90, 30, 0],
   ALERT_HOUR: 8,          // เวลาที่ตรวจสอบทุกวัน (ชั่วโมง ตามเขตเวลาของสคริปต์)
   ALERT_LOG_SHEET: 'AlertLog',
+
+  // ส่งอีเมลแจ้งเตือนรายบุคคล (นอกเหนือจากอีเมลสรุปถึง ALERT_EMAILS)
+  NOTIFY_EXPERT: true,      // ส่งถึงผู้ได้รับแต่งตั้ง (To)
+  NOTIFY_SUBMITTER: true,   // ส่งถึงผู้ยื่น (CC)
+  // ไม่ส่งอีเมลรายบุคคลถึงผู้ที่ครบวาระมานานเกินกี่วันแล้ว (กันส่งย้อนหลังตอนเปิดใช้ครั้งแรก)
+  INDIVIDUAL_MAX_OVERDUE_DAYS: 30,
 
   // เขียนสถานะที่คำนวณได้กลับลงชีต (เพิ่ม 3 คอลัมน์ท้ายตาราง) เพื่อให้ Looker Studio แสดงได้
   WRITE_BACK_STATUS: true,
@@ -227,6 +237,8 @@ function readExperts_() {
       startText: String(get(r, 'd', 'start')),
       endText: String(get(r, 'd', 'end')),
       approval: String(get(r, 'd', 'approval')),
+      expertEmails: parseEmails_(get(r, 'd', 'expertEmail')),
+      submitterEmails: parseEmails_(get(r, 'd', 'submitterEmail')),
       approvedDate,
       startDate,
       endDate,
@@ -234,6 +246,14 @@ function readExperts_() {
     });
   });
   return { sheet, headers, records };
+}
+
+/** แยกอีเมลจากเซลล์ (คั่นด้วย , ; ช่องว่าง หรือขึ้นบรรทัดใหม่) เก็บเฉพาะที่รูปแบบถูกต้อง */
+function parseEmails_(value) {
+  return String(value || '')
+    .split(/[\s,;]+/)
+    .map(e => e.trim())
+    .filter(e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
 }
 
 /** แปลงวันที่เป็นข้อความภาษาไทย (พ.ศ.) */
@@ -268,6 +288,8 @@ function getExperts() {
       endText: r.endText,
       endThai: thaiDate_(r.endDate),
       approvedThai: r.approvedDate ? thaiDate_(r.approvedDate) : '',
+      expertEmails: r.expertEmails.join(', '),
+      submitterEmails: r.submitterEmails.join(', '),
       approval: r.approval,
       status: r.status.code,
       statusLabel: r.status.label,
@@ -316,8 +338,8 @@ function getAlertLogSheet_() {
   let log = ss.getSheetByName(CONFIG.ALERT_LOG_SHEET);
   if (!log) {
     log = ss.insertSheet(CONFIG.ALERT_LOG_SHEET);
-    log.appendRow(['เวลาที่ส่ง', 'Key', 'ชื่อ-นามสกุล', 'วันครบวาระ', 'ระดับแจ้งเตือน (วัน)', 'เหลือ (วัน)']);
-    log.getRange(1, 1, 1, 6).setFontWeight('bold');
+    log.appendRow(['เวลาที่ส่ง', 'Key', 'ชื่อ-นามสกุล', 'วันครบวาระ', 'ระดับแจ้งเตือน (วัน)', 'เหลือ (วัน)', 'ส่งรายบุคคลถึง']);
+    log.getRange(1, 1, 1, 7).setFontWeight('bold');
     log.setFrozenRows(1);
   }
   return log;
@@ -349,19 +371,72 @@ function checkExpiryAndNotify() {
     if (!fresh.length) return;
 
     const level = Math.min.apply(null, crossed);
-    due.push({ r, level });
+    const sentTo = sendIndividualEmail_(r);
+    due.push({ r, level, sentTo });
     fresh.forEach(t => {
       const key = r.key + '|' + endIso + '|' + t;
       sent.add(key);
-      newLogs.push([new Date(), key, r.name, r.endDate, t, d]);
+      newLogs.push([new Date(), key, r.name, r.endDate, t, d, sentTo]);
     });
   });
 
   if (!due.length) return 0;
 
   sendAlertEmail_(due);
-  log.getRange(log.getLastRow() + 1, 1, newLogs.length, 6).setValues(newLogs);
+  log.getRange(log.getLastRow() + 1, 1, newLogs.length, 7).setValues(newLogs);
   return due.length;
+}
+
+/**
+ * ส่งอีเมลถึงผู้ได้รับแต่งตั้ง (To) และผู้ยื่น (CC) ของรายการนั้น
+ * คืนข้อความสรุปผู้รับ (หรือเหตุผลที่ไม่ส่ง) เพื่อบันทึกใน AlertLog
+ */
+function sendIndividualEmail_(r) {
+  const d = r.status.daysLeft;
+  if (d < -CONFIG.INDIVIDUAL_MAX_OVERDUE_DAYS) return 'ไม่ส่ง (ครบวาระนานแล้ว)';
+
+  let to = CONFIG.NOTIFY_EXPERT ? r.expertEmails.slice() : [];
+  let cc = CONFIG.NOTIFY_SUBMITTER ? r.submitterEmails.filter(e => to.indexOf(e) === -1) : [];
+  if (!to.length) { to = cc; cc = []; }
+  if (!to.length) return 'ไม่มีอีเมล';
+  if (MailApp.getRemainingDailyQuota() < 1) return 'ไม่ส่ง (เกินโควตาอีเมลวันนี้)';
+
+  const when = d < 0
+    ? 'ได้ครบวาระแล้วเมื่อวันที่ <b>' + thaiDate_(r.endDate) + '</b>'
+    : d === 0
+      ? 'จะครบวาระใน<b>วันนี้</b> (' + thaiDate_(r.endDate) + ')'
+      : 'จะครบวาระในวันที่ <b>' + thaiDate_(r.endDate) + '</b> (อีก ' + d + ' วัน)';
+  const since = r.approvedDate ? thaiDate_(r.approvedDate) : (r.startText || '-');
+
+  const html =
+    '<div style="font-family:Sarabun,Tahoma,sans-serif;font-size:15px;line-height:1.7">' +
+    '<p>เรียน ' + escapeHtml_(r.name) + '</p>' +
+    '<p>ตามที่ท่านได้รับการแต่งตั้งเป็น<b>ผู้มีความรู้ความเชี่ยวชาญและประสบการณ์สูง</b> (GRAS.02)</p>' +
+    '<table style="border-collapse:collapse;margin:8px 0">' +
+    [['หลักสูตร', r.program], ['เสนอจาก', r.dept], ['ความเชี่ยวชาญ', r.expertise],
+     ['วันที่ได้รับอนุมัติ', since], ['วาระ', CONFIG.TERM_YEARS + ' ปี']]
+      .filter(x => x[1])
+      .map(x => '<tr><td style="padding:2px 12px 2px 0;color:#64748b">' + x[0] + '</td><td>' + escapeHtml_(x[1]) + '</td></tr>')
+      .join('') +
+    '</table>' +
+    '<p>การแต่งตั้งดังกล่าว' + when + '</p>' +
+    '<p>หากประสงค์จะให้ดำเนินการต่อ กรุณายื่นเสนอแต่งตั้ง (GRAS.02) วาระใหม่</p>' +
+    '<p style="color:#94a3b8;font-size:12px">อีเมลฉบับนี้ส่งจากระบบแจ้งเตือนอัตโนมัติ</p></div>';
+
+  const options = {
+    to: to.join(','),
+    subject: '[GRAS.02] แจ้งเตือนวาระการแต่งตั้ง — ' + r.name,
+    htmlBody: html
+  };
+  if (cc.length) options.cc = cc.join(',');
+  if (CONFIG.ALERT_EMAILS.length) options.replyTo = CONFIG.ALERT_EMAILS[0];
+
+  try {
+    MailApp.sendEmail(options);
+    return to.concat(cc).join(', ');
+  } catch (e) {
+    return 'ส่งไม่สำเร็จ: ' + e.message;
+  }
 }
 
 function escapeHtml_(s) {
@@ -372,7 +447,7 @@ function sendAlertEmail_(due) {
   due.sort((a, b) => a.r.status.daysLeft - b.r.status.daysLeft);
   const expired = due.filter(x => x.r.status.daysLeft < 0).length;
 
-  const rows = due.map(({ r }) => {
+  const rows = due.map(({ r, sentTo }) => {
     const d = r.status.daysLeft;
     const color = d < 0 ? '#e11d48' : d <= 30 ? '#ea580c' : '#ca8a04';
     const left = d < 0 ? 'เกินมา ' + Math.abs(d) + ' วัน' : d === 0 ? 'ครบวาระวันนี้' : 'เหลือ ' + d + ' วัน';
@@ -380,9 +455,10 @@ function sendAlertEmail_(due) {
       '<td style="padding:6px;border:1px solid #e2e8f0">' + escapeHtml_(r.name) + '</td>' +
       '<td style="padding:6px;border:1px solid #e2e8f0">' + escapeHtml_(r.dept) + '</td>' +
       '<td style="padding:6px;border:1px solid #e2e8f0">' + escapeHtml_(r.program) + '</td>' +
-      '<td style="padding:6px;border:1px solid #e2e8f0">' + escapeHtml_(r.startText) + ' – ' + escapeHtml_(r.endText) + '</td>' +
+      '<td style="padding:6px;border:1px solid #e2e8f0">' + escapeHtml_(r.approvedDate ? thaiDate_(r.approvedDate) : r.startText) + '</td>' +
       '<td style="padding:6px;border:1px solid #e2e8f0">' + thaiDate_(r.endDate) + '</td>' +
       '<td style="padding:6px;border:1px solid #e2e8f0;color:' + color + ';font-weight:bold">' + left + '</td>' +
+      '<td style="padding:6px;border:1px solid #e2e8f0;font-size:12px">' + escapeHtml_(sentTo) + '</td>' +
       '</tr>';
   }).join('');
 
@@ -393,7 +469,7 @@ function sendAlertEmail_(due) {
     (expired ? ' (ครบวาระแล้ว ' + expired + ' ราย)' : '') + ' กรุณาพิจารณาเสนอแต่งตั้งใหม่</p>' +
     '<table style="border-collapse:collapse;font-size:14px">' +
     '<tr style="background:#eef2ff">' +
-    ['ชื่อ-นามสกุล', 'เสนอจาก', 'หลักสูตร', 'วาระ', 'วันครบวาระ', 'สถานะ']
+    ['ชื่อ-นามสกุล', 'เสนอจาก', 'หลักสูตร', 'วันที่อนุมัติ/แต่งตั้ง', 'วันครบวาระ', 'สถานะ', 'แจ้งรายบุคคลถึง']
       .map(h => '<th style="padding:6px;border:1px solid #e2e8f0;text-align:left">' + h + '</th>').join('') +
     '</tr>' + rows + '</table>';
 
