@@ -13,7 +13,8 @@ var APP_TITLE = 'ระบบประเมิน PLO วิทยานิพ�
 
 var SCHEMA = {
   Faculties: ['facultyId', 'name', 'order'],
-  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target'],
+  // evalMode = 'plo' (แบบเดิม: เกณฑ์ราย PLO) หรือ 'items' (หัวข้อการสอบวิทยานิพนธ์ที่เชื่อมหลาย PLO)
+  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target', 'evalMode'],
   PLOs: ['programId', 'ploId', 'code', 'titleTh', 'textEn', 'weight', 'order'],
   // d1-d4 = คำอธิบายระดับแบบเก่า (1-4); bA-bE = คำอธิบาย 5 ช่วงคะแนนแบบใหม่ (A 9-10, B 7-8, C 5-6, D 3-4, E 0-2)
   Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order', 'bA', 'bB', 'bC', 'bD', 'bE'],
@@ -24,7 +25,9 @@ var SCHEMA = {
   Scores: ['evalKey', 'programId', 'studentId', 'studentCode', 'studentName', 'email', 'evaluator', 'ploCode', 'critId', 'critName', 'level', 'updatedAt', 'scale'],
   AI: ['studentId', 'programId', 'resultJson', 'updatedAt'],
   CrossAI: ['key', 'resultJson', 'updatedAt'],
-  Users: ['email', 'name', 'role', 'programs']
+  Users: ['email', 'name', 'role', 'programs'],
+  // หัวข้อการประเมินวิทยานิพนธ์: 1 แถว/หัวข้อ, plos = รหัส PLO ที่สอดคล้อง คั่นด้วยจุลภาค (อย่างน้อย 2), bA-bE = เกณฑ์ 5 ช่วง
+  Items: ['programId', 'itemId', 'order', 'name', 'detail', 'plos', 'bA', 'bB', 'bC', 'bD', 'bE']
 };
 
 var SAMPLE_EMAIL = 'sample@example.com';
@@ -339,9 +342,15 @@ function loadProgram_(pid) {
   crits.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
   var plos = readAll_('PLOs').filter(function (p) { return s_(p.programId) === pid; });
   plos.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
+  var codes = plos.map(function (p) { return s_(p.code); });
+  var items = readAll_('Items').filter(function (it) { return s_(it.programId) === pid; });
+  items.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
   return {
     id: pid, facultyId: s_(pr.facultyId), facultyName: fac ? s_(fac.name) : '', name: s_(pr.name), level: s_(pr.level), status: s_(pr.status), source: s_(pr.source),
-    set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80) },
+    set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80), evalMode: s_(pr.evalMode) === 'items' ? 'items' : 'plo' },
+    items: items.map(function (it) {
+      return { id: s_(it.itemId), name: s_(it.name), detail: s_(it.detail), plos: matchCodes_(s_(it.plos).split(','), codes), desc: bandDesc_(it) };
+    }),
     plos: plos.map(function (p) {
       return {
         id: s_(p.ploId), code: s_(p.code), th: s_(p.titleTh), en: s_(p.textEn), weight: num_(p.weight, 0),
@@ -351,6 +360,35 @@ function loadProgram_(pid) {
       };
     })
   };
+}
+
+/** จับคู่รหัส PLO (ไม่สนช่องว่าง/ตัวพิมพ์) กับรหัสจริงของหลักสูตร ตัดตัวที่ไม่มีและตัวซ้ำออก */
+function matchCodes_(list, codes) {
+  var norm = function (x) { return s_(x).replace(/\s+/g, '').toUpperCase(); }, map = {}, out = [];
+  codes.forEach(function (c) { map[norm(c)] = c; });
+  (list || []).forEach(function (x) { var c = map[norm(x)]; if (c && out.indexOf(c) < 0) out.push(c); });
+  return out;
+}
+
+/** หน่วยที่ใช้คิดคะแนนของ PLO: แบบเดิม = เกณฑ์ของ PLO นั้น / แบบหัวข้อ = หัวข้อที่เชื่อมกับ PLO นั้น */
+function unitsOfPlo_(prog, p) {
+  if (prog.set.evalMode === 'items' && prog.items.length) return prog.items.filter(function (it) { return it.plos.indexOf(p.code) >= 0; });
+  return p.crit;
+}
+
+/** ตรวจกติกาหัวข้อ: ทุกหัวข้อเชื่อม ≥ 2 PLO และทุก PLO ถูกประเมินอย่างน้อย 1 หัวข้อ */
+function checkItems_(codes, items) {
+  var probs = [], used = {};
+  if (codes.length < 2) probs.push('หลักสูตรต้องมี PLO อย่างน้อย 2 ข้อ');
+  if (!items.length) probs.push('ยังไม่มีหัวข้อการประเมิน');
+  items.forEach(function (it, i) {
+    if (!s_(it.name).trim()) probs.push('หัวข้อที่ ' + (i + 1) + ' ยังไม่มีชื่อ');
+    if (it.plos.length < 2) probs.push('หัวข้อที่ ' + (i + 1) + ' เชื่อม PLO น้อยกว่า 2 ข้อ');
+    it.plos.forEach(function (c) { used[c] = true; });
+  });
+  var miss = codes.filter(function (c) { return !used[c]; });
+  if (items.length && miss.length) probs.push('ยังไม่มีหัวข้อที่ประเมิน ' + miss.join(', '));
+  return probs;
 }
 
 /**
@@ -489,7 +527,7 @@ function deleteProgram(pid) {
   need_(['admin']);
   return withLock_(function () {
     pid = s_(pid);
-    ['Programs', 'PLOs', 'Criteria', 'Students', 'Evals', 'Scores', 'AI'].forEach(function (n) {
+    ['Programs', 'PLOs', 'Criteria', 'Items', 'Students', 'Evals', 'Scores', 'AI'].forEach(function (n) {
       var key = n === 'Programs' ? 'programId' : 'programId';
       writeAll_(n, readAll_(n).filter(function (r) { return s_(r[key]) !== pid; }));
     });
@@ -563,6 +601,36 @@ function saveProgram(prog) {
 }
 
 function clamp_(v) { return Math.max(0, Math.min(100, num_(v, 0))); }
+
+/**
+ * บันทึกหัวข้อการประเมินวิทยานิพนธ์ (แทนที่ทั้งชุดของหลักสูตร) และรูปแบบการประเมิน
+ * items = [{id,name,detail,plos:[รหัส PLO],desc:[A..E]|null}], mode = 'plo' | 'items'
+ * ใช้แบบหัวข้อได้เมื่อผ่านกติกา (ทุกหัวข้อเชื่อม ≥ 2 PLO และครอบคลุมทุก PLO) ส่วนแบบเดิมบันทึกร่างไว้ก่อนได้
+ */
+function saveItems(pid, items, mode) {
+  needP_(['admin', 'curriculum'], pid);
+  return withLock_(function () {
+    pid = s_(pid);
+    var prog = loadProgram_(pid);
+    if (!prog) throw new Error('ไม่พบหลักสูตร');
+    var codes = prog.plos.map(function (p) { return p.code; });
+    var list = (items || []).slice(0, 30).map(function (it) {
+      return { id: s_(it.id) || uid_('i'), name: s_(it.name).trim().slice(0, 200), detail: s_(it.detail).trim().slice(0, 1000), plos: matchCodes_(it.plos, codes), desc: it.desc };
+    });
+    mode = mode === 'items' ? 'items' : 'plo';
+    var probs = checkItems_(codes, list);
+    if (mode === 'items' && probs.length) throw new Error('ใช้แบบหัวข้อการสอบไม่ได้: ' + probs.join(' · '));
+    var rows = list.map(function (it, i) {
+      var b = it.desc && it.desc.length === 5 ? it.desc : ['', '', '', '', ''];
+      return { programId: pid, itemId: it.id, order: i + 1, name: it.name, detail: it.detail, plos: it.plos.join(','), bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]) };
+    });
+    writeAll_('Items', readAll_('Items').filter(function (r) { return s_(r.programId) !== pid; }).concat(rows));
+    var prs = readAll_('Programs');
+    prs.forEach(function (p) { if (s_(p.programId) === pid) p.evalMode = mode; });
+    writeAll_('Programs', prs);
+    return getProgram(pid);
+  });
+}
 
 /** list = [{code,titleTh,textEn,weight,crit:[names]?}] */
 function importPlos(pid, list, mode) {
@@ -674,6 +742,8 @@ function saveEval(pid, sid, scores, comment) {
     var prog = loadProgram_(pid);
     var meta = {};
     prog.plos.forEach(function (p) { p.crit.forEach(function (c) { meta[c.id] = { ploCode: p.code, name: c.name }; }); });
+    // คะแนนหัวข้อการสอบ (ที่เชื่อมหลาย PLO) เก็บในชีต Scores เหมือนกัน โดย ploCode = รหัส PLO ทั้งหมดของหัวข้อนั้น
+    prog.items.forEach(function (it) { meta[it.id] = { ploCode: it.plos.join(','), name: it.name }; });
     var now = new Date().toISOString(), key = sid + '|' + me.email;
     var rows = [];
     Object.keys(scores || {}).forEach(function (k) {
@@ -824,7 +894,7 @@ function aiAnalyzeStudent(pid, sid) {
   var ids = prog.plos.map(function (p) { return p.id; });
   var plos = prog.plos.map(function (p) {
     var s = 0, n = 0;
-    p.crit.forEach(function (c) { (acc[c.id] || []).forEach(function (v) { s += v; n++; }); });
+    unitsOfPlo_(prog, p).forEach(function (c) { (acc[c.id] || []).forEach(function (v) { s += v; n++; }); });
     return { id: p.id, code: p.code, ชื่อ: p.th, ข้อความ: p.en.replace(/\(draft wording[^)]*\)/i, ''), คะแนนเฉลี่ยเต็ม10: n ? Math.round(s / n * 10) / 10 : null, เกณฑ์: p.crit.map(function (c) { return c.name; }) };
   });
   var prompt = 'คุณช่วยวิเคราะห์การประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา\nงาน: อ่านความเห็นของกรรมการ แล้วแมปว่าความเห็นกล่าวถึงผลลัพธ์การเรียนรู้ (PLO) ข้อใดบ้างและสัดส่วนเท่าไร พร้อมตรวจว่าคะแนนรูบริกสอดคล้องกับความเห็นหรือไม่\n\nPLO ของหลักสูตร ' + prog.name + ' (พร้อมคะแนนเฉลี่ยของ PLO นั้น เต็ม 10 โดย 9-10 สูงกว่าเป้าหมายมาก, 7-8 ตามเป้าหมาย, 5-6 ใกล้เคียงเป้าหมาย, 3-4 ต่ำกว่าเป้าหมาย, 0-2 ต่ำกว่าเป้าหมายมาก):\n' + JSON.stringify(plos) +
@@ -895,6 +965,51 @@ function aiExtractPlos(text) {
   });
   if (!out.length) throw new Error('AI ไม่พบ PLO ในข้อความนี้');
   return out.slice(0, 30);
+}
+
+function ploList_(prog) {
+  return prog.plos.map(function (p) { return { code: p.code, ชื่อ: p.th, ข้อความ: p.en.replace(/\(draft wording[^)]*\)/i, '') }; });
+}
+
+/**
+ * AI สร้างหัวข้อการประเมินวิทยานิพนธ์ n ข้อ แต่ละข้อเชื่อม ≥ 2 PLO และรวมกันครอบคลุมทุก PLO
+ * คืนเฉพาะชื่อ รายละเอียด และ PLO ที่สอดคล้อง (เกณฑ์ A-E ให้ร่างต่อทีละหัวข้อด้วย aiItemBands เพื่อไม่ให้หมดเวลา)
+ */
+function aiDraftItems(pid, n) {
+  needP_(['admin', 'curriculum'], pid);
+  var prog = loadProgram_(s_(pid));
+  if (!prog) throw new Error('ไม่พบหลักสูตร');
+  if (prog.plos.length < 2) throw new Error('หลักสูตรต้องมี PLO อย่างน้อย 2 ข้อ');
+  n = Math.max(2, Math.min(12, Math.round(num_(n, 5))));
+  var codes = prog.plos.map(function (p) { return p.code; });
+  var prompt = 'คุณช่วยออกแบบแบบประเมินการสอบวิทยานิพนธ์ระดับบัณฑิตศึกษาของหลักสูตร "' + prog.name + '"\n' +
+    'PLO ของหลักสูตร:\n' + JSON.stringify(ploList_(prog)) + '\n\n' +
+    'งาน: สร้างหัวข้อการประเมินจำนวน ' + n + ' ข้อ ที่กรรมการสอบใช้ให้คะแนนวิทยานิพนธ์ได้จริง (เช่น ที่มาและการทบทวนวรรณกรรม ระเบียบวิธีวิจัย การวิเคราะห์และอภิปรายผล การนำเสนอและตอบคำถาม จริยธรรมและการเขียน) แล้วระบุว่าแต่ละหัวข้อสอดคล้องกับ PLO ใด\n' +
+    'กติกาบังคับ: 1) แต่ละหัวข้อต้องสอดคล้องกับ PLO อย่างน้อย 2 ข้อ (แสดงความสัมพันธ์ระหว่าง PLO) 2) รวมทุกหัวข้อแล้วต้องครอบคลุม PLO ครบทุกข้อ (' + codes.join(', ') + ') 3) เชื่อมเฉพาะ PLO ที่หัวข้อนั้นวัดได้จริง อธิบายเหตุผลสั้น ๆ\n' +
+    'ตอบเป็น JSON เท่านั้น: {"items":[{"name":"ชื่อหัวข้อการประเมิน","detail":"สิ่งที่กรรมการดู 1-2 ประโยค","plos":["PLO2","PLO4"],"why":"เหตุผลที่สอดคล้องกับ PLO เหล่านี้"}]}';
+  var r = callClaude_(prompt, 4000, 'medium');
+  var out = (r && r.items || []).slice(0, n).filter(function (it) { return it && it.name; }).map(function (it) {
+    return { name: s_(it.name).slice(0, 200), detail: s_(it.detail).slice(0, 600), plos: matchCodes_(it.plos, codes), why: s_(it.why).slice(0, 400) };
+  });
+  if (!out.length) throw new Error('AI ไม่ได้ส่งหัวข้อที่ใช้ได้ ลองใหม่อีกครั้ง');
+  return out;
+}
+
+/** AI เขียนเกณฑ์ 5 ช่วง (A-E เต็ม 10) ให้หัวข้อการประเมิน 1 ข้อ โดยอิง PLO ที่หัวข้อนั้นเชื่อมอยู่ */
+function aiItemBands(pid, item) {
+  needP_(['admin', 'curriculum'], pid);
+  var prog = loadProgram_(s_(pid));
+  if (!prog) throw new Error('ไม่พบหลักสูตร');
+  var codes = matchCodes_(item && item.plos, prog.plos.map(function (p) { return p.code; }));
+  var linked = ploList_(prog).filter(function (p) { return codes.indexOf(p.code) >= 0; });
+  if (!s_(item && item.name).trim()) throw new Error('หัวข้อยังไม่มีชื่อ');
+  var prompt = 'ช่วยเขียนเกณฑ์การให้คะแนนการสอบวิทยานิพนธ์ระดับบัณฑิตศึกษา หลักสูตร "' + prog.name + '"\n' +
+    'หัวข้อการประเมิน: ' + s_(item.name) + (item.detail ? '\nรายละเอียด: ' + s_(item.detail) : '') + '\n' +
+    'หัวข้อนี้ใช้วัด PLO ต่อไปนี้ คำอธิบายทุกช่วงต้องสะท้อน PLO เหล่านี้ทุกข้อ:\n' + JSON.stringify(linked) + '\n\n' + BAND_GUIDE_ +
+    '\nตอบเป็น JSON เท่านั้น: {"bands":["ช่วง A","ช่วง B","ช่วง C","ช่วง D","ช่วง E"]}';
+  var r = callClaude_(prompt, 3000, 'low');
+  if (!r || !r.bands || r.bands.length !== 5) throw new Error('AI ไม่ได้ส่งเกณฑ์ครบ 5 ช่วง ลองใหม่อีกครั้ง');
+  return r.bands.map(function (x) { return String(x).slice(0, 500); });
 }
 
 /** AI เทียบ PLO ข้ามหลักสูตร + ร่าง PLO หลักสูตรผสมผสาน */
