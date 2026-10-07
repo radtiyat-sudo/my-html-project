@@ -12,7 +12,7 @@ function boot(email) {
   vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), ctx);
   ctx.__opts = { email, reset: true };
   vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger=__g.Logger, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp;', ctx);
-  vm.runInContext(GS.map(f => readFileSync(root + 'src/' + f, 'utf8')).join('\n'), ctx);
+  vm.runInContext(process.env.BUNDLE ? readFileSync(root + 'gas/Code.gs', 'utf8') : GS.map(f => readFileSync(root + 'src/' + f, 'utf8')).join('\n'), ctx);
   // รีเซ็ตแคชผู้ใช้ทุกครั้งที่เรียก api (จำลองการเรียกแยก execution)
   const call = (action, payload) => { vm.runInContext('CURRENT_USER_ = null; for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k];', ctx); return JSON.parse(JSON.stringify(ctx.api(action, payload))); };
   call.setEmail = e => { ctx.__opts.email = e; };
