@@ -47,6 +47,30 @@
       </main>
     </div>
   </div>
+  <script>
+    // ตัวดักข้อผิดพลาด: ถ้าสคริปต์หลักโหลดไม่ขึ้น จะแสดงสาเหตุบนหน้าจอแทนการหมุนค้าง
+    (function () {
+      function show(title, msg) {
+        var c = document.getElementById('content'), t = document.getElementById('page-title');
+        if (t) t.textContent = 'เกิดข้อผิดพลาด';
+        if (c) c.innerHTML = '<div style="max-width:720px;margin:40px auto;padding:20px 22px;border:1px solid #e05252;border-radius:14px;background:rgba(224,82,82,.08)">' +
+          '<b style="color:#e05252;font-size:17px">' + title + '</b><pre style="white-space:pre-wrap;font-size:13px;margin:10px 0">' +
+          String(msg).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>' +
+          '<div style="font-size:14px;line-height:1.7">ตรวจสอบ: (1) วางไฟล์ <b>Index.html</b> ครบทั้งไฟล์ บรรทัดสุดท้ายต้องเป็น <code>&lt;/html&gt;</code> ' +
+          '(2) วาง <b>Code.gs</b> ครบ (3) Deploy เวอร์ชันใหม่หลังแก้โค้ด แล้วกด F5</div></div>';
+      }
+      window.addEventListener('error', function (e) {
+        if (window.__mugrLoaded) return;
+        show('สคริปต์หน้าเว็บทำงานไม่ได้', (e.message || 'Script error') + (e.lineno ? '\nบรรทัด ' + e.lineno + ':' + e.colno : ''));
+      });
+      setTimeout(function () {
+        if (window.__mugrLoaded) return;
+        show(window.__mugrBooted ? 'เซิร์ฟเวอร์ไม่ตอบกลับภายใน 30 วินาที' : 'สคริปต์หน้าเว็บไม่เริ่มทำงาน',
+          window.__mugrBooted ? 'ลองรันฟังก์ชัน setup ใน Apps Script อีกครั้ง แล้วดู "การดำเนินการ" (Executions) ว่ามีข้อผิดพลาดหรือไม่'
+                              : 'สคริปต์ส่วนท้ายของ Index.html ไม่ถูกโหลด — มักเกิดจากวางโค้ดไม่ครบ');
+      }, 30000);
+    })();
+  </script>
   <div id="modal-root"></div>
   <div class="toasts" id="toasts"></div>
   <?!= include('App') ?>

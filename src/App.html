@@ -1,4 +1,5 @@
 <script>
+(function () {
 /* =====================================================================
  * App.html — หน้าเว็บแบบ Single Page: สถานะ, การนำทาง, ฟอร์ม และทุกหน้าจอ
  * ข้อมูลทั้งหมดมาจาก google.script.run.api(action, payload) (ดู Api.gs)
@@ -1091,6 +1092,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------------- Boot ---------------- */
 function boot() {
+  window.__mugrBooted = true;
   $('#theme-btn').addEventListener('click', toggleTheme);
   $('#logout-btn').addEventListener('click', () => ACT.logout());
   $('#user-chip').addEventListener('click', () => $('#user-menu').classList.toggle('open'));
@@ -1102,14 +1104,17 @@ function boot() {
     if (google.script.history) google.script.history.setChangeHandler(ev => { if (ev.state && ev.state.page) { S.page = ev.state.page; try { S.params = JSON.parse(ev.state.params || '{}'); } catch (x) { S.params = {}; } render(); } });
   } catch (e) { /* not in GAS */ }
   call('bootstrap').then(d => {
+    window.__mugrLoaded = true;
     S.meta = d.meta;
     const h = (window.location.hash || '').replace('#', '').split(':');
     go(PAGES[h[0]] ? h[0] : 'dashboard', h[1] ? { id: h[1] } : {}, { noHistory: true });
   }).catch(err => {
+    window.__mugrLoaded = true;
     $('#page-title').textContent = 'ไม่สามารถเข้าใช้งานได้';
     $('#content').innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="card-b"><div class="banner red">${ic('alert-triangle')}<div><b>ไม่สามารถเข้าใช้งานระบบได้</b><span class="sub">${esc(err.message)}</span></div></div>
-      <p class="small muted mt">หากเป็นการใช้งานครั้งแรก ให้ผู้ดูแลระบบรันฟังก์ชัน <code>setup()</code> ในตัวแก้ไข Apps Script และตรวจว่า Deploy แบบ “Execute as: Me”</p><button class="btn primary" onclick="location.reload()">${ic('refresh', 'sm')} ลองอีกครั้ง</button></div></div>`;
+      <p class="small muted mt">หากเป็นการใช้งานครั้งแรก ให้ผู้ดูแลระบบรันฟังก์ชัน <code>setup()</code> ในตัวแก้ไข Apps Script และตรวจว่า Deploy แบบ “Execute as: Me”</p><p class="small muted">แก้ไขแล้วกด F5 เพื่อโหลดหน้าใหม่</p></div></div>`;
   });
 }
 boot();
+})();
 </script>
