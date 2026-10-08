@@ -5,7 +5,7 @@
 
 function api(action, payload) {
   const lock = LockService.getScriptLock();
-  const writes = !/^(bootstrap|assess|exportReport|audit)$/.test(action);
+  const writes = !/^(bootstrap|assess|exportReport|audit|findAuthors|findWorks|analyzeDocument|saveEvidence|journalStats)$/.test(action);
   try {
     ensureSchema_();
     if (writes) lock.waitLock(20000);
@@ -278,6 +278,16 @@ const ACTIONS_ = {
   },
 
   exportReport: function (p) { return exportReport_(p); },
+
+  /* ---------- ค้นหา/ตรวจผลงานอัตโนมัติ (Discovery.gs) ---------- */
+  findAuthors: function (p) { requireRole_(['admin', 'chair', 'lecturer']); return findAuthors_(p); },
+  findWorks: function (p) { requireRole_(['admin', 'chair', 'lecturer']); return findWorks_(p); },
+  analyzeDocument: function (p) { requireRole_(['admin', 'chair', 'lecturer']); return analyzeDocument_(p); },
+  saveEvidence: function (p) { return saveEvidence_(p); },
+  importWorks: function (p) { return importWorks_(p); },
+  journalStats: function () { return journalIndexStats_(); },
+  importJournalIndex: function (p) { return importJournalIndex_(p); },
+  clearJournalIndex: function (p) { return clearJournalIndex_(p); },
 
   audit: function () {
     requireRole_(['admin']);

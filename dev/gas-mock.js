@@ -65,10 +65,51 @@ function createGasMock(opts) {
     setProperty: (k, v) => { store[bag][k] = String(v); },
     deleteProperty: k => { delete store[bag][k]; }
   });
+
+  // ---- บริการภายนอกจำลอง (OpenAlex / Crossref) สำหรับตัวอย่างและการทดสอบ ----
+  const W = (id, title, year, issn, journal, extra) => Object.assign({
+    id: 'https://openalex.org/' + id, doi: 'https://doi.org/10.9999/' + id.toLowerCase(), title, display_name: title, publication_year: year, type: 'article',
+    ids: {}, authorships: [{ author: { display_name: 'Napa Tuayangdee' } }, { author: { display_name: 'Somsak Riandee' } }],
+    primary_location: { landing_page_url: '', source: { display_name: journal, issn: issn ? [issn] : null, issn_l: issn, type: 'journal', host_organization_name: 'Sample Publisher' } }
+  }, extra || {});
+  const WORKS = [
+    W('W1', 'Fertility Decline in Southeast Asia (Sample)', 2023, '1744-1730', 'Asian Population Studies (Sample)'),
+    W('W2', 'Ageing Society and Long-term Care Policy (Sample)', 2024, '0144-686X', 'Ageing and Society (Sample)', { ids: { pmid: 'https://pubmed.ncbi.nlm.nih.gov/38000001' } }),
+    W('W3', 'Intergenerational Households in Rural Thailand (Sample)', 2022, '2465-4418', 'Journal of Population and Social Studies (Sample)'),
+    W('W4', 'Migrant Workers and Health Services (Sample)', 2023, '1686-1574', 'Thai Journal of Social Sciences (Sample)'),
+    W('W5', 'Household Survey Methods (Sample)', 2020, '9999-9999', 'Unlisted Journal (Sample)'),
+    W('W6', 'Population Projection Workshop Paper (Sample)', 2024, null, 'International Conference on Population (Sample)', { type: 'article', primary_location: { source: { display_name: 'International Conference on Population (Sample)', issn: null, issn_l: null, type: 'conference' } } })
+  ];
+  const json = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
+  const UrlFetchApp = { fetch(url) {
+    calls.push(url);
+    if (/openalex\.org\/authors\?/.test(url)) {
+      const q = decodeURIComponent((url.match(/search=([^&]+)/) || [])[1] || '');
+      return json(200, { results: [
+        { id: 'https://openalex.org/A5001', display_name: q || 'Sample Author', display_name_alternatives: [], works_count: 6, cited_by_count: 120, orcid: '', last_known_institutions: [{ display_name: 'Mahidol University', country_code: 'TH' }] },
+        { id: 'https://openalex.org/A5002', display_name: q + ' (other)', works_count: 2, cited_by_count: 3, last_known_institutions: [{ display_name: 'University of Elsewhere', country_code: 'US' }] }] });
+    }
+    if (/openalex\.org\/works\?filter=author\.id/.test(url)) return json(200, { results: WORKS });
+    if (/openalex\.org\/works\/doi:/.test(url)) {
+      const d = decodeURIComponent(url.split('/works/doi:')[1].split(/[?&]/)[0]);
+      const w = WORKS.find(x => x.doi.endsWith(d)); return w ? json(200, w) : json(404, {});
+    }
+    if (/openalex\.org\/works\?search=/.test(url)) return json(200, { results: [WORKS[0]] });
+    if (/crossref\.org\/works\?query\.author=/.test(url)) {
+      const q = decodeURIComponent((url.match(/query\.author=([^&]+)/) || [])[1] || '');
+      return json(200, { message: { items: [
+        { DOI: '10.9999/th1', title: ['ครอบครัวข้ามรุ่นในชนบทไทย (ตัวอย่าง)'], ISSN: ['2465-4418'], 'container-title': ['วารสารประชากรและสังคม (ตัวอย่าง)'], issued: { 'date-parts': [[2022]] }, type: 'journal-article', author: [{ name: q }] },
+        { DOI: '10.9999/th2', title: ['ไม่ใช่ผลงานของบุคคลนี้'], ISSN: [], 'container-title': ['x'], issued: { 'date-parts': [[2023]] }, type: 'journal-article', author: [{ given: 'อื่น', family: 'ใคร' }] }] } });
+    }
+    return json(404, {});
+  } };
+  const cacheBag = {};
+  const CacheService = { getScriptCache: () => ({ get: k => cacheBag[k] || null, put: (k, v) => { cacheBag[k] = v; } }) };
+  const calls = [];
   const pad = n => String(n).padStart(2, '0');
   const enc = new TextEncoder();
   return {
-    persist,
+    persist, calls, UrlFetchApp, CacheService,
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, create: () => ss, getUi: () => { throw new Error('no ui'); } },
     PropertiesService: { getScriptProperties: () => props('script'), getUserProperties: () => props('user') },
     Session: { getActiveUser: () => ({ getEmail: () => opts.email }), getEffectiveUser: () => ({ getEmail: () => opts.email }), getScriptTimeZone: () => 'Asia/Bangkok' },
@@ -77,9 +118,13 @@ function createGasMock(opts) {
       getUuid: () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()),
       formatDate: d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
       base64Encode: bytes => { let s = ''; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s); },
-      newBlob: (content) => ({ getAs: () => { const blob = { setName: () => blob, getBytes: () => Array.from(enc.encode(content)) }; return blob; } })
+      newBlob: (content) => ({ getAs: () => { const blob = { setName: () => blob, getBytes: () => Array.from(enc.encode(content)) }; return blob; } }),
+      base64Decode: s => Array.from(atob(s), c => c.charCodeAt(0)),
+      base64EncodeWebSafe: bytes => btoa(String.fromCharCode.apply(null, bytes)).replace(/\+/g, '-').replace(/\//g, '_'),
+      computeDigest: (alg, s) => { let h = 0; const out = []; for (const ch of String(s)) { h = (h * 31 + ch.charCodeAt(0)) >>> 0; } for (let i = 0; i < 16; i++) out.push((h >>> (i % 4 * 8)) & 255 ^ i); return out; },
+      DigestAlgorithm: { MD5: 'MD5' }
     },
-    DriveApp: { getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: () => ({ getUrl: () => '' }) }) },
+    DriveApp: { getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: () => ({ getUrl: () => 'https://drive.google.com/file/d/preview-evidence' }) }) },
     Logger: { log: (...a) => console.log(...a) },
     HtmlService: {}, ScriptApp: { getService: () => ({ getUrl: () => location.href }) }
   };

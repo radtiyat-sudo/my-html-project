@@ -14,10 +14,11 @@ const APP = {
   orgShort: 'บัณฑิตวิทยาลัย · มหิดล (MUGR)',
   code: 'MUGR',
   version: '1.0.0',
-  schemaVersion: 3,
+  schemaVersion: 4,
   windowYears: 5,
   dbName: 'MUGR — ฐานข้อมูลระบบติดตามผลงานวิชาการ',
-  reportFolder: 'MUGR — รายงาน PDF'
+  reportFolder: 'MUGR — รายงาน PDF',
+  evidenceFolder: 'MUGR — ไฟล์ผลงาน'
 };
 
 /** บทบาทผู้ใช้งาน */
@@ -44,6 +45,7 @@ const TABLES = {
   Experts:      ['id', 'prefix', 'nameTh', 'nameEn', 'affiliation', 'position', 'degree', 'degreeDetail', 'roleType', 'level', 'criteriaYear', 'curriculumId', 'researchExp', 'scopusId', 'orcid', 'checkResult', 'checkNote', 'checkedBy', 'checkedAt', 'isSample', 'createdAt', 'updatedAt'],
   Publications: ['id', 'personType', 'personId', 'title', 'source', 'year', 'type', 'database', 'quartile', 'authorRole', 'doi', 'url', 'status', 'verifyNote', 'verifiedBy', 'verifiedAt', 'note', 'isSample', 'createdBy', 'createdAt', 'updatedAt'],
   Assessments:  ['id', 'curriculumId', 'year', 'score', 'summary', 'createdBy', 'createdAt', 'isSample'],
+  JournalIndex: ['issn', 'title', 'database', 'quartile', 'source', 'updatedAt'],
   Settings:     ['key', 'value'],
   Audit:        ['ts', 'email', 'action', 'detail']
 };
@@ -57,6 +59,7 @@ const DEFAULT_SETTINGS = {
   SAMPLE_DATA: 'false',     // กำลังแสดงข้อมูลตัวอย่างหรือไม่ (ตั้งอัตโนมัติ)
   REPORT_TO_DRIVE: 'true',  // บันทึกสำเนา PDF ลง Google Drive
   ORG_NAME: APP.org,
+  OPENALEX_MAILTO: '',      // อีเมลติดต่อสำหรับ OpenAlex (ว่าง = อีเมลผู้ Deploy)
   // ---- น้ำหนักคะแนน (ตามแนวทาง สกอ./สป.อว. ร่วมกับฐานข้อมูลตามประกาศ ก.พ.อ. พ.ศ. 2562) ----
   W_Q1: '1.00', W_Q2: '1.00', W_Q3: '1.00', W_Q4: '1.00', W_NOQ: '1.00',
   W_OTHER_INTL: '0.80', W_TCI1: '0.80', W_TCI2: '0.60', W_OTHER_NAT: '0.40',

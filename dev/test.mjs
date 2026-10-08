@@ -4,14 +4,14 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const root = new URL('..', import.meta.url).pathname;
-const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Code.gs'];
+const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Code.gs'];
 
 function boot(email) {
   const ctx = { console, TextEncoder, crypto, btoa, localStorage: undefined, location: { href: '' } };
   vm.createContext(ctx);
   vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), ctx);
   ctx.__opts = { email, reset: true };
-  vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger=__g.Logger, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp;', ctx);
+  vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger=__g.Logger, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp, CacheService=__g.CacheService, UrlFetchApp=__g.UrlFetchApp;', ctx);
   vm.runInContext(process.env.BUNDLE ? readFileSync(root + 'gas/Code.gs', 'utf8') : GS.map(f => readFileSync(root + 'src/' + f, 'utf8')).join('\n'), ctx);
   // รีเซ็ตแคชผู้ใช้ทุกครั้งที่เรียก api (จำลองการเรียกแยก execution)
   const call = (action, payload) => { vm.runInContext('CURRENT_USER_ = null; for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k];', ctx); return JSON.parse(JSON.stringify(ctx.api(action, payload))); };
@@ -141,6 +141,58 @@ t('unknown user denied unless guest allowed; mapped user gets role', () => {
   assert.equal(api('setViewAs', { role: 'admin' }).ok, false);
   api.setEmail('admin@mahidol.ac.th');
   api('saveSettings', { ALLOW_GUEST: false });
+});
+
+// ----- ค้นหา/ตรวจผลงานอัตโนมัติ -----
+t('find authors by English name (Thai institutions first)', () => {
+  const r = api('findAuthors', { nameEn: 'Napa Tuayangdee' });
+  assert.equal(r.ok, true); assert.equal(r.data.candidates[0].country, 'TH'); assert.equal(r.data.candidates[0].id, 'A5001');
+});
+t('find works and classify by ก.พ.อ. database lists', () => {
+  const r = api('findWorks', { authorId: 'A5001', nameTh: 'นภา ตัวอย่างดี', fromYear: E - 6, personType: 'expert', personId: 'XS01' });
+  assert.equal(r.ok, true);
+  const by = t => r.data.works.find(w => w.title.startsWith(t));
+  assert.equal(by('Fertility').database, 'scopus'); assert.equal(by('Fertility').quartile, 'Q2'); assert.equal(by('Fertility').weight, 1);
+  assert.equal(by('Fertility').year, 2023 + 543);
+  assert.ok(by('Ageing').evidence.some(e => /PubMed/.test(e))); assert.equal(by('Ageing').quartile, 'Q1');
+  assert.equal(by('Intergenerational').database, 'scopus'); // อยู่ทั้ง Scopus และ TCI1 → ใช้ฐานนานาชาติ
+  assert.equal(by('Migrant').database, 'tci2'); assert.equal(by('Migrant').weight, 0.6);
+  assert.equal(by('Household').confidence, 'unknown'); assert.equal(by('Household').weight, 0);
+  assert.equal(by('Population Projection').type, 'proceedings_intl');
+  assert.ok(by('ครอบครัว'), 'Thai-name result from Crossref'); assert.equal(by('ไม่ใช่'), undefined, 'non-matching Crossref author filtered');
+  assert.equal(r.data.summary.intl, 4);
+});
+t('analyze attached document text: DOI → database + owner suggestion', () => {
+  const r = api('analyzeDocument', { text: 'Asian Population Studies\nhttps://doi.org/10.9999/w1.\nISSN 1744-1730' });
+  assert.equal(r.ok, true); assert.equal(r.data.found, true);
+  assert.equal(r.data.work.database, 'scopus'); assert.equal(r.data.work.quartile, 'Q2');
+  assert.ok(r.data.owners.some(o => o.personId === 'FS01'));
+  const r2 = api('analyzeDocument', { text: 'วารสารสังคมศาสตร์ ISSN 1686-1574 ปีที่ 5' });
+  assert.equal(r2.data.found, true); assert.equal(r2.data.work.database, 'tci2');
+  const r3 = api('analyzeDocument', { text: 'no identifiers here' });
+  assert.equal(r3.data.found, false);
+});
+t('import selected works as pending, skip duplicates', () => {
+  const found = api('findWorks', { authorId: 'A5001', fromYear: E - 6, personType: 'faculty', personId: 'FS05' }).data.works;
+  let r = api('importWorks', { personType: 'faculty', personId: 'FS05', works: found.slice(0, 3) });
+  assert.equal(r.ok, true); assert.equal(r.data.imported, 3);
+  const mine = r.model.publications.filter(p => p.personId === 'FS05');
+  assert.ok(mine.every(p => p.status === 'pending')); assert.ok(mine[0].note.includes('นำเข้าอัตโนมัติ'));
+  r = api('importWorks', { personType: 'faculty', personId: 'FS05', works: found.slice(0, 3) });
+  assert.equal(r.data.imported, 0); assert.equal(r.data.skipped, 3);
+  const again = api('findWorks', { authorId: 'A5001', fromYear: E - 6, personType: 'faculty', personId: 'FS05' }).data.works;
+  assert.equal(again.filter(w => w.duplicate).length, 3);
+});
+t('journal index import (admin only) and lecturer import limits', () => {
+  const r = api('importJournalIndex', { database: 'tci1', source: 'TCI test', replace: true, rows: [{ title: 'J', issns: ['1234-5679', 'bad'] }] });
+  assert.equal(r.ok, true); assert.equal(r.data.added, 1);
+  api('setViewAs', { role: 'lecturer', facultyId: 'FS03' });
+  assert.equal(api('importJournalIndex', { database: 'tci1', rows: [] }).ok, false);
+  assert.equal(api('importWorks', { personType: 'faculty', personId: 'FS01', works: [{ title: 'x', year: E }] }).ok, false);
+  assert.equal(api('findAuthors', { nameEn: 'Sunthorn' }).ok, true);
+  api('setViewAs', { role: 'executive' });
+  assert.equal(api('findWorks', { authorId: 'A5001' }).ok, false);
+  api('setViewAs', { role: 'admin' });
 });
 t('clear sample keeps real data', () => {
   const keep = api('savePublication', { personId: 'FS01', title: 'real', year: E, type: 'book' });

@@ -113,6 +113,12 @@ function seedSampleData_() {
   DB.insertMany('Experts', experts);
   DB.insertMany('Publications', pubs);
   DB.insertMany('Users', users);
+  // รายชื่อวารสารตัวอย่าง (ใช้สาธิตการตรวจผลงานอัตโนมัติ) — ใช้จริงให้นำเข้า SJR/TCI ที่ จัดการระบบ > รายชื่อวารสาร
+  DB.insertMany('JournalIndex', [
+    ['17441730', 'Asian Population Studies (Sample)', 'scopus', 'Q2'], ['0144686X', 'Ageing and Society (Sample)', 'scopus', 'Q1'],
+    ['0144686X', 'Ageing and Society (Sample)', 'wos', ''], ['24654418', 'Journal of Population and Social Studies (Sample)', 'tci1', ''],
+    ['24654418', 'Journal of Population and Social Studies (Sample)', 'scopus', 'Q3'], ['16861574', 'Thai Journal of Social Sciences (Sample)', 'tci2', '']
+  ].map(function (r) { return { issn: r[0], title: r[1], database: r[2], quartile: r[3], source: 'ตัวอย่าง', updatedAt: now }; }));
   if (!getSettings_().EVAL_YEAR) setSettings_({ EVAL_YEAR: String(E) });
   setSettings_({ SAMPLE_DATA: 'true' });
   audit_('seed_sample', pubs.length + ' publications');
@@ -125,6 +131,7 @@ function clearData_(sampleOnly) {
   const res = {};
   ['Publications', 'Assessments', 'Experts', 'Faculty', 'Curricula'].forEach(function (t) { res[t] = DB.removeWhere(t, pred); });
   res.Users = DB.removeWhere('Users', function (r) { return toBool_(r.isSample); });
+  res.JournalIndex = DB.removeWhere('JournalIndex', function (r) { return r.source === 'ตัวอย่าง'; });
   setSettings_({ SAMPLE_DATA: 'false' });
   audit_(sampleOnly ? 'clear_sample' : 'clear_all', JSON.stringify(res));
   return res;

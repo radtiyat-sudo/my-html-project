@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = f => readFileSync(join(root, 'src', f), 'utf8');
-const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Code.gs'];
+const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Code.gs'];
 const bar = '='.repeat(70);
 
 // สคริปต์หน้าเว็บถูกเข้ารหัส base64 (มีแต่ A-Z a-z 0-9 + / =) เพื่อไม่ให้ Apps Script แก้ไขเนื้อหา JavaScript
