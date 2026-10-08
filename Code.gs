@@ -20,14 +20,17 @@ var SCHEMA = {
   Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order', 'bA', 'bB', 'bC', 'bD', 'bE'],
   Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code'],
   // Evals = หนึ่งแถวต่อกรรมการต่อนักศึกษา (ความเห็น); คะแนนรายเกณฑ์อยู่ในชีต Scores (อ่านง่าย 1 แถวต่อ 1 เกณฑ์)
-  Evals: ['evalKey', 'programId', 'studentId', 'email', 'name', 'scoresJson', 'comment', 'updatedAt'],
+  // role = บทบาทของผู้ประเมินในการสอบนักศึกษาคนนี้: chair (ประธานสอบ) | member (กรรมการสอบ) | advisor (อาจารย์ที่ปรึกษา)
+  Evals: ['evalKey', 'programId', 'studentId', 'email', 'name', 'scoresJson', 'comment', 'updatedAt', 'role'],
   // level = คะแนน 0-10 เมื่อ scale = 10; แถวเก่าที่ไม่มี scale คือระดับ 1-4 (ระบบแปลงเป็นเต็ม 10 ให้ตอนอ่าน)
   Scores: ['evalKey', 'programId', 'studentId', 'studentCode', 'studentName', 'email', 'evaluator', 'ploCode', 'critId', 'critName', 'level', 'updatedAt', 'scale'],
   AI: ['studentId', 'programId', 'resultJson', 'updatedAt'],
   CrossAI: ['key', 'resultJson', 'updatedAt'],
   Users: ['email', 'name', 'role', 'programs'],
   // หัวข้อการประเมินวิทยานิพนธ์: 1 แถว/หัวข้อ, plos = รหัส PLO ที่สอดคล้อง คั่นด้วยจุลภาค (อย่างน้อย 2), bA-bE = เกณฑ์ 5 ช่วง
-  Items: ['programId', 'itemId', 'order', 'name', 'detail', 'plos', 'bA', 'bB', 'bC', 'bD', 'bE']
+  Items: ['programId', 'itemId', 'order', 'name', 'detail', 'plos', 'bA', 'bB', 'bC', 'bD', 'bE'],
+  // ผลการสอบที่ประธานสอบสรุป: 1 แถว/นักศึกษา, decision = pass | pass_cond | fail
+  Decisions: ['programId', 'studentId', 'decision', 'note', 'email', 'name', 'updatedAt']
 };
 
 var SAMPLE_EMAIL = 'sample@example.com';
@@ -134,16 +137,23 @@ function uid_(prefix) { return prefix + Utilities.getUuid().replace(/-/g, '').sl
 
 /* ============================================================
  * Users & roles   (Users sheet: email | name | role | programs)
+ * บทบาทบัญชี (ผู้ดูแลกำหนด):
  *   admin      = ผู้ดูแลระบบ: จัดการทุกอย่าง (ส่วนงาน หลักสูตร ผู้ใช้) และประเมินได้
- *   curriculum = เจ้าหน้าที่หลักสูตร (ผู้กรอกข้อมูล): กรอก/แก้ PLO รูบริก และรายชื่อนักศึกษา
- *                ของหลักสูตรที่ได้รับมอบหมายเท่านั้น ไม่ให้คะแนน
- *   evaluator  = อาจารย์ผู้ประเมิน: ให้คะแนนและเขียนความเห็นของหลักสูตรที่ได้รับมอบหมาย
- *                แก้ PLO หรือรายชื่อไม่ได้
+ *   chair      = ประธานหลักสูตร: จัดการ PLO หัวข้อประเมิน รายชื่อนักศึกษา ของหลักสูตรที่รับผิดชอบ และประเมินได้
+ *   faculty    = อาจารย์ประจำหลักสูตร: ประเมินนักศึกษาของหลักสูตรที่รับผิดชอบ (เดิมชื่อ evaluator)
+ *   curriculum = เจ้าหน้าที่หลักสูตร: กรอกข้อมูลหลักสูตร ไม่ให้คะแนน
  *   executive  = ผู้บริหาร: ดูทุกหลักสูตรอย่างเดียว
- *   programs   = รหัสหลักสูตรที่รับผิดชอบ คั่นด้วยจุลภาค หรือ * = ทุกหลักสูตร (ใช้กับ curriculum / evaluator)
+ *   programs   = รหัสหลักสูตรที่รับผิดชอบ คั่นด้วยจุลภาค หรือ * = ทุกหลักสูตร (ใช้กับ chair / faculty / curriculum)
  *   email "*"  = บทบาทตั้งต้นของทุกคนที่เข้าได้ (เช่นในโดเมนเดียวกัน)
+ * บทบาทในการสอบ (ผู้ประเมินเลือกเองต่อนักศึกษาแต่ละคน เก็บในชีต Evals.role):
+ *   chair = ประธานสอบ (สรุปผลการสอบได้, 1 คนต่อนักศึกษา) · member = กรรมการสอบ · advisor = อาจารย์ที่ปรึกษา
  * ============================================================ */
-var ROLES_ = ['admin', 'curriculum', 'evaluator', 'executive'];
+var ROLES_ = ['admin', 'chair', 'faculty', 'curriculum', 'executive'];
+var EDIT_ROLES_ = ['admin', 'chair', 'curriculum'];   // แก้ข้อมูลหลักสูตร
+var SCORE_ROLES_ = ['admin', 'chair', 'faculty'];     // ให้คะแนน
+var EXAM_ROLES_ = ['chair', 'member', 'advisor'];
+var DECISIONS_ = ['pass', 'pass_cond', 'fail'];
+function normRole_(r) { r = s_(r).toLowerCase(); return r === 'evaluator' ? 'faculty' : r; }
 function parsePrograms_(v) {
   var t = s_(v).trim();
   if (!t || t === '*') return ['*'];
@@ -161,11 +171,11 @@ function me_() {
     else if (email && e === email) found = u;
   });
   var u = found || star;
-  var role = u ? s_(u.role).toLowerCase() : 'viewer';
+  var role = u ? normRole_(u.role) : 'viewer';
   if (!email) role = 'viewer';
   if (email && email === owner) role = 'admin';
   if (ROLES_.concat(['viewer']).indexOf(role) < 0) role = 'viewer';
-  var progs = (role === 'curriculum' || role === 'evaluator') ? parsePrograms_(u && u.programs) : ['*'];
+  var progs = (role === 'chair' || role === 'faculty' || role === 'curriculum') ? parsePrograms_(u && u.programs) : ['*'];
   return { email: email || 'anonymous', name: (found && s_(found.name)) || email || 'ผู้ใช้ที่ไม่ระบุตัวตน', role: role, programs: progs };
 }
 
@@ -284,7 +294,7 @@ function seedSampleData() {
         var cm = '', C = COMM_[pid] || {};
         if (pcts.length && C[pcts[0].code]) cm += C[pcts[0].code][0];
         if (pcts.length && C[pcts[pcts.length - 1].code]) cm += ' ' + C[pcts[pcts.length - 1].code][1];
-        evals.push({ evalKey: sid + '|' + SAMPLE_EMAIL, programId: pid, studentId: sid, email: SAMPLE_EMAIL, name: 'กรรมการตัวอย่าง', scoresJson: '', comment: cm, updatedAt: new Date().toISOString() });
+        evals.push({ evalKey: sid + '|' + SAMPLE_EMAIL, programId: pid, studentId: sid, email: SAMPLE_EMAIL, name: 'กรรมการตัวอย่าง', scoresJson: '', comment: cm, updatedAt: new Date().toISOString(), role: 'member' });
       }
     });
     appendRows_('Students', students);
@@ -301,6 +311,7 @@ function clearSampleData_() {
   writeAll_('Evals', readAll_('Evals').filter(function (e) { return !ids[e.studentId]; }));
   writeAll_('Scores', readAll_('Scores').filter(function (e) { return !ids[e.studentId]; }));
   writeAll_('AI', readAll_('AI').filter(function (e) { return !ids[e.studentId]; }));
+  writeAll_('Decisions', readAll_('Decisions').filter(function (e) { return !ids[e.studentId]; }));
 }
 
 function clearSampleData() { return withLock_(function () { clearSampleData_(); return 'ลบข้อมูลตัวอย่างแล้ว'; }); }
@@ -426,7 +437,7 @@ function loadEvals_(pid) {
       var old = {}; try { old = JSON.parse(s_(e.scoresJson) || '{}'); } catch (x) { }
       Object.keys(old).forEach(function (c) { var v = toScore10_(old[c], 4); if (v !== null) sc[c] = v; });
     }
-    return { studentId: s_(e.studentId), programId: s_(e.programId), email: s_(e.email), name: s_(e.name), scores: sc, comment: s_(e.comment), updatedAt: s_(e.updatedAt) };
+    return { studentId: s_(e.studentId), programId: s_(e.programId), email: s_(e.email), name: s_(e.name), scores: sc, comment: s_(e.comment), updatedAt: s_(e.updatedAt), role: EXAM_ROLES_.indexOf(s_(e.role)) >= 0 ? s_(e.role) : 'member' };
   });
 }
 
@@ -439,6 +450,10 @@ function getProgram(pid) {
     return { id: s_(s.studentId), code: s_(s.code), name: s_(s.name), topic: s_(s.topic), advisor: s_(s.advisor), sample: s.sample === true || String(s.sample).toLowerCase() === 'true' };
   });
   prog.evals = loadEvals_(prog.id);
+  prog.decisions = {};
+  readAll_('Decisions').filter(function (d) { return s_(d.programId) === prog.id; }).forEach(function (d) {
+    prog.decisions[s_(d.studentId)] = { decision: s_(d.decision), note: s_(d.note), email: s_(d.email), name: s_(d.name), updatedAt: s_(d.updatedAt) };
+  });
   prog.ai = {};
   readAll_('AI').filter(function (a) { return s_(a.programId) === prog.id; }).forEach(function (a) {
     try { prog.ai[s_(a.studentId)] = JSON.parse(s_(a.resultJson)); } catch (x) { }
@@ -527,7 +542,7 @@ function deleteProgram(pid) {
   need_(['admin']);
   return withLock_(function () {
     pid = s_(pid);
-    ['Programs', 'PLOs', 'Criteria', 'Items', 'Students', 'Evals', 'Scores', 'AI'].forEach(function (n) {
+    ['Programs', 'PLOs', 'Criteria', 'Items', 'Students', 'Evals', 'Scores', 'AI', 'Decisions'].forEach(function (n) {
       var key = n === 'Programs' ? 'programId' : 'programId';
       writeAll_(n, readAll_(n).filter(function (r) { return s_(r[key]) !== pid; }));
     });
@@ -547,7 +562,7 @@ function deleteFaculty(facultyId) {
 /* ---------- ผู้ใช้และสิทธิ์ (ชีต Users) ---------- */
 function getUsers() {
   need_(['admin']);
-  return readAll_('Users').map(function (u) { return { email: s_(u.email), name: s_(u.name), role: s_(u.role) || 'evaluator', programs: s_(u.programs) || '*' }; });
+  return readAll_('Users').map(function (u) { return { email: s_(u.email), name: s_(u.name), role: normRole_(u.role) || 'faculty', programs: s_(u.programs) || '*' }; });
 }
 
 function saveUsers(list) {
@@ -558,7 +573,7 @@ function saveUsers(list) {
       var email = s_(u.email).trim().toLowerCase();
       if (!email || seen[email]) return;
       if (email !== '*' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง: ' + email);
-      var role = s_(u.role).toLowerCase();
+      var role = normRole_(u.role);
       if (ROLES_.indexOf(role) < 0) role = 'executive';
       seen[email] = true;
       var pg = parsePrograms_(Array.isArray(u.programs) ? u.programs.join(',') : u.programs);
@@ -572,7 +587,7 @@ function saveUsers(list) {
 
 /** บันทึกการตั้งค่าหลักสูตร + PLO + เกณฑ์ (แทนที่ทั้งชุดของหลักสูตรนั้น) */
 function saveProgram(prog) {
-  needP_(['admin', 'curriculum'], prog && prog.id);
+  needP_(EDIT_ROLES_, prog && prog.id);
   return withLock_(function () {
     var pid = s_(prog.id);
     var prs = readAll_('Programs'), found = false;
@@ -608,7 +623,7 @@ function clamp_(v) { return Math.max(0, Math.min(100, num_(v, 0))); }
  * ใช้แบบหัวข้อได้เมื่อผ่านกติกา (ทุกหัวข้อเชื่อม ≥ 2 PLO และครอบคลุมทุก PLO) ส่วนแบบเดิมบันทึกร่างไว้ก่อนได้
  */
 function saveItems(pid, items, mode) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     pid = s_(pid);
     var prog = loadProgram_(pid);
@@ -634,7 +649,7 @@ function saveItems(pid, items, mode) {
 
 /** list = [{code,titleTh,textEn,weight,crit:[names]?}] */
 function importPlos(pid, list, mode) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     pid = s_(pid);
     if (!list || !list.length) throw new Error('ไม่มีรายการ PLO');
@@ -676,7 +691,7 @@ function isSample_(v) { return v === true || String(v).toLowerCase() === 'true';
  * ข้ามรายการซ้ำ (รหัสเดียวกัน หรือชื่อ+หัวข้อเดียวกันในหลักสูตรเดียวกัน)
  */
 function addStudentList(pid, list) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     pid = s_(pid);
     if (!list || !list.length) throw new Error('ไม่มีรายชื่อนักศึกษา');
@@ -700,7 +715,7 @@ function addStudentList(pid, list) {
 
 /** แก้ข้อมูลนักศึกษา (รหัส ชื่อ หัวข้อ ที่ปรึกษา) */
 function updateStudent(pid, sid, fields) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     var list = readAll_('Students'), hit = false;
     list.forEach(function (x) {
@@ -716,7 +731,7 @@ function updateStudent(pid, sid, fields) {
 }
 
 function deleteStudent(pid, sid) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     // กันลบนักศึกษาของหลักสูตรอื่นที่ไม่ได้รับผิดชอบ
     if (!readAll_('Students').some(function (s) { return s_(s.studentId) === s_(sid) && s_(s.programId) === s_(pid); })) throw new Error('ไม่พบนักศึกษาในหลักสูตรนี้');
@@ -724,6 +739,7 @@ function deleteStudent(pid, sid) {
     writeAll_('Evals', readAll_('Evals').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
     writeAll_('Scores', readAll_('Scores').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
     writeAll_('AI', readAll_('AI').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
+    writeAll_('Decisions', readAll_('Decisions').filter(function (e) { return s_(e.studentId) !== s_(sid); }));
     return getProgram(pid);
   });
 }
@@ -733,8 +749,9 @@ function deleteStudent(pid, sid) {
  *  - Evals : 1 แถว/กรรมการ/นักศึกษา (ความเห็น)
  *  - Scores: 1 แถว/เกณฑ์ที่ให้คะแนน พร้อมรหัส-ชื่อนักศึกษา ชื่อกรรมการ PLO เกณฑ์ ระดับ (เปิดดูและทำ Pivot ในชีตได้ตรง ๆ)
  */
-function saveEval(pid, sid, scores, comment) {
-  var me = needP_(['admin', 'evaluator'], pid);
+function saveEval(pid, sid, scores, comment, examRole) {
+  var me = needP_(SCORE_ROLES_, pid);
+  examRole = EXAM_ROLES_.indexOf(s_(examRole)) >= 0 ? s_(examRole) : 'member';
   return withLock_(function () {
     pid = s_(pid); sid = s_(sid);
     var st = readAll_('Students').filter(function (s) { return s_(s.studentId) === sid && s_(s.programId) === pid; })[0];
@@ -745,6 +762,12 @@ function saveEval(pid, sid, scores, comment) {
     // คะแนนหัวข้อการสอบ (ที่เชื่อมหลาย PLO) เก็บในชีต Scores เหมือนกัน โดย ploCode = รหัส PLO ทั้งหมดของหัวข้อนั้น
     prog.items.forEach(function (it) { meta[it.id] = { ploCode: it.plos.join(','), name: it.name }; });
     var now = new Date().toISOString(), key = sid + '|' + me.email;
+    var allEvals = readAll_('Evals');
+    if (examRole === 'chair') {
+      // นักศึกษา 1 คนมีประธานสอบได้คนเดียว
+      var other = allEvals.filter(function (e) { return s_(e.studentId) === sid && s_(e.role) === 'chair' && s_(e.evalKey) !== key; })[0];
+      if (other) throw new Error('นักศึกษาคนนี้มีประธานสอบแล้ว (' + s_(other.name) + ') เลือกบทบาทกรรมการสอบแทน');
+    }
     var rows = [];
     Object.keys(scores || {}).forEach(function (k) {
       if (scores[k] === null || scores[k] === '') return;
@@ -753,8 +776,8 @@ function saveEval(pid, sid, scores, comment) {
       rows.push({ evalKey: key, programId: pid, studentId: sid, studentCode: s_(st.code), studentName: s_(st.name), email: me.email, evaluator: me.name, ploCode: meta[k].ploCode, critId: k, critName: meta[k].name, level: v, updatedAt: now, scale: MAX_SCORE });
     });
     writeAll_('Scores', readAll_('Scores').filter(function (r) { return s_(r.evalKey) !== key; }).concat(rows));
-    var head = { evalKey: key, programId: pid, studentId: sid, email: me.email, name: me.name, scoresJson: '', comment: s_(comment).slice(0, 4000), updatedAt: now };
-    var list = readAll_('Evals'), done = false;
+    var head = { evalKey: key, programId: pid, studentId: sid, email: me.email, name: me.name, scoresJson: '', comment: s_(comment).slice(0, 4000), updatedAt: now, role: examRole };
+    var list = allEvals, done = false;
     list = list.map(function (e) { if (s_(e.evalKey) === key) { done = true; return head; } return e; });
     if (!done) list.push(head);
     writeAll_('Evals', list);
@@ -762,9 +785,29 @@ function saveEval(pid, sid, scores, comment) {
   });
 }
 
+/**
+ * ประธานสอบสรุปผลการสอบของนักศึกษา 1 คน: decision = pass | pass_cond | fail ('' = ล้างผล)
+ * ต้องเป็นผู้ที่บันทึกบทบาท "ประธานสอบ" ของนักศึกษาคนนี้ไว้แล้ว (หรือผู้ดูแลระบบ)
+ */
+function saveDecision(pid, sid, decision, note) {
+  var me = needP_(SCORE_ROLES_, pid);
+  return withLock_(function () {
+    pid = s_(pid); sid = s_(sid); decision = s_(decision);
+    if (!readAll_('Students').some(function (s) { return s_(s.studentId) === sid && s_(s.programId) === pid; })) throw new Error('ไม่พบนักศึกษา');
+    var isChair = readAll_('Evals').some(function (e) { return s_(e.evalKey) === sid + '|' + me.email && s_(e.role) === 'chair'; });
+    if (!isChair && me.role !== 'admin') throw new Error('สรุปผลการสอบได้เฉพาะประธานสอบของนักศึกษาคนนี้');
+    if (decision && DECISIONS_.indexOf(decision) < 0) throw new Error('ผลการสอบไม่ถูกต้อง');
+    var list = readAll_('Decisions').filter(function (d) { return !(s_(d.studentId) === sid && s_(d.programId) === pid); });
+    var row = null;
+    if (decision) { row = { programId: pid, studentId: sid, decision: decision, note: s_(note).slice(0, 2000), email: me.email, name: me.name, updatedAt: new Date().toISOString() }; list.push(row); }
+    writeAll_('Decisions', list);
+    return row ? { decision: row.decision, note: row.note, email: row.email, name: row.name, updatedAt: row.updatedAt } : null;
+  });
+}
+
 /** ส่งออกตารางไปชีตใหม่ในสเปรดชีตเดียวกัน */
 function exportToSheet(title, rows) {
-  need_(['admin', 'curriculum', 'evaluator', 'executive']);
+  need_(ROLES_);
   var book = ss_();
   var name = ('Report_' + s_(title)).replace(/[\[\]\*\?\/\\:]/g, '_').slice(0, 90);
   var sh = book.getSheetByName(name) || book.insertSheet(name);
@@ -781,7 +824,7 @@ function exportToSheet(title, rows) {
  * นำเข้า PLO: แยกข้อความ / ดึงจาก Google Docs
  * ============================================================ */
 function fetchDocText(urlOrId) {
-  need_(['admin', 'curriculum']);
+  need_(EDIT_ROLES_);
   var m = String(urlOrId || '').match(/\/d\/([a-zA-Z0-9_-]+)/);
   var id = m ? m[1] : String(urlOrId || '').trim();
   if (!id) throw new Error('ใส่ลิงก์หรือรหัส Google Docs');
@@ -793,7 +836,7 @@ function fetchDocText(urlOrId) {
 }
 
 function parsePloText(text) {
-  need_(['admin', 'curriculum']);
+  need_(EDIT_ROLES_);
   return parsePlo_(String(text || ''));
 }
 
@@ -880,7 +923,7 @@ function norm100_(map, ids) {
 
 /** AI วิเคราะห์ความเห็นกรรมการ → สัดส่วน PLO รวม 100 + ธงเตือน */
 function aiAnalyzeStudent(pid, sid) {
-  needP_(['admin', 'evaluator'], pid);
+  needP_(SCORE_ROLES_, pid);
   var prog = getProgram(pid);
   var st = prog.students.filter(function (s) { return s.id === sid; })[0];
   if (!st) throw new Error('ไม่พบนักศึกษา');
@@ -928,7 +971,7 @@ function cleanBands_(r, maxN) {
 
 /** AI ร่างเกณฑ์ 5 ช่วงคะแนน (A-E เต็ม 10) สำหรับ PLO เดียว ให้เจ้าหน้าที่ตรวจแก้ก่อนบันทึก */
 function aiDraftRubric(pid, ploId) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   var prog = loadProgram_(s_(pid));
   var p = prog && prog.plos.filter(function (x) { return x.id === s_(ploId); })[0];
   if (!p) throw new Error('ไม่พบ PLO');
@@ -945,7 +988,7 @@ function aiDraftRubric(pid, ploId) {
  * คืน [{code,titleTh,textEn,crit}] เพื่อแสดงตัวอย่างก่อนนำเข้า เกณฑ์ 5 ช่วงให้ร่างต่อทีละ PLO ด้วย aiDraftRubric
  */
 function aiExtractPlos(text) {
-  need_(['admin', 'curriculum']);
+  need_(EDIT_ROLES_);
   text = String(text || '').trim();
   if (text.length < 20) throw new Error('วางข้อความจากเล่มหลักสูตรก่อน');
   if (text.length > 60000) throw new Error('ข้อความยาวเกินไป (เกิน 60,000 ตัวอักษร) ให้วางเฉพาะส่วนที่มี PLO');
@@ -976,7 +1019,7 @@ function ploList_(prog) {
  * คืนเฉพาะชื่อ รายละเอียด และ PLO ที่สอดคล้อง (เกณฑ์ A-E ให้ร่างต่อทีละหัวข้อด้วย aiItemBands เพื่อไม่ให้หมดเวลา)
  */
 function aiDraftItems(pid, n) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   var prog = loadProgram_(s_(pid));
   if (!prog) throw new Error('ไม่พบหลักสูตร');
   if (prog.plos.length < 2) throw new Error('หลักสูตรต้องมี PLO อย่างน้อย 2 ข้อ');
@@ -997,7 +1040,7 @@ function aiDraftItems(pid, n) {
 
 /** AI เขียนเกณฑ์ 5 ช่วง (A-E เต็ม 10) ให้หัวข้อการประเมิน 1 ข้อ โดยอิง PLO ที่หัวข้อนั้นเชื่อมอยู่ */
 function aiItemBands(pid, item) {
-  needP_(['admin', 'curriculum'], pid);
+  needP_(EDIT_ROLES_, pid);
   var prog = loadProgram_(s_(pid));
   if (!prog) throw new Error('ไม่พบหลักสูตร');
   var codes = matchCodes_(item && item.plos, prog.plos.map(function (p) { return p.code; }));
@@ -1014,7 +1057,7 @@ function aiItemBands(pid, item) {
 
 /** AI เทียบ PLO ข้ามหลักสูตร + ร่าง PLO หลักสูตรผสมผสาน */
 function aiCompare(stats) {
-  var me = need_(['admin', 'curriculum', 'executive']);
+  var me = need_(['admin', 'chair', 'curriculum', 'executive']);
   var progs = readAll_('Programs').filter(function (p) { return inScope_(me, p.programId); }).map(function (p) { return loadProgram_(s_(p.programId)); }).filter(function (p) { return p && p.plos.length; });
   if (progs.length < 2) throw new Error('ต้องมีอย่างน้อย 2 หลักสูตรที่มี PLO');
   var data = progs.map(function (pr) { return { programId: pr.id, name: pr.name, plos: pr.plos.map(function (p) { return { id: p.id, code: p.code, th: p.th, en: p.en.replace(/\(draft wording[^)]*\)/i, '') }; }) }; });

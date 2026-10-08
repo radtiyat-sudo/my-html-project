@@ -252,6 +252,12 @@ tr.click:hover td{background:var(--surface-2)}
 .band .lvl b{font-size:18px}
 .chip.band-chip{font-variant-numeric:tabular-nums}
 .theme-btn{min-width:44px}
+.acting{display:flex;gap:6px;align-items:center}
+.acting select{padding:3px 8px;font-size:12px;font-weight:600;border-color:var(--accent);color:var(--accent);background:var(--accent-tint)}
+.cmt{display:grid;gap:6px}
+.cmt-row{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.cmt-row:first-child{border-top:0}
+.myrole{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--accent-tint);border:1px solid var(--accent);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px}
 /* หัวข้อการประเมินที่เชื่อมหลาย PLO */
 .mx td,.mx th{text-align:center;padding:6px 8px}
 .mx td.wrapt,.mx th.l{text-align:left}
@@ -296,7 +302,7 @@ function ten(pct){return pct==null||isNaN(pct)?"–":(pct/10).toFixed(1)}
 var SAMPLE_EMAIL="sample@example.com";
 var G={boot:null,me:{role:"viewer",email:"",name:""},view:"home",facId:null,P:null,tab:"exec",stuId:null,q:"",lq:"",
   exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},items:[],preview:null,importMode:"replace",impText:"",
-  showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,
+  showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",
   admin:{tab:"prog",facId:null,progId:null,users:null,roster:{text:"",list:null}}};
 
 /* ---------- utils ---------- */
@@ -315,10 +321,19 @@ function errMsg(e){return (e&&e.message?e.message:String(e)).replace(/^Error:\s*
 function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){t.hidden=true},3800)}
 function fail(e){toast(errMsg(e))}
 function canEdit(){return G.me.role==="admin"}
-function canCurr(){return G.me.role==="admin"||G.me.role==="curriculum"}
-function canScore(){return G.me.role==="admin"||G.me.role==="evaluator"}
+function canCurr(){return ["admin","chair","curriculum"].indexOf(G.me.role)>=0}
+function canScore(){return ["admin","chair","faculty","evaluator"].indexOf(G.me.role)>=0}
+/* บทบาทในการสอบ: ผู้ประเมินเลือกเองที่แถบด้านบน และเปลี่ยนได้ต่อนักศึกษาแต่ละคน */
+var EXAM=[["chair","ประธานสอบ","ให้คะแนน และสรุปผลการสอบ (1 คนต่อนักศึกษา)"],["member","กรรมการสอบ","ให้คะแนนและความเห็น"],["advisor","อาจารย์ที่ปรึกษา","ให้คะแนนและความเห็นในฐานะที่ปรึกษา"],["view","ดูผลอย่างเดียว","ไม่ให้คะแนน"]];
+function examTh(k){var r=EXAM.find(function(x){return x[0]===k});return r?r[1]:"กรรมการสอบ"}
+function canScoreNow(){return canScore()&&G.acting!=="view"}
+var DEC={pass:["good","✓","ผ่าน"],pass_cond:["warn","!","ผ่านโดยมีเงื่อนไข (แก้ไขตามข้อเสนอแนะ)"],fail:["bad","✕","ไม่ผ่าน"]};
+function decOf(sid){return (G.P.decisions||{})[sid]||null}
+function decChip(d){if(!d||!DEC[d.decision])return '<span class="chip na">ยังไม่สรุปผลสอบ</span>';var x=DEC[d.decision];return '<span class="chip '+x[0]+'"><span aria-hidden="true">'+x[1]+'</span>'+x[2]+'</span>'}
+function decText(d){return d&&DEC[d.decision]?DEC[d.decision][2]:""}
+function chairOf(sid,exceptEmail){return G.P.evals.find(function(x){return x.studentId===sid&&x.role==="chair"&&x.updatedAt&&x.email!==exceptEmail})}
 function rid(p){return p+Math.random().toString(36).slice(2,10)}
-var ROLE_TH={admin:"ผู้ดูแลระบบ",curriculum:"เจ้าหน้าที่หลักสูตร",evaluator:"อาจารย์ผู้ประเมิน",executive:"ผู้บริหาร (ดูอย่างเดียว)",viewer:"ผู้ชม (ดูอย่างเดียว)"};
+var ROLE_TH={admin:"ผู้ดูแลระบบ",chair:"ประธานหลักสูตร",faculty:"อาจารย์ประจำหลักสูตร",evaluator:"อาจารย์ประจำหลักสูตร",curriculum:"เจ้าหน้าที่หลักสูตร",executive:"ผู้บริหาร (ดูอย่างเดียว)",viewer:"ผู้ชม (ดูอย่างเดียว)"};
 /* ร่างคำอธิบายอัตโนมัติของช่วง i (0=A … 4=E) เมื่อยังไม่ได้เขียนเอง */
 function gen(n,i){return [
   n+"ได้ครบถ้วน ลึกซึ้ง เกินความคาดหวังของระดับปริญญา มีหลักฐานชัดเจนและเชื่อมโยงกับงานของตนอย่างสร้างสรรค์ (10 = โดดเด่นทุกด้าน, 9 = โดดเด่นเกือบทุกด้าน)",
@@ -523,12 +538,12 @@ function viewExec(){
   h+='<section class="card" style="margin-top:16px"><h2>ผลรายคน</h2><div class="sub">คลิกแถวเพื่อเปิดหน้าประเมิน คะแนน PLO เต็ม 10 ช่องสีแดงคือ PLO ที่ต่ำกว่าเกณฑ์ '+ten(pr.set.ploPass)+'</div>';
   if(!C.ev.length)h+='<div class="empty">ยังไม่มีนักศึกษาในหลักสูตรนี้</div>';
   else{
-    h+='<div class="table-scroll"><table><thead><tr><th>รหัส</th><th>นักศึกษา</th>'+pr.plos.map(function(p){return '<th class="num" title="'+esc(p.th)+'">'+esc(p.code)+'</th>'}).join("")+'<th class="num">รวม</th><th class="num">กรรมการ</th><th>สถานะ</th></tr></thead><tbody>';
+    h+='<div class="table-scroll"><table><thead><tr><th>รหัส</th><th>นักศึกษา</th>'+pr.plos.map(function(p){return '<th class="num" title="'+esc(p.th)+'">'+esc(p.code)+'</th>'}).join("")+'<th class="num">รวม</th><th class="num">กรรมการ</th><th>สถานะ (จากคะแนน)</th><th>ผลการสอบ (ประธานสอบ)</th></tr></thead><tbody>';
     C.ev.forEach(function(x){
       var e=x.e,st=!e.complete?{c:"na",t:"กรอกไม่ครบ ("+e.cnt+"/"+e.tot+")",i:"…"}:(e.ok?{c:"good",t:"ผ่าน",i:"✓"}:{c:"bad",t:"ไม่ผ่าน",i:"✕"});
       h+='<tr class="click" data-act="open" data-id="'+esc(x.s.id)+'" tabindex="0"><td>'+esc(x.s.code)+'</td><td>'+esc(x.s.name)+(x.s.sample?' <span class="muted">(ตัวอย่าง)</span>':"")+'</td>'+
         e.rows.map(function(r){var lw=r.pct!=null&&r.pct<pr.set.ploPass;return '<td class="num'+(lw?' low':'')+'">'+(lw?'▾ ':'')+ten(r.pct)+'</td>'}).join("")+
-        '<td class="num"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b></td><td class="num">'+x.n+'</td><td>'+chip(st)+'</td></tr>';
+        '<td class="num"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b></td><td class="num">'+x.n+'</td><td>'+chip(st)+'</td><td>'+decChip(decOf(x.s.id))+'</td></tr>';
     });
     h+='</tbody></table></div>';
   }
@@ -541,7 +556,9 @@ function viewExec(){
 function me(){return G.me.email}
 function myEval(sid){
   var e=G.P.evals.find(function(x){return x.studentId===sid&&x.email===me()});
-  if(!e){e={studentId:sid,email:me(),name:G.me.name,scores:{},comment:"",updatedAt:""};G.P.evals.push(e)}
+  if(!e){e={studentId:sid,email:me(),name:G.me.name,scores:{},comment:"",updatedAt:"",role:"member"};G.P.evals.push(e)}
+  // ยังไม่เคยบันทึก: ใช้บทบาทที่เลือกไว้ที่แถบด้านบน (ถ้ามีประธานสอบอยู่แล้ว ให้เป็นกรรมการสอบ)
+  if(!e.updatedAt&&!e.roleSet&&G.acting!=="view")e.role=(G.acting==="chair"&&chairOf(sid,me()))?"member":G.acting;
   return e;
 }
 function stu(){return G.P.students.find(function(s){return s.id===G.stuId})||G.P.students[0]||null}
@@ -575,10 +592,14 @@ function viewEval(){
     h+='<div class="card"><div class="empty">ยังไม่มีนักศึกษาในหลักสูตรนี้'+(canCurr()?'<p>กด "+ เพิ่ม" ที่รายชื่อด้านซ้ายเพื่อเพิ่มนักศึกษา</p>':'<p>แจ้งเจ้าหน้าที่หลักสูตรให้เพิ่มรายชื่อนักศึกษา</p>')+'</div></div></div></div>';
     return h;
   }
-  var sc=meanOf(evalsOf(st.id)),e=evalStu(pr,sc),mine=myEval(st.id),evs=evalsOf(st.id),others=evs.filter(function(x){return x.email!==me()}),ro=!canScore();
+  var sc=meanOf(evalsOf(st.id)),e=evalStu(pr,sc),mine=myEval(st.id),evs=evalsOf(st.id),others=evs.filter(function(x){return x.email!==me()}),ro=!canScoreNow();
   h+='<div class="row" style="margin-bottom:12px;justify-content:space-between"><div><h2 style="font-size:18px">'+esc(st.name)+(st.sample?' <span class="muted" style="font-size:12px">(ตัวอย่าง)</span>':"")+'</h2><div class="muted" style="font-size:12px">'+(st.code?esc(st.code)+' · ':"")+esc(st.topic)+(st.advisor?' · ที่ปรึกษา '+esc(st.advisor):"")+'</div></div>'+
     '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span><button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
-  if(ro)h+='<div class="note"><b>ดูอย่างเดียว</b><span>บทบาทของคุณ ('+esc(ROLE_TH[G.me.role]||G.me.role)+') ไม่มีสิทธิ์ให้คะแนน</span></div>';
+  if(ro)h+='<div class="note"><b>ดูอย่างเดียว</b><span>'+(canScore()?'คุณเลือกบทบาท "ดูผลอย่างเดียว" เปลี่ยนบทบาทในการสอบได้ที่แถบด้านบน':'บทบาทของคุณ ('+esc(ROLE_TH[G.me.role]||G.me.role)+') ไม่มีสิทธิ์ให้คะแนน')+'</span></div>';
+  else{
+    var ch=chairOf(st.id,me());
+    h+='<div class="myrole"><label for="my-role"><b>บทบาทของฉันในการสอบคนนี้</b></label><select id="my-role" data-f="myrole">'+EXAM.filter(function(r){return r[0]!=="view"}).map(function(r){var dis=r[0]==="chair"&&ch;return '<option value="'+r[0]+'"'+(mine.role===r[0]?" selected":"")+(dis?" disabled":"")+'>'+r[1]+(dis?" (มีแล้ว: "+esc(ch.name)+")":"")+'</option>'}).join("")+'</select><span class="muted" style="font-size:12px">'+(mine.role==="chair"?"ประธานสอบสรุปผลการสอบได้ที่การ์ดด้านขวา":"บันทึกพร้อมคะแนนของคุณ")+'</span></div>';
+  }
   var tot2=allUnits(pr).length,myc=allUnits(pr).filter(function(c){return isNum(mine.scores[c.id])}).length;
   var idx=pr.students.findIndex(function(s){return s.id===st.id});
   h+='<div class="stu-pick"><button class="btn" data-act="stuprev" aria-label="นักศึกษาคนก่อนหน้า"'+(idx<=0?" disabled":"")+'>‹</button><select id="stu-sel" data-f="stu" aria-label="เลือกนักศึกษา">'+pr.students.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===st.id?" selected":"")+'>'+esc(s.name)+(s.code?" · "+esc(s.code):"")+'</option>'}).join("")+'</select><button class="btn" data-act="stunext" aria-label="นักศึกษาคนถัดไป"'+(idx>=pr.students.length-1?" disabled":"")+'>›</button></div>';
@@ -597,7 +618,7 @@ function viewEval(){
   });
   h+='<div class="sticky-bar"><div><b>'+myc+'/'+tot2+'</b> เกณฑ์<div class="prog" style="margin:3px 0 0;width:120px"><i style="width:'+(tot2?myc/tot2*100:0)+'%"></i></div></div><div class="sb-score">รวม <b>'+(e.total==null?"–":e.total.toFixed(1))+'</b></div><div class="row" style="flex-wrap:nowrap">'+(myc<tot2&&!ro?'<button class="btn sm" data-act="nextunscored">ข้อที่ยังไม่ให้</button>':"")+(idx<pr.students.length-1?'<button class="btn primary sm" data-act="stunext">คนถัดไป ›</button>':"")+'</div></div>';
   h+='</div><section class="card"><h2>ความเห็นของฉัน</h2><div class="sub">เขียนอิสระ AI จะอ่านความเห็นของกรรมการทุกคนเพื่อดูว่าสอดคล้องกับ PLO ไหนและคะแนนสะท้อนความเห็นหรือไม่</div><textarea id="my-comment" rows="4" data-f="comment" placeholder="เช่น จุดเด่น จุดที่ควรแก้ไข ข้อเสนอแนะ"'+(ro?" disabled":"")+'>'+esc(mine.comment)+'</textarea></section></div>';
-  h+='<aside class="stack"><section class="card"><div class="muted" style="font-size:12px">คะแนนรวมเฉลี่ยกรรมการ (เต็ม 100)</div><div class="score"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b>'+
+  h+='<aside class="stack">'+committeeCard(pr,st,e,mine,evs,ro)+'<section class="card"><div class="muted" style="font-size:12px">คะแนนรวมเฉลี่ยกรรมการ (เต็ม 100)</div><div class="score"><b>'+(e.total==null?"–":e.total.toFixed(1))+'</b>'+
     (e.complete?chip(e.ok?{c:"good",t:"ผ่านเกณฑ์",i:"✓"}:{c:"bad",t:"ไม่ผ่านเกณฑ์",i:"✕"}):chip({c:"na",t:"กรอกไม่ครบ",i:"…"}))+'</div>'+
     '<div class="prog"><i style="width:'+(e.tot?e.cnt/e.tot*100:0)+'%"></i></div><div class="muted" style="font-size:12px">มีคะแนน '+e.cnt+' / '+e.tot+' เกณฑ์ · เกณฑ์ผ่าน PLO ≥ '+ten(pr.set.ploPass)+'/10 · ผ่าน PLO '+e.passed+' / '+pr.plos.length+' (ต้อง ≥ '+pr.set.fraction+'%) · คะแนนรวมต้อง ≥ '+pr.set.overall+'</div></section>'+
     '<section class="card"><h2>PLO ของนักศึกษา</h2>'+radar(axesOf(pr),[thresholdSeries(pr),{name:st.name,vals:e.rows.map(function(r){return r.pct}),color:"var(--s1)",fill:true,marks:true}])+insights(pr,e)+'</section>'+
@@ -644,6 +665,22 @@ function itemMatrix(pr,items,edit){
   var pk=Object.keys(pairs).sort(function(x,y){return pairs[y].length-pairs[x].length});
   if(pk.length)h+='<div style="margin-top:10px"><b style="font-size:13px">ความสัมพันธ์ระหว่าง PLO (ประเมินร่วมกันในหัวข้อเดียวกัน)</b><div class="links" style="margin-top:6px">'+pk.map(function(k){return '<span class="chip na">'+esc(k)+' · หัวข้อ '+pairs[k].join(", ")+'</span>'}).join("")+'</div></div>';
   return h;
+}
+/** คณะกรรมการสอบของนักศึกษาคนนี้ + ผลการสอบ (ประธานสอบสรุปผลได้ที่นี่) */
+function committeeCard(pr,st,e,mine,evs,ro){
+  var list=evs.filter(function(x){return x.updatedAt||Object.keys(x.scores||{}).length||x.comment});
+  var order={chair:0,member:1,advisor:2};list.sort(function(a,b){return (a.role in order?order[a.role]:1)-(b.role in order?order[b.role]:1)});
+  var d=decOf(st.id),tot=allUnits(pr).length,dd=(G.decDraft||{})[st.id]||{decision:d?d.decision:"",note:d?d.note:""};
+  var h='<section class="card"><div class="plo-head"><h2>คณะกรรมการสอบ</h2>'+decChip(d)+'</div><div class="sub">'+(d?'สรุปโดย '+esc(d.name)+(d.updatedAt?' เมื่อ '+new Date(d.updatedAt).toLocaleString("th-TH"):""):"ประธานสอบเป็นผู้สรุปผลการสอบ")+'</div>'+(d&&d.note?'<div class="insight">'+esc(d.note)+'</div>':"");
+  h+='<div class="cmt">'+(list.length?list.map(function(x){var ex=evalStu(pr,x.scores||{}),n=allUnits(pr).filter(function(u){return isNum((x.scores||{})[u.id])}).length;
+    return '<div class="cmt-row"><span><span class="chip '+(x.role==="chair"?"good":"na")+'">'+esc(examTh(x.role))+'</span> '+esc(x.name)+(x.email===me()?' <span class="muted">(ฉัน)</span>':"")+'</span><span class="muted" style="font-variant-numeric:tabular-nums">'+n+'/'+tot+' · รวม <b style="color:var(--ink)">'+(ex.total==null?"–":ex.total.toFixed(1))+'</b></span></div>'}).join(""):'<div class="muted" style="font-size:12px">ยังไม่มีกรรมการบันทึกคะแนน</div>')+'</div>';
+  if(!ro&&mine.role==="chair"){
+    if(!mine.updatedAt)h+='<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="claimchair">ยืนยันบทบาทประธานสอบ</button><span class="muted" style="font-size:12px">ยืนยันแล้วจึงสรุปผลการสอบได้ (หรือให้คะแนนข้อใดก็ได้)</span></div>';
+    else h+='<div style="margin-top:10px;display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b style="font-size:13px">สรุปผลการสอบ (ประธานสอบ)</b><div class="muted" style="font-size:12px">ผลจากคะแนนเฉลี่ยกรรมการ: '+esc(verdict(e))+(e.total==null?"":" ("+e.total.toFixed(1)+"/100)")+'</div>'+
+      '<select id="dec-sel" data-f="decsel" aria-label="ผลการสอบ"><option value="">— ยังไม่สรุป —</option>'+Object.keys(DEC).map(function(k){return '<option value="'+k+'"'+(dd.decision===k?" selected":"")+'>'+DEC[k][2]+'</option>'}).join("")+'</select>'+
+      '<textarea id="dec-note" data-f="decnote" rows="2" placeholder="เงื่อนไขหรือข้อเสนอแนะของคณะกรรมการ">'+esc(dd.note)+'</textarea><div><button class="btn primary sm" data-act="savedec"'+(G.busy.dec?" disabled":"")+'>'+(G.busy.dec?"กำลังบันทึก…":"บันทึกผลการสอบ")+'</button></div></div>';
+  }
+  return h+'</section>';
 }
 function insights(pr,e){
   var sc=e.rows.filter(function(r){return r.pct!=null}).sort(function(a,b){return b.pct-a.pct});
@@ -709,19 +746,19 @@ function critCols(pr){
   var cols=[];pr.plos.forEach(function(p){p.crit.forEach(function(c){cols.push({c:c,a:p.code,b:c.name})})});return cols}
 function verdict(e){return e.complete?(e.ok?"ผ่าน":"ไม่ผ่าน"):"ยังไม่ครบ"}
 function rowsPeople(pr){
-  var L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","อาจารย์ที่ปรึกษา","จำนวนกรรมการ"].concat(pr.plos.map(function(p){return p.code+" (เต็ม 10)"})).concat(["คะแนนรวม (เต็ม 100)","ผ่าน PLO (ข้อ)","สถานะ","PLO ต่ำสุด","ความเห็นกรรมการ"])];
+  var L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","อาจารย์ที่ปรึกษา","จำนวนกรรมการ"].concat(pr.plos.map(function(p){return p.code+" (เต็ม 10)"})).concat(["คะแนนรวม (เต็ม 100)","ผ่าน PLO (ข้อ)","สถานะ (จากคะแนน)","ผลการสอบ (ประธานสอบ)","เงื่อนไข/ข้อเสนอแนะ","PLO ต่ำสุด","ความเห็นกรรมการ"])];
   G.P.students.forEach(function(s){
     var ev=evalsOf(s.id),e=evalStu(pr,meanOf(ev)),low=e.rows.filter(function(r){return r.pct!=null}).sort(function(a,b){return a.pct-b.pct})[0];
-    L.push([s.code,s.name,s.topic,s.advisor,ev.filter(function(x){return Object.keys(x.scores).length}).length].concat(e.rows.map(function(r){return r.pct==null?"":+(r.pct/10).toFixed(1)})).concat([e.total==null?"":+e.total.toFixed(1),e.passed+"/"+pr.plos.length,verdict(e),low?low.p.code:"",ev.filter(function(x){return x.comment}).map(function(x){return x.name+": "+x.comment}).join(" | ")]));
+    L.push([s.code,s.name,s.topic,s.advisor,ev.filter(function(x){return Object.keys(x.scores).length}).length].concat(e.rows.map(function(r){return r.pct==null?"":+(r.pct/10).toFixed(1)})).concat([e.total==null?"":+e.total.toFixed(1),e.passed+"/"+pr.plos.length,verdict(e),decText(decOf(s.id)),(decOf(s.id)||{}).note||"",low?low.p.code:"",ev.filter(function(x){return x.comment}).map(function(x){return x.name+" ("+examTh(x.role)+"): "+x.comment}).join(" | ")]));
   });
   return L;
 }
 function rowsByRater(pr){
-  var cols=critCols(pr),L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","กรรมการ","อีเมลกรรมการ"].concat(cols.map(function(x){return x.a+" · "+x.b})).concat(["ความเห็น","บันทึกเมื่อ"])];
+  var cols=critCols(pr),L=[["รหัสนักศึกษา","ชื่อ-สกุล","หัวข้อวิทยานิพนธ์","กรรมการ","บทบาทในการสอบ","อีเมลกรรมการ"].concat(cols.map(function(x){return x.a+" · "+x.b})).concat(["ความเห็น","บันทึกเมื่อ"])];
   G.P.students.forEach(function(s){
     evalsOf(s.id).forEach(function(e){
       if(!Object.keys(e.scores).length&&!e.comment)return;
-      L.push([s.code,s.name,s.topic,e.name,e.email].concat(cols.map(function(x){var v=e.scores[x.c.id];return isNum(v)?v:""})).concat([e.comment,e.updatedAt?new Date(e.updatedAt).toLocaleString("th-TH"):""]));
+      L.push([s.code,s.name,s.topic,e.name,examTh(e.role),e.email].concat(cols.map(function(x){var v=e.scores[x.c.id];return isNum(v)?v:""})).concat([e.comment,e.updatedAt?new Date(e.updatedAt).toLocaleString("th-TH"):""]));
     });
   });
   return L;
@@ -729,7 +766,7 @@ function rowsByRater(pr){
 function rowsPerson(pr,st){
   if(!st)return [["เลือกนักศึกษา"]];
   var ev=evalsOf(st.id).filter(function(x){return Object.keys(x.scores).length||x.comment}),sc=meanOf(ev),e=evalStu(pr,sc),a=G.P.ai[st.id];
-  var L=[["รายงานผลการประเมินรายบุคคล"],["หลักสูตร",pr.name],["นักศึกษา",(st.code?st.code+" ":"")+st.name],["หัวข้อวิทยานิพนธ์",st.topic],["อาจารย์ที่ปรึกษา",st.advisor],["กรรมการที่ประเมิน",ev.map(function(x){return x.name}).join(", ")],["สถานะ",verdict(e)],["คะแนนรวม (เต็ม 100)",e.total==null?"":+e.total.toFixed(1)],[],
+  var L=[["รายงานผลการประเมินรายบุคคล"],["หลักสูตร",pr.name],["นักศึกษา",(st.code?st.code+" ":"")+st.name],["หัวข้อวิทยานิพนธ์",st.topic],["อาจารย์ที่ปรึกษา",st.advisor],["คณะกรรมการสอบ",ev.map(function(x){return x.name+" ("+examTh(x.role)+")"}).join(", ")],["สถานะ (จากคะแนน)",verdict(e)],["ผลการสอบ (ประธานสอบ)",decText(decOf(st.id))||"ยังไม่สรุป"],["เงื่อนไข/ข้อเสนอแนะ",(decOf(st.id)||{}).note||""],["คะแนนรวม (เต็ม 100)",e.total==null?"":+e.total.toFixed(1)],[],
     ["PLO","ชื่อ PLO","น้ำหนัก","คะแนน PLO (เต็ม 10)","ช่วง","เกณฑ์ผ่าน (เต็ม 10)","ผล",a?"สัดส่วนที่ความเห็นพูดถึง (%)":""]];
   e.rows.forEach(function(r){var b=r.pct==null?null:BANDS[bandIdx(r.pct/10)];L.push([r.p.code,r.p.th,r.p.weight,r.pct==null?"":+(r.pct/10).toFixed(1),b?b.k+" "+b.n:"",+(pr.set.ploPass/10).toFixed(1),r.pct==null?"":(r.pct>=pr.set.ploPass?"ผ่าน":"ไม่ผ่าน"),a&&a.shares?a.shares[r.p.id]||0:""])});
   L.push([]);
@@ -817,10 +854,10 @@ function viewAdminStu(){
   }).join("")+'</tbody></table></div>';
   return h+'</section>';
 }
-var ROLE_OPTS=[["admin","ผู้ดูแลระบบ","จัดการทุกอย่าง รวมถึงส่วนงาน หลักสูตร และผู้ใช้"],["curriculum","เจ้าหน้าที่หลักสูตร (ผู้กรอกข้อมูล)","กรอก PLO รูบริก และรายชื่อนักศึกษา ของหลักสูตรที่รับผิดชอบ"],["evaluator","อาจารย์ผู้ประเมิน","ให้คะแนนและความเห็นนักศึกษาของหลักสูตรที่รับผิดชอบ"],["executive","ผู้บริหาร","ดูผลทุกหลักสูตรอย่างเดียว"]];
+var ROLE_OPTS=[["chair","ประธานหลักสูตร","จัดการ PLO หัวข้อประเมิน รายชื่อนักศึกษา และประเมินได้ (เลือกเป็นประธานสอบ/กรรมการสอบ/ที่ปรึกษา)"],["faculty","อาจารย์ประจำหลักสูตร","ประเมินนักศึกษา (เลือกเป็นประธานสอบ/กรรมการสอบ/ที่ปรึกษา)"],["curriculum","เจ้าหน้าที่หลักสูตร","กรอกข้อมูลหลักสูตร ไม่ให้คะแนน"],["executive","ผู้บริหาร","ดูผลทุกหลักสูตรอย่างเดียว"],["admin","ผู้ดูแลระบบ","จัดการทุกอย่าง รวมถึงส่วนงาน หลักสูตร และผู้ใช้"]];
 function progScope(x){return String(x.programs||"*").split(/[,\s;]+/).filter(function(v){return v&&v!=="-"})}
 function scopeCell(x,i){
-  if(x.role!=="curriculum"&&x.role!=="evaluator")return '<span class="muted">ทุกหลักสูตร</span>';
+  if(["chair","faculty","curriculum","evaluator"].indexOf(x.role)<0)return '<span class="muted">ทุกหลักสูตร</span>';
   var sc=progScope(x),all=sc.indexOf("*")>=0;
   var sum=all?"ทุกหลักสูตร":(sc.length+" หลักสูตร");
   var h='<details'+(G.openUser===i?" open":"")+'><summary>'+sum+'</summary><div style="display:grid;gap:4px;margin-top:6px"><label class="row" style="gap:6px"><input type="checkbox" data-f="usrp:'+i+':*"'+(all?" checked":"")+'> ทุกหลักสูตร</label>';
@@ -1066,7 +1103,8 @@ function xBody(x){
  * ============================================================ */
 function render(){
   var m=G.me;
-  $("who").innerHTML=themeBtn()+'<span>'+esc(m.name)+'</span><span class="chip na">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+(canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
+  $("who").innerHTML=themeBtn()+'<span>'+esc(m.name)+'</span><span class="chip na" title="บทบาทบัญชี (ผู้ดูแลระบบกำหนด)">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+
+    (canScore()?'<label class="acting"><span>บทบาทในการสอบ</span><select data-f="acting" aria-label="บทบาทในการสอบ">'+EXAM.map(function(r){return '<option value="'+r[0]+'"'+(G.acting===r[0]?" selected":"")+' title="'+esc(r[2])+'">'+r[1]+'</option>'}).join("")+'</select></label>':"")+(canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
   var c='<a data-act="home">หน้าหลัก</a>';
   if(G.view==="faculty"){var f=facOf(G.facId);c+=' › <b>'+esc(f?f.name:"")+'</b>'}
   if(G.view==="program"){var f2=facOf(G.facId);c+=' › <a data-act="fac" data-id="'+esc(G.facId)+'">'+esc(f2?f2.name:G.P.facultyName)+'</a> › <b>'+esc(G.P.name)+'</b>'}
@@ -1093,7 +1131,7 @@ async function goProgram(id,tab){
   $("app").innerHTML='<div class="loading">กำลังโหลดหลักสูตร…</div>';
   try{
     G.P=await call("getProgram",id);G.view="program";G.dirty=false;G.preview=null;G.impText="";G.stuId=null;G.lq="";G.showAdd=false;
-    G.tab=tab||(G.me.role==="evaluator"?"eval":"exec");
+    G.tab=tab||(canScore()&&G.me.role!=="admin"?"eval":"exec");
     G.exp={kind:"people",stu:null};
     var meta=progMeta(id);
     if(!G.facId||!facOf(G.facId)||!facOf(G.facId).programs.some(function(p){return p.id===id}))G.facId=G.P.facultyId;
@@ -1158,6 +1196,7 @@ function isDark(){return G.theme?G.theme==="dark":sysDark()}
 function applyTheme(){var r=document.documentElement;if(G.theme)r.setAttribute("data-theme",G.theme);else r.removeAttribute("data-theme")}
 function themeBtn(){var d=isDark();return '<button class="btn sm theme-btn" data-act="theme" aria-label="'+(d?"เปลี่ยนเป็นโหมดสว่าง":"เปลี่ยนเป็นโหมดมืด")+'" title="'+(d?"เปลี่ยนเป็นโหมดสว่าง":"เปลี่ยนเป็นโหมดมืด")+'"><span aria-hidden="true">'+(d?"☀":"☾")+'</span> '+(d?"สว่าง":"มืด")+'</button>'}
 try{var th=localStorage.getItem("plo-theme");if(th==="light"||th==="dark")G.theme=th}catch(e){}
+try{var ac=localStorage.getItem("plo-acting");if(EXAM.some(function(x){return x[0]===ac}))G.acting=ac}catch(e){}
 applyTheme();
 try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){if(!G.theme&&G.boot)render()})}catch(e){}
 
@@ -1195,8 +1234,8 @@ function queueSave(sid){
   clearTimeout(saveT[sid]);
   saveT[sid]=setTimeout(async function(){
     var e=myEval(sid);
-    try{await call("saveEval",G.P.id,sid,e.scores,e.comment);var s2=$("savestate");if(s2)s2.textContent="บันทึกแล้ว"}
-    catch(err){var s3=$("savestate");if(s3)s3.textContent="บันทึกไม่สำเร็จ";fail(err)}
+    try{await call("saveEval",G.P.id,sid,e.scores,e.comment,e.role);var first=!e.updatedAt;e.updatedAt=new Date().toISOString();var s2=$("savestate");if(s2)s2.textContent="บันทึกแล้ว";if(first&&e.role==="chair")renderKeep()}
+    catch(err){var s3=$("savestate");if(s3)s3.textContent="บันทึกไม่สำเร็จ";if(/ประธานสอบ/.test(errMsg(err))&&e.role==="chair"){e.role="member";renderKeep()}fail(err)}
   },600);
 }
 
@@ -1216,6 +1255,9 @@ document.addEventListener("change",async function(ev){
     return;
   }
   try{
+    if(f==="acting"){G.acting=t.value;try{localStorage.setItem("plo-acting",G.acting)}catch(e){}renderKeep();toast("บทบาทในการสอบ: "+examTh(G.acting)+(G.acting==="view"?"":" (ใช้กับนักศึกษาที่คุณยังไม่ได้ประเมิน)"));return}
+    if(f==="myrole"){var st0=stu();if(st0){var me0=myEval(st0.id);me0.role=t.value;me0.roleSet=true;queueSave(st0.id);renderKeep()}return}
+    if(f==="decsel"||f==="decnote"){var st7=stu();if(st7){var dm=G.decDraft=G.decDraft||{},d7=decOf(st7.id),cur7=dm[st7.id]||(dm[st7.id]={decision:d7?d7.decision:"",note:d7?d7.note:""});cur7[f==="decsel"?"decision":"note"]=t.value}return}
     if(f==="comment"){var st=stu();if(st){myEval(st.id).comment=t.value;queueSave(st.id)}return}
     if(f==="expstu"){G.exp.stu=t.value;render();return}
     if(f.indexOf("blend:")===0){G.blend[f.slice(6)]=t.checked;render();return}
@@ -1294,7 +1336,7 @@ async function act(el){
       toast("ลบแล้ว");
     }
     else if(a==="score"){
-      var st=stu();if(!st||!canScore())return;
+      var st=stu();if(!st||!canScoreNow())return;
       var me2=myEval(st.id),c=el.getAttribute("data-c"),v=+el.getAttribute("data-v");
       var wasNew=!isNum(me2.scores[c]);
       if(me2.scores[c]===v)delete me2.scores[c];else me2.scores[c]=v;
@@ -1367,6 +1409,12 @@ async function act(el){
       G.busy.ext=false;render();
     }
     else if(a==="aidraftall"){await draftAll()}
+    else if(a==="claimchair"){var st6=stu();if(st6){var me6=myEval(st6.id);me6.role="chair";me6.roleSet=true;queueSave(st6.id)}}
+    else if(a==="savedec"){
+      var st5=stu();if(!st5||G.busy.dec)return;G.busy.dec=true;renderKeep();
+      try{if(!G.P.decisions)G.P.decisions={};var dv=await call("saveDecision",pr.id,st5.id,$("dec-sel").value,$("dec-note").value);if(dv)G.P.decisions[st5.id]=dv;else delete G.P.decisions[st5.id];if(G.decDraft)delete G.decDraft[st5.id];toast(dv?"บันทึกผลการสอบแล้ว":"ล้างผลการสอบแล้ว")}catch(e13){fail(e13)}
+      G.busy.dec=false;renderKeep();
+    }
     else if(a==="itauto"){var S1=itState();S1.list=autoItems(pr,S1.n);S1.dirty=true;render();toast("สร้างร่าง "+S1.list.length+" หัวข้อแล้ว ตรวจความสอดคล้องกับ PLO ในตาราง")}
     else if(a==="itai"){
       if(G.busy.it)return;var S2=itState();G.busy.it="หัวข้อ";render();
@@ -1422,7 +1470,7 @@ async function act(el){
     }
     else if(a==="save"){await saveProgram()}
     else if(a==="discard"){await loadAdminProgram(pr.id)}
-    else if(a==="adduser"){G.admin.users.push({email:"",name:"",role:"evaluator",programs:"*"});render()}
+    else if(a==="adduser"){G.admin.users.push({email:"",name:"",role:"faculty",programs:"*"});render()}
     else if(a==="rmuser"){G.admin.users.splice(+el.getAttribute("data-i"),1);render()}
     else if(a==="saveusers"){
       if(G.busy.users)return;G.busy.users=true;render();
