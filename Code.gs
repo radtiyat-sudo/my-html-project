@@ -14,11 +14,13 @@ var APP_TITLE = 'ระบบประเมิน PLOs วิทยานิพ
 var SCHEMA = {
   Faculties: ['facultyId', 'name', 'order'],
   // evalMode = 'plo' (แบบเดิม: เกณฑ์ราย PLO) หรือ 'items' (หัวข้อการสอบวิทยานิพนธ์ที่เชื่อมหลาย PLO)
-  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target', 'evalMode'],
+  // openStatus = สถานะการเปิดรับ (open|paused|closed|new), planIntake = แผนรับนักศึกษาต่อปี
+  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target', 'evalMode', 'openStatus', 'planIntake'],
   PLOs: ['programId', 'ploId', 'code', 'titleTh', 'textEn', 'weight', 'order'],
   // d1-d4 = คำอธิบายระดับแบบเก่า (1-4); bA-bE = คำอธิบาย 5 ช่วงคะแนนแบบใหม่ (A 9-10, B 7-8, C 5-6, D 3-4, E 0-2)
   Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order', 'bA', 'bB', 'bC', 'bD', 'bE'],
-  Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code'],
+  // workType = thesis (วิทยานิพนธ์) | thematic (สารนิพนธ์) | is (การค้นคว้าอิสระ), intakeYear = ปีที่เข้า (พ.ศ.), stage = ขั้นความคืบหน้า, examDate = วันสอบ
+  Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code', 'workType', 'intakeYear', 'stage', 'examDate'],
   // Evals = หนึ่งแถวต่อกรรมการต่อนักศึกษา (ความเห็น); คะแนนรายเกณฑ์อยู่ในชีต Scores (อ่านง่าย 1 แถวต่อ 1 เกณฑ์)
   // role = บทบาทของผู้ประเมินในการสอบนักศึกษาคนนี้: chair (ประธานสอบ) | member (กรรมการสอบ) | advisor (อาจารย์ที่ปรึกษา)
   Evals: ['evalKey', 'programId', 'studentId', 'email', 'name', 'scoresJson', 'comment', 'updatedAt', 'role'],
@@ -34,6 +36,9 @@ var SCHEMA = {
 };
 
 var SAMPLE_EMAIL = 'sample@example.com';
+var WORK_TYPES_ = ['thesis', 'thematic', 'is'];
+var STAGES_ = ['topic', 'proposal', 'research', 'defense', 'revise', 'passed', 'graduated'];
+var OPEN_STATUS_ = ['open', 'paused', 'closed', 'new'];
 
 /* เกณฑ์การประเมิน 5 ช่วง ใช้เหมือนกันทุก PLO ทุกหลักสูตร: แต่ละเกณฑ์ให้คะแนน 0-10 */
 var MAX_SCORE = 10;
@@ -345,20 +350,21 @@ function getBootstrap() {
   };
 }
 
-function loadProgram_(pid) {
-  var pr = readAll_('Programs').filter(function (p) { return s_(p.programId) === pid; })[0];
-  if (!pr) return null;
-  var fac = readAll_('Faculties').filter(function (f) { return s_(f.facultyId) === s_(pr.facultyId); })[0];
-  var crits = readAll_('Criteria').filter(function (c) { return s_(c.programId) === pid; });
-  crits.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
-  var plos = readAll_('PLOs').filter(function (p) { return s_(p.programId) === pid; });
-  plos.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
+/** อ่านชีตที่ใช้สร้างข้อมูลหลักสูตรครั้งเดียว (ใช้กับหลายหลักสูตรพร้อมกันได้โดยไม่อ่านซ้ำ) */
+function progSheets_() {
+  var by = function (rows) { var m = {}; rows.forEach(function (r) { (m[s_(r.programId)] = m[s_(r.programId)] || []).push(r); }); return m; };
+  var fac = {}; readAll_('Faculties').forEach(function (f) { fac[s_(f.facultyId)] = s_(f.name); });
+  return { fac: fac, crit: by(readAll_('Criteria')), plos: by(readAll_('PLOs')), items: by(readAll_('Items')) };
+}
+
+function buildProgram_(pr, S) {
+  var pid = s_(pr.programId), ord = function (a, b) { return num_(a.order, 0) - num_(b.order, 0); };
+  var crits = (S.crit[pid] || []).slice().sort(ord), plos = (S.plos[pid] || []).slice().sort(ord), items = (S.items[pid] || []).slice().sort(ord);
   var codes = plos.map(function (p) { return s_(p.code); });
-  var items = readAll_('Items').filter(function (it) { return s_(it.programId) === pid; });
-  items.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
   return {
-    id: pid, facultyId: s_(pr.facultyId), facultyName: fac ? s_(fac.name) : '', name: s_(pr.name), level: s_(pr.level), status: s_(pr.status), source: s_(pr.source),
-    set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80), evalMode: s_(pr.evalMode) === 'items' ? 'items' : 'plo' },
+    id: pid, facultyId: s_(pr.facultyId), facultyName: S.fac[s_(pr.facultyId)] || '', name: s_(pr.name), level: s_(pr.level), status: s_(pr.status), source: s_(pr.source),
+    set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80), evalMode: s_(pr.evalMode) === 'items' ? 'items' : 'plo',
+      openStatus: OPEN_STATUS_.indexOf(s_(pr.openStatus)) >= 0 ? s_(pr.openStatus) : 'open', planIntake: num_(pr.planIntake, 0) },
     items: items.map(function (it) {
       return { id: s_(it.itemId), name: s_(it.name), detail: s_(it.detail), plos: matchCodes_(s_(it.plos).split(','), codes), desc: bandDesc_(it) };
     }),
@@ -371,6 +377,32 @@ function loadProgram_(pid) {
       };
     })
   };
+}
+
+function loadProgram_(pid) {
+  var pr = readAll_('Programs').filter(function (p) { return s_(p.programId) === pid; })[0];
+  return pr ? buildProgram_(pr, progSheets_()) : null;
+}
+
+/** ข้อมูลนักศึกษาที่ส่งให้หน้าเว็บ (วันที่ในชีตอาจถูกแปลงเป็น Date ให้จัดรูปเป็น yyyy-MM-dd) */
+function stuOut_(s) {
+  var d = s.examDate;
+  if (Object.prototype.toString.call(d) === '[object Date]') d = isNaN(d) ? '' : Utilities.formatDate(d, 'Asia/Bangkok', 'yyyy-MM-dd');
+  return {
+    id: s_(s.studentId), code: s_(s.code), name: s_(s.name), topic: s_(s.topic), advisor: s_(s.advisor), sample: isSample_(s.sample),
+    workType: WORK_TYPES_.indexOf(s_(s.workType)) >= 0 ? s_(s.workType) : 'thesis', intakeYear: s_(s.intakeYear),
+    stage: STAGES_.indexOf(s_(s.stage)) >= 0 ? s_(s.stage) : 'research', examDate: s_(d)
+  };
+}
+
+/** ตรวจ/แปลงค่าฟิลด์นักศึกษาที่แก้ได้ */
+function cleanStuField_(k, v) {
+  v = s_(v).trim();
+  if (k === 'workType') return WORK_TYPES_.indexOf(v) >= 0 ? v : 'thesis';
+  if (k === 'stage') return STAGES_.indexOf(v) >= 0 ? v : 'research';
+  if (k === 'intakeYear') { var y = v.replace(/[^0-9]/g, ''); if (y.length === 2) y = '25' + y; return y.slice(0, 4); }
+  if (k === 'examDate') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? "'" + v : '';
+  return v;
 }
 
 /** จับคู่รหัส PLO (ไม่สนช่องว่าง/ตัวพิมพ์) กับรหัสจริงของหลักสูตร ตัดตัวที่ไม่มีและตัวซ้ำออก */
@@ -446,9 +478,7 @@ function getProgram(pid) {
   if (!inScope_(me, pid)) throw new Error('หลักสูตรนี้ไม่ได้อยู่ในความรับผิดชอบของบัญชีนี้');
   var prog = loadProgram_(s_(pid));
   if (!prog) throw new Error('ไม่พบหลักสูตร');
-  prog.students = readAll_('Students').filter(function (s) { return s_(s.programId) === prog.id; }).map(function (s) {
-    return { id: s_(s.studentId), code: s_(s.code), name: s_(s.name), topic: s_(s.topic), advisor: s_(s.advisor), sample: s.sample === true || String(s.sample).toLowerCase() === 'true' };
-  });
+  prog.students = readAll_('Students').filter(function (s) { return s_(s.programId) === prog.id; }).map(stuOut_);
   prog.evals = loadEvals_(prog.id);
   prog.decisions = {};
   readAll_('Decisions').filter(function (d) { return s_(d.programId) === prog.id; }).forEach(function (d) {
@@ -461,7 +491,7 @@ function getProgram(pid) {
   return prog;
 }
 
-/** ข้อมูลสำหรับหน้าเทียบข้ามหลักสูตร: PLO + คะแนนเฉลี่ยกรรมการต่อนักศึกษา */
+/** ข้อมูลทุกหลักสูตรในขอบเขตของผู้ใช้ (หน้าเทียบข้ามหลักสูตร และหน้าภาพรวมความคืบหน้า): PLOs + นักศึกษา + คะแนนเฉลี่ยกรรมการ + ผลสอบ */
 function getCrossData() {
   var me = me_();
   var evals = loadEvals_(''), students = readAll_('Students'), ais = {};
@@ -470,6 +500,13 @@ function getCrossData() {
   evals.forEach(function (e) {
     (byStu[s_(e.studentId)] = byStu[s_(e.studentId)] || []).push({ real: s_(e.email) !== SAMPLE_EMAIL, scores: e.scores });
   });
+  function nEval(sid) {
+    var list = byStu[sid] || [], real = list.filter(function (x) { return x.real; });
+    return (real.length ? real : list).filter(function (x) { return Object.keys(x.scores).length; }).length;
+  }
+  var decs = {};
+  readAll_('Decisions').forEach(function (d) { decs[s_(d.studentId)] = { decision: s_(d.decision), name: s_(d.name), updatedAt: s_(d.updatedAt) }; });
+  var S = progSheets_();
   function mean(sid) {
     var list = byStu[sid] || [], real = list.filter(function (x) { return x.real; });
     if (real.length) list = real;
@@ -483,9 +520,13 @@ function getCrossData() {
   if (cross) { try { x = JSON.parse(s_(cross.resultJson)); } catch (e) { } }
   return {
     programs: readAll_('Programs').filter(function (p) { return inScope_(me, p.programId); }).map(function (p) {
-      var prog = loadProgram_(s_(p.programId));
+      var prog = buildProgram_(p, S);
+      prog.decisions = {};
       prog.students = students.filter(function (s) { return s_(s.programId) === prog.id; }).map(function (s) {
-        return { id: s_(s.studentId), name: s_(s.name), scores: mean(s_(s.studentId)), ai: ais[s_(s.studentId)] || null };
+        var o = stuOut_(s), sid = o.id;
+        o.scores = mean(sid); o.ai = ais[sid] || null; o.n = nEval(sid);
+        if (decs[sid]) prog.decisions[sid] = decs[sid];
+        return o;
       });
       return prog;
     }),
@@ -597,6 +638,8 @@ function saveProgram(prog) {
       p.name = s_(prog.name) || p.name; p.level = s_(prog.level); p.source = s_(prog.source);
       p.status = prog.plos.length ? 'ready' : 'empty';
       p.ploPass = clamp_(prog.set.ploPass); p.overall = clamp_(prog.set.overall); p.fraction = clamp_(prog.set.fraction); p.target = clamp_(prog.set.target);
+      if (OPEN_STATUS_.indexOf(s_(prog.set.openStatus)) >= 0) p.openStatus = s_(prog.set.openStatus);
+      p.planIntake = Math.max(0, Math.round(num_(prog.set.planIntake, 0)));
     });
     if (!found) throw new Error('ไม่พบหลักสูตร');
     writeAll_('Programs', prs);
@@ -706,14 +749,15 @@ function addStudentList(pid, list) {
       if ((code && codes[code.toLowerCase()]) || names[nk]) { skipped.push(name); return; }
       if (code) codes[code.toLowerCase()] = true;
       names[nk] = true;
-      rows.push({ studentId: uid_('s'), programId: pid, code: code, name: name, topic: topic, advisor: s_(it.advisor).trim(), sample: false });
+      rows.push({ studentId: uid_('s'), programId: pid, code: code, name: name, topic: topic, advisor: s_(it.advisor).trim(), sample: false,
+        workType: cleanStuField_('workType', it.workType), intakeYear: cleanStuField_('intakeYear', it.intakeYear), stage: cleanStuField_('stage', it.stage), examDate: cleanStuField_('examDate', it.examDate) });
     });
     if (rows.length) appendRows_('Students', rows);
     return { added: rows.length, skipped: skipped.length, program: getProgram(pid) };
   });
 }
 
-/** แก้ข้อมูลนักศึกษา (รหัส ชื่อ หัวข้อ ที่ปรึกษา) */
+/** แก้ข้อมูลนักศึกษา (รหัส ชื่อ หัวข้อ ที่ปรึกษา ประเภทงาน ปีที่เข้า ขั้นความคืบหน้า วันสอบ) */
 function updateStudent(pid, sid, fields) {
   needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
@@ -722,6 +766,7 @@ function updateStudent(pid, sid, fields) {
       if (s_(x.studentId) !== s_(sid) || s_(x.programId) !== s_(pid)) return;
       hit = true;
       ['code', 'name', 'topic', 'advisor'].forEach(function (k) { if (fields && fields[k] !== undefined) x[k] = s_(fields[k]).trim(); });
+      ['workType', 'intakeYear', 'stage', 'examDate'].forEach(function (k) { if (fields && fields[k] !== undefined) x[k] = cleanStuField_(k, fields[k]); });
       if (!s_(x.name)) throw new Error('ชื่อนักศึกษาต้องไม่ว่าง');
     });
     if (!hit) throw new Error('ไม่พบนักศึกษา');
@@ -801,6 +846,12 @@ function saveDecision(pid, sid, decision, note) {
     var row = null;
     if (decision) { row = { programId: pid, studentId: sid, decision: decision, note: s_(note).slice(0, 2000), email: me.email, name: me.name, updatedAt: new Date().toISOString() }; list.push(row); }
     writeAll_('Decisions', list);
+    // ผลสอบเปลี่ยนขั้นความคืบหน้าของนักศึกษา: ผ่าน → สอบผ่าน, ผ่านโดยมีเงื่อนไข → แก้ไขหลังสอบ, ไม่ผ่าน → รอสอบใหม่
+    if (decision) {
+      var stg = { pass: 'passed', pass_cond: 'revise', fail: 'defense' }[decision], sts = readAll_('Students');
+      sts.forEach(function (x) { if (s_(x.studentId) === sid && s_(x.programId) === pid && x.stage !== 'graduated') x.stage = stg; });
+      writeAll_('Students', sts);
+    }
     return row ? { decision: row.decision, note: row.note, email: row.email, name: row.name, updatedAt: row.updatedAt } : null;
   });
 }

@@ -252,6 +252,15 @@ tr.click:hover td{background:var(--surface-2)}
 .band .lvl b{font-size:18px}
 .chip.band-chip{font-variant-numeric:tabular-nums}
 .theme-btn{min-width:44px}
+/* ภาพรวมความคืบหน้า */
+.filters{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filters label{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.ready{display:flex;gap:3px}
+.ready i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--line)}
+.ready i.on{background:var(--good)}
+tr.click td{vertical-align:middle}
+.stage-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.stage-leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:middle}
 .acting{display:flex;gap:6px;align-items:center}
 .acting select{padding:3px 8px;font-size:12px;font-weight:600;border-color:var(--accent);color:var(--accent);background:var(--accent-tint)}
 .cmt{display:grid;gap:6px}
@@ -302,7 +311,7 @@ function ten(pct){return pct==null||isNaN(pct)?"–":(pct/10).toFixed(1)}
 var SAMPLE_EMAIL="sample@example.com";
 var G={boot:null,me:{role:"viewer",email:"",name:""},view:"home",facId:null,P:null,tab:"exec",stuId:null,q:"",lq:"",
   exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},design:null,designName:null,preview:null,importMode:"replace",impText:"",
-  showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",
+  showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",ov:{fac:"",year:"",type:""},
   admin:{tab:"prog",facId:null,progId:null,users:null,roster:{text:"",list:null}}};
 
 /* ---------- utils ---------- */
@@ -327,6 +336,15 @@ function canScore(){return ["admin","chair","faculty","evaluator"].indexOf(G.me.
 var EXAM=[["chair","ประธานสอบ","ให้คะแนน และสรุปผลการสอบ (1 คนต่อนักศึกษา)"],["member","กรรมการสอบ","ให้คะแนนและความเห็น"],["advisor","อาจารย์ที่ปรึกษา","ให้คะแนนและความเห็นในฐานะที่ปรึกษา"],["view","ดูผลอย่างเดียว","ไม่ให้คะแนน"]];
 function examTh(k){var r=EXAM.find(function(x){return x[0]===k});return r?r[1]:"กรรมการสอบ"}
 function canScoreNow(){return canScore()&&G.acting!=="view"}
+/* ข้อมูลงานวิจัยของนักศึกษา */
+var WORK={thesis:"วิทยานิพนธ์",thematic:"สารนิพนธ์",is:"การค้นคว้าอิสระ"};
+var STAGES=[["topic","อนุมัติหัวข้อ"],["proposal","สอบเค้าโครงผ่าน"],["research","ดำเนินการวิจัย"],["defense","รอสอบ/สอบป้องกัน"],["revise","แก้ไขหลังสอบ"],["passed","สอบผ่าน"],["graduated","สำเร็จการศึกษา"]];
+var OPEN={open:["good","เปิดรับ"],new:["na","หลักสูตรใหม่ (ร่าง)"],paused:["warn","งดรับชั่วคราว"],closed:["bad","ปิดหลักสูตร"]};
+function stageTh(k){var r=STAGES.find(function(x){return x[0]===k});return r?r[1]:"ดำเนินการวิจัย"}
+function optList(pairs,val){return pairs.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===val?" selected":"")+'>'+esc(x[1])+'</option>'}).join("")}
+function workPairs(){return Object.keys(WORK).map(function(k){return [k,WORK[k]]})}
+function parseWork(v){v=String(v||"");if(/สาร|thematic/i.test(v))return "thematic";if(/ค้นคว้า|\bis\b|independent|แผน\s*ข/i.test(v))return "is";if(/วิทยานิพนธ์|thesis|แผน\s*ก/i.test(v))return "thesis";return ""}
+function thDate(d){if(!d)return "";var x=new Date(d+"T00:00:00");return isNaN(x)?d:x.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"})}
 var DEC={pass:["good","✓","ผ่าน"],pass_cond:["warn","!","ผ่านโดยมีเงื่อนไข (แก้ไขตามข้อเสนอแนะ)"],fail:["bad","✕","ไม่ผ่าน"]};
 function decOf(sid){return (G.P.decisions||{})[sid]||null}
 function decChip(d){if(!d||!DEC[d.decision])return '<span class="chip na">ยังไม่สรุปผลสอบ</span>';var x=DEC[d.decision];return '<span class="chip '+x[0]+'"><span aria-hidden="true">'+x[1]+'</span>'+x[2]+'</span>'}
@@ -465,6 +483,7 @@ function viewHome(){
   var list=f.filter(function(x){return !q||x.name.toLowerCase().indexOf(q)>=0||x.programs.some(function(p){return p.name.toLowerCase().indexOf(q)>=0})});
   var h='<div class="hero"><h1>เลือกส่วนงาน</h1><p>เลือกส่วนงานแล้วเลือกหลักสูตร แต่ละหลักสูตรมี PLOs ของตัวเองเป็นตัวชี้วัดสำหรับประเมินนักศึกษา</p>'+
     '<input type="search" id="q" class="search" placeholder="ค้นหาส่วนงานหรือหลักสูตร" aria-label="ค้นหา" value="'+esc(G.q)+'"></div>';
+  h+='<div class="row" style="margin-bottom:16px"><button class="btn primary" data-act="overview">ภาพรวมความคืบหน้าทุกหลักสูตร</button><button class="btn" data-act="cross">เทียบ PLOs ข้ามหลักสูตร / ออกแบบหลักสูตรใหม่</button></div>';
   h+='<div class="cards">';
   list.forEach(function(x){
     var ready=x.programs.filter(function(p){return p.ploCount>0}).length,sc=x.programs.reduce(function(a,p){return a+p.studentCount},0);
@@ -473,7 +492,6 @@ function viewHome(){
   });
   h+='</div>';
   if(!list.length)h+='<div class="empty">'+(f.length?'ไม่พบส่วนงานที่ตรงกับคำค้น':'ยังไม่มีส่วนงาน'+(canEdit()?' เพิ่มได้ที่ "จัดการระบบ"':""))+'</div>';
-  h+='<div class="row" style="margin-top:20px"><button class="btn" data-act="cross">เทียบ PLOs ข้ามหลักสูตร</button></div>';
   return h;
 }
 function viewFaculty(){
@@ -582,7 +600,7 @@ function studentList(pr){
   return h+'</aside>';
 }
 function addStuForm(){
-  return '<div class="card" style="padding:10px;display:grid;gap:6px;background:var(--surface-2)"><div class="f"><label for="ns-code">รหัสนักศึกษา</label><input type="text" id="ns-code"></div><div class="f"><label for="ns-name">ชื่อ-สกุล</label><input type="text" id="ns-name"></div><div class="f"><label for="ns-topic">หัวข้อวิทยานิพนธ์</label><input type="text" id="ns-topic"></div><div class="f"><label for="ns-adv">อาจารย์ที่ปรึกษา</label><input type="text" id="ns-adv"></div><button class="btn primary sm" data-act="addstu">บันทึกนักศึกษา</button>'+(canCurr()?'<span class="muted" style="font-size:11px">เพิ่มหลายคนพร้อมกันได้ที่ จัดการข้อมูลหลักสูตร > นักศึกษา</span>':"")+'</div>';
+  return '<div class="card" style="padding:10px;display:grid;gap:6px;background:var(--surface-2)"><div class="f"><label for="ns-code">รหัสนักศึกษา</label><input type="text" id="ns-code"></div><div class="f"><label for="ns-name">ชื่อ-สกุล</label><input type="text" id="ns-name"></div><div class="f"><label for="ns-topic">หัวข้อวิทยานิพนธ์</label><input type="text" id="ns-topic"></div><div class="f"><label for="ns-adv">อาจารย์ที่ปรึกษา</label><input type="text" id="ns-adv"></div><div class="row"><div class="f" style="flex:1"><label for="ns-work">ประเภทงาน</label><select id="ns-work" style="width:100%">'+optList(workPairs(),"thesis")+'</select></div><div class="f" style="width:90px"><label for="ns-year">ปีที่เข้า</label><input type="text" id="ns-year" placeholder="2568"></div></div><button class="btn primary sm" data-act="addstu">บันทึกนักศึกษา</button>'+(canCurr()?'<span class="muted" style="font-size:11px">เพิ่มหลายคนพร้อมกันได้ที่ จัดการข้อมูลหลักสูตร > นักศึกษา</span>':"")+'</div>';
 }
 function viewEval(){
   var pr=G.P;
@@ -593,8 +611,8 @@ function viewEval(){
     return h;
   }
   var sc=meanOf(evalsOf(st.id)),e=evalStu(pr,sc),mine=myEval(st.id),evs=evalsOf(st.id),others=evs.filter(function(x){return x.email!==me()}),ro=!canScoreNow();
-  h+='<div class="row" style="margin-bottom:12px;justify-content:space-between"><div><h2 style="font-size:18px">'+esc(st.name)+(st.sample?' <span class="muted" style="font-size:12px">(ตัวอย่าง)</span>':"")+'</h2><div class="muted" style="font-size:12px">'+(st.code?esc(st.code)+' · ':"")+esc(st.topic)+(st.advisor?' · ที่ปรึกษา '+esc(st.advisor):"")+'</div></div>'+
-    '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span><button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
+  h+='<div class="row" style="margin-bottom:12px;justify-content:space-between"><div><h2 style="font-size:18px">'+esc(st.name)+(st.sample?' <span class="muted" style="font-size:12px">(ตัวอย่าง)</span>':"")+'</h2><div class="muted" style="font-size:12px">'+(st.code?esc(st.code)+' · ':"")+esc(st.topic)+(st.advisor?' · ที่ปรึกษา '+esc(st.advisor):"")+'</div><div class="links" style="margin-top:4px"><span class="chip good">'+esc(WORK[st.workType]||"วิทยานิพนธ์")+'</span><span class="chip na">'+esc(stageTh(st.stage))+'</span>'+(st.intakeYear?'<span class="chip na">รุ่น '+esc(st.intakeYear)+'</span>':"")+(st.examDate?'<span class="chip warn">สอบ '+esc(thDate(st.examDate))+'</span>':"")+'</div></div>'+
+    '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span><button class="btn sm" data-act="printstu">พิมพ์แบบประเมินการสอบ</button>'+(Object.keys(mine.scores).length||mine.comment?'<button class="btn sm" data-act="printmine">พิมพ์พร้อมคะแนนของฉัน</button>':"")+'<button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
   if(ro)h+='<div class="note"><b>ดูอย่างเดียว</b><span>'+(canScore()?'คุณเลือกบทบาท "ดูผลอย่างเดียว" เปลี่ยนบทบาทในการสอบได้ที่แถบด้านบน':'บทบาทของคุณ ('+esc(ROLE_TH[G.me.role]||G.me.role)+') ไม่มีสิทธิ์ให้คะแนน')+'</span></div>';
   else{
     var ch=chairOf(st.id,me());
@@ -727,7 +745,7 @@ function viewIndicators(){
       '<div class="table-scroll"><table class="pv"><thead><tr><th rowspan="2">รายละเอียดตัวชี้วัด</th><th colspan="5" style="text-align:center">เกณฑ์การประเมิน (เต็ม 10)</th></tr><tr>'+BANDS.map(function(b){return '<th>'+b.n+'<br>'+b.k+' ('+bandRange(b)+' คะแนน)</th>'}).join("")+'</tr></thead><tbody>'+
       p.crit.map(function(c){return '<tr><td class="wrapt"><b>'+esc(c.name)+'</b></td>'+BANDS.map(function(b,i){return '<td class="wrapt">'+esc(desc(c,i))+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div></section>';
   });
-  h+='</div><p class="muted" style="font-size:12px">แหล่งข้อมูล: '+esc(pr.source)+(canCurr()?' · <a style="color:var(--accent);cursor:pointer" data-act="adminplo">แก้ PLOs และรูบริก</a>':"")+'</p>';
+  h+='</div><div class="row" style="margin-top:12px"><button class="btn primary" data-act="printblank">พิมพ์แบบประเมินผลการสอบ (ฟอร์มเปล่า)</button><span class="muted" style="font-size:12px">ใช้เป็นตัวชี้วัด PLOs ระหว่างการสอบวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ</span></div><p class="muted" style="font-size:12px">แหล่งข้อมูล: '+esc(pr.source)+(canCurr()?' · <a style="color:var(--accent);cursor:pointer" data-act="adminplo">แก้ PLOs และรูบริก</a>':"")+'</p>';
   return h;
 }
 
@@ -839,18 +857,20 @@ function viewAdminStu(){
   if(!pr)return h;
   var r=G.admin.roster,exist={};
   pr.students.forEach(function(s){if(s.code)exist["c:"+s.code.toLowerCase()]=1;exist["n:"+s.name+"|"+s.topic]=1});
-  h+='<section class="card"><h2>เพิ่มรายชื่อนักศึกษาหลายคน</h2><div class="sub">คัดลอกจาก Excel หรือ Google Sheets มาวางได้เลย คอลัมน์: รหัสนักศึกษา, ชื่อ-สกุล, หัวข้อวิทยานิพนธ์, อาจารย์ที่ปรึกษา (มีหรือไม่มีแถวหัวตารางก็ได้) หรือเลือกไฟล์ .csv/.txt</div>'+
-    '<textarea id="roster-text" rows="5" placeholder="6610001\tสมชาย ใจดี\tการศึกษาโครงสร้างโปรตีน X\tผศ.ดร.สมศรี">'+esc(r.text)+'</textarea><div class="row" style="margin-top:8px"><input type="file" id="roster-file" accept=".csv,.txt,text/plain" aria-label="เลือกไฟล์"><button class="btn primary" data-act="rparse">ตรวจรายชื่อ</button></div>';
+  h+='<section class="card"><h2>เพิ่มรายชื่อนักศึกษาหลายคน</h2><div class="sub">คัดลอกจาก Excel หรือ Google Sheets มาวางได้เลย คอลัมน์: รหัสนักศึกษา, ชื่อ-สกุล, หัวข้อ, อาจารย์ที่ปรึกษา, ประเภทงาน (วิทยานิพนธ์/สารนิพนธ์/IS), ปีที่เข้า (มีหรือไม่มีแถวหัวตารางก็ได้) หรือเลือกไฟล์ .csv/.txt</div>'+
+    '<textarea id="roster-text" rows="5" placeholder="6610001\tสมชาย ใจดี\tการศึกษาโครงสร้างโปรตีน X\tผศ.ดร.สมศรี\tวิทยานิพนธ์\t2568">'+esc(r.text)+'</textarea><div class="row" style="margin-top:8px"><input type="file" id="roster-file" accept=".csv,.txt,text/plain" aria-label="เลือกไฟล์"><button class="btn primary" data-act="rparse">ตรวจรายชื่อ</button></div>';
   if(r.list){
     var fresh=r.list.filter(function(x){return !(x.code&&exist["c:"+x.code.toLowerCase()])&&!exist["n:"+x.name+"|"+(x.topic||"ยังไม่ระบุหัวข้อ")]}).length;
-    h+='<div style="margin-top:12px"><b>พบ '+r.list.length+' คน</b> · จะเพิ่มใหม่ '+fresh+' คน'+(r.list.length-fresh?' · ข้ามรายการซ้ำ '+(r.list.length-fresh)+' คน':"")+'</div><div class="table-scroll"><table class="pv"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th></tr></thead><tbody>'+
-      r.list.slice(0,60).map(function(x){var dup=(x.code&&exist["c:"+x.code.toLowerCase()])||exist["n:"+x.name+"|"+(x.topic||"ยังไม่ระบุหัวข้อ")];return '<tr class="'+(dup?"dupe":"")+'"><td>'+esc(x.code)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.topic)+'</td><td>'+esc(x.advisor)+'</td></tr>'}).join("")+'</tbody></table></div>'+
+    h+='<div style="margin-top:12px"><b>พบ '+r.list.length+' คน</b> · จะเพิ่มใหม่ '+fresh+' คน'+(r.list.length-fresh?' · ข้ามรายการซ้ำ '+(r.list.length-fresh)+' คน':"")+'</div><div class="table-scroll"><table class="pv"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th><th>ประเภทงาน</th><th>ปีที่เข้า</th></tr></thead><tbody>'+
+      r.list.slice(0,60).map(function(x){var dup=(x.code&&exist["c:"+x.code.toLowerCase()])||exist["n:"+x.name+"|"+(x.topic||"ยังไม่ระบุหัวข้อ")];return '<tr class="'+(dup?"dupe":"")+'"><td>'+esc(x.code)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.topic)+'</td><td>'+esc(x.advisor)+'</td><td>'+esc(WORK[x.workType]||"วิทยานิพนธ์")+'</td><td>'+esc(x.intakeYear)+'</td></tr>'}).join("")+'</tbody></table></div>'+
       (fresh?'<div class="row" style="margin-top:10px"><button class="btn primary" data-act="rimport"'+(G.busy.roster?" disabled":"")+'>'+(G.busy.roster?"กำลังบันทึก…":"เพิ่ม "+fresh+" คน")+'</button></div>':"");
   }
-  h+='</section><section class="card" style="margin-top:16px"><h2>นักศึกษาในหลักสูตรนี้ ('+pr.students.length+' คน)</h2><div class="sub">แก้ข้อมูลในช่องได้โดยตรง ระบบบันทึกเมื่อกดออกจากช่อง</div>';
+  h+='</section><section class="card" style="margin-top:16px"><h2>นักศึกษาในหลักสูตรนี้ ('+pr.students.length+' คน)</h2><div class="sub">แก้ข้อมูลในช่องได้โดยตรง ระบบบันทึกเมื่อกดออกจากช่อง · ขั้นความคืบหน้าจะเปลี่ยนเองเมื่อประธานสอบสรุปผลสอบ</div>';
   if(!pr.students.length)h+='<div class="empty">ยังไม่มีนักศึกษา</div>';
-  else h+='<div class="table-scroll"><table class="mgr"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th><th></th></tr></thead><tbody>'+pr.students.map(function(s){
-    return '<tr><td><input type="text" data-f="stuf:'+esc(s.id)+':code" value="'+esc(s.code)+'" aria-label="รหัส" style="max-width:120px"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':name" value="'+esc(s.name)+'" aria-label="ชื่อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':topic" value="'+esc(s.topic)+'" aria-label="หัวข้อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':advisor" value="'+esc(s.advisor)+'" aria-label="ที่ปรึกษา"></td><td>'+delBtn("stu:"+s.id,"ลบ","ยืนยันลบ (รวมคะแนน)")+'</td></tr>';
+  else h+='<div class="table-scroll"><table class="mgr"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th><th>ประเภทงาน</th><th>ปีที่เข้า</th><th>ขั้นความคืบหน้า</th><th>วันสอบ</th><th></th></tr></thead><tbody>'+pr.students.map(function(s){
+    return '<tr><td><input type="text" data-f="stuf:'+esc(s.id)+':code" value="'+esc(s.code)+'" aria-label="รหัส" style="max-width:120px"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':name" value="'+esc(s.name)+'" aria-label="ชื่อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':topic" value="'+esc(s.topic)+'" aria-label="หัวข้อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':advisor" value="'+esc(s.advisor)+'" aria-label="ที่ปรึกษา"></td>'+
+      '<td><select data-f="stuf:'+esc(s.id)+':workType" aria-label="ประเภทงาน">'+optList(workPairs(),s.workType)+'</select></td><td><input type="text" data-f="stuf:'+esc(s.id)+':intakeYear" value="'+esc(s.intakeYear)+'" aria-label="ปีที่เข้า" style="width:70px"></td>'+
+      '<td><select data-f="stuf:'+esc(s.id)+':stage" aria-label="ขั้นความคืบหน้า">'+optList(STAGES,s.stage)+'</select></td><td><input type="date" data-f="stuf:'+esc(s.id)+':examDate" value="'+esc(s.examDate)+'" aria-label="วันสอบ"></td><td>'+delBtn("stu:"+s.id,"ลบ","ยืนยันลบ (รวมคะแนน)")+'</td></tr>';
   }).join("")+'</tbody></table></div>';
   return h+'</section>';
 }
@@ -881,7 +901,7 @@ function viewAdminUsers(){
 }
 function fld(label,type,key,val,dis){
   var id="f-"+key.replace(/:/g,"-");
-  return '<div class="f"><label for="'+id+'">'+label+'</label><input type="'+type+'" id="'+id+'" data-f="'+(key.indexOf(":")>0?key:"s:"+key)+'" value="'+esc(val)+'"'+(type==="number"?(key.slice(-7)===":weight"?' min="0" step="any"':' min="0" max="100" step="any"'):"")+(dis?" disabled":"")+'></div>';
+  return '<div class="f"><label for="'+id+'">'+label+'</label><input type="'+type+'" id="'+id+'" data-f="'+(key.indexOf(":")>0?key:"s:"+key)+'" value="'+esc(val)+'"'+(type==="number"?(key.slice(-7)===":weight"||key==="planIntake"?' min="0" step="any"':' min="0" max="100" step="any"'):"")+(dis?" disabled":"")+'></div>';
 }
 function viewAdminPlo(){
   var h=adminPicker(),pr=G.P;
@@ -890,6 +910,7 @@ function viewAdminPlo(){
   h+=importCard();
   h+='<section class="card" style="margin-top:16px"><h2>เกณฑ์ตัดสินของหลักสูตร</h2><div class="sub">แหล่งข้อมูล: '+esc(pr.source)+'</div>'+
     '<div class="f-grid">'+fld("ชื่อหลักสูตร","text","name",pr.name)+fld("เกณฑ์ผ่านต่อ PLOs (%)","number","ploPass",pr.set.ploPass)+fld("เกณฑ์คะแนนรวม (เต็ม 100)","number","overall",pr.set.overall)+fld("สัดส่วน PLOs ที่ต้องผ่าน (%)","number","fraction",pr.set.fraction)+fld("เป้า % นักศึกษาที่ผ่านแต่ละ PLO","number","target",pr.set.target)+
+    '<div class="f"><label for="f-open">สถานะการเปิดรับ</label><select id="f-open" data-f="s:openStatus" style="width:100%">'+optList(Object.keys(OPEN).map(function(k){return [k,OPEN[k][1]]}),pr.set.openStatus||"open")+'</select></div>'+fld("แผนรับนักศึกษา (คน/ปี)","number","planIntake",pr.set.planIntake||0)+
     '</div><p class="muted" style="font-size:12px;margin-bottom:0">ทุก PLOs ใช้เกณฑ์การประเมินเดียวกัน: แต่ละเกณฑ์ให้คะแนน 0-10 แบ่ง 5 ช่วง ('+BANDS.map(function(b){return b.k+" "+bandRange(b)+" "+b.n}).join(", ")+') คะแนน PLOs = ค่าเฉลี่ยของเกณฑ์ใน PLOs นั้น (เต็ม 10) แล้วถ่วงน้ำหนักเป็นคะแนนรวม 100 ถ้ามีกรรมการหลายคน ใช้ค่าเฉลี่ยของกรรมการต่อเกณฑ์ · เกณฑ์ผ่านต่อ PLOs '+pr.set.ploPass+'% = '+ten(pr.set.ploPass)+'/10</p></section>';
   h+='<div class="row" style="margin-block:16px 10px;justify-content:space-between"><h2 style="font-size:16px">PLOs ที่ใช้เป็นตัวชี้วัด ('+pr.plos.length+' ข้อ)</h2><span class="row"><span class="chip good">แต่ละ PLOs เต็ม 10 · คะแนนรวมเต็ม 100</span>'+(G.boot.aiEnabled&&pr.plos.length?'<button class="btn sm primary" data-act="aidraftall"'+(G.busy.all?" disabled":"")+'>'+(G.busy.all?"AI กำลังร่าง "+G.busy.all+"…":"ให้ AI ร่างเกณฑ์ 5 ช่วงทุก PLO")+'</button>':"")+'</span></div><p class="muted" style="font-size:12px;margin:0 0 10px">ตั้งน้ำหนักเท่ากันทุก PLOs (เช่น 100 ทั้งหมด) ได้ ระบบคิดคะแนนรวมเป็นค่าเฉลี่ยถ่วงน้ำหนักเต็ม 100% ไม่ต้องให้ผลรวมน้ำหนักเป็น 100 <button class="btn sm" data-act="eqw">ตั้งทุก PLOs = 100</button></p><div class="stack">';
   if(!pr.plos.length)h+='<div class="card empty">ยังไม่มี PLOs นำเข้าจากกล่องด้านบน</div>';
@@ -1030,6 +1051,121 @@ function crossStats(P){
     plos:C.per.map(function(x){return {id:x.p.id,code:x.p.code,mean:x.mean,pass:x.pass}})}});
 }
 function hasTheme(pp,t){return pp.plos.some(function(p){return themesOf(p).some(function(x){return x[0]===t[0]})})}
+/* ============================================================
+ * ภาพรวมความคืบหน้า (บัณฑิตวิทยาลัย / ผู้บริหาร / ประธานหลักสูตร / อาจารย์)
+ * ============================================================ */
+function ovData(){
+  var O=G.ov,all=G.cross.programs,years={};
+  all.forEach(function(p){p.students.forEach(function(s){if(s.intakeYear)years[s.intakeYear]=1})});
+  var ylist=Object.keys(years).sort().reverse(),yr=O.year||ylist[0]||"";
+  function ok(s){return (!O.year||s.intakeYear===O.year)&&(!O.type||s.workType===O.type)}
+  var rows=all.filter(function(p){return !O.fac||p.facultyId===O.fac}).map(function(pr){
+    var st=pr.students.filter(ok),ev=st.map(function(s){return {s:s,e:evalStu(pr,s.scores||{}),d:(pr.decisions||{})[s.id]}});
+    var dec={pass:0,pass_cond:0,fail:0},types={thesis:0,thematic:0,is:0},stages={};
+    ev.forEach(function(x){if(x.d&&x.d.decision in dec)dec[x.d.decision]++});
+    st.forEach(function(s){types[s.workType]=(types[s.workType]||0)+1;stages[s.stage]=(stages[s.stage]||0)+1});
+    var rubric=pr.plos.length>0&&(isItems(pr)?checkItems(pr,pr.items).ok:pr.plos.every(function(p){return p.crit.length>0}));
+    var started=ev.filter(function(x){return x.s.n>0}),done=ev.filter(function(x){return x.e.complete});
+    return {pr:pr,st:st,ev:ev,dec:dec,types:types,stages:stages,started:started.length,done:done.length,ok:done.filter(function(x){return x.e.ok}).length,
+      ready:[["มี PLOs",pr.plos.length>0],["เกณฑ์ประเมินครบ",rubric],["มีรายชื่อนักศึกษา",pr.students.length>0],["เริ่มประเมินแล้ว",pr.students.some(function(s){return s.n>0})]],
+      intake:pr.students.filter(function(s){return s.intakeYear===yr&&(!O.type||s.workType===O.type)}).length};
+  });
+  return {rows:rows,ylist:ylist,yr:yr};
+}
+function ovRows(D){
+  var L=[["ส่วนงาน","หลักสูตร","สถานะเปิดรับ","แผนรับ/ปี","รับจริง ปี "+D.yr,"นักศึกษา","วิทยานิพนธ์","สารนิพนธ์","การค้นคว้าอิสระ"].concat(STAGES.map(function(x){return x[1]})).concat(["เริ่มประเมิน","ประเมินครบ","ผ่านเกณฑ์ PLOs","ผลสอบ: ผ่าน","ผ่านโดยมีเงื่อนไข","ไม่ผ่าน","ความพร้อมที่ยังขาด"])];
+  D.rows.forEach(function(r){var pr=r.pr;L.push([pr.facultyName,pr.name,(OPEN[pr.set.openStatus]||OPEN.open)[1],pr.set.planIntake||"",r.intake,r.st.length,r.types.thesis,r.types.thematic,r.types.is].concat(STAGES.map(function(x){return r.stages[x[0]]||0})).concat([r.started,r.done,r.ok,r.dec.pass,r.dec.pass_cond,r.dec.fail,r.ready.filter(function(x){return !x[1]}).map(function(x){return x[0]}).join(", ")]))});
+  return L;
+}
+function viewOverview(){
+  if(!G.cross)return '<div class="loading">กำลังรวบรวมข้อมูลทุกหลักสูตร…</div>';
+  var D=ovData(),R=D.rows,O=G.ov,sum=function(f){return R.reduce(function(a,r){return a+f(r)},0)};
+  var nStu=sum(function(r){return r.st.length}),nDone=sum(function(r){return r.done}),nOk=sum(function(r){return r.ok}),nStart=sum(function(r){return r.started});
+  var nReady=R.filter(function(r){return r.ready[0][1]&&r.ready[1][1]}).length;
+  var h='<div class="hero"><h1>ภาพรวมความคืบหน้า PLOs บัณฑิตศึกษา</h1><p>ความพร้อมของหลักสูตร จำนวนนักศึกษา การเปิดรับ ความคืบหน้างานวิจัย (วิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ) และผลการประเมินตาม PLOs</p></div>';
+  h+='<div class="filters"><label>ส่วนงาน <select data-f="ov:fac"><option value="">ทั้งหมด</option>'+optList(G.boot.faculties.map(function(f){return [f.id,f.name]}),O.fac)+'</select></label>'+
+    '<label>ปีที่เข้า <select data-f="ov:year"><option value="">ทุกปี</option>'+optList(D.ylist.map(function(y){return [y,y]}),O.year)+'</select></label>'+
+    '<label>ประเภทงาน <select data-f="ov:type"><option value="">ทุกประเภท</option>'+optList(workPairs(),O.type)+'</select></label>'+
+    '<button class="btn sm" data-act="ovreload">รีเฟรชข้อมูล</button><button class="btn sm" data-act="ovsheet"'+(G.busy.ovsheet?" disabled":"")+'>'+(G.busy.ovsheet?"กำลังส่ง…":"ส่งออกไป Google Sheets")+'</button><span id="ovlink"></span></div>';
+  h+='<div class="kpis">'+
+    '<div class="kpi"><div class="l">หลักสูตร</div><div class="v">'+R.length+'</div><div class="s">พร้อมประเมิน (มี PLOs และเกณฑ์ครบ) '+nReady+' หลักสูตร</div></div>'+
+    '<div class="kpi"><div class="l">นักศึกษา</div><div class="v">'+nStu+'<small> คน</small></div><div class="s">วิทยานิพนธ์ '+sum(function(r){return r.types.thesis})+' · สารนิพนธ์ '+sum(function(r){return r.types.thematic})+' · IS '+sum(function(r){return r.types.is})+'</div></div>'+
+    '<div class="kpi"><div class="l">ประเมินตาม PLOs</div><div class="v">'+nDone+'<small> / '+nStu+'</small></div><div class="s">ประเมินครบ · เริ่มแล้ว '+nStart+' คน</div></div>'+
+    '<div class="kpi"><div class="l">ผ่านเกณฑ์ PLOs</div><div class="v">'+(nDone?Math.round(nOk/nDone*100):"–")+'<small>%</small></div><div class="s">'+nOk+' จาก '+nDone+' คนที่ประเมินครบ</div></div>'+
+    '<div class="kpi"><div class="l">ผลสอบ (ประธานสอบ)</div><div class="v" style="font-size:20px">✓ '+sum(function(r){return r.dec.pass})+' · ! '+sum(function(r){return r.dec.pass_cond})+' · ✕ '+sum(function(r){return r.dec.fail})+'</div><div class="s">ผ่าน · ผ่านโดยมีเงื่อนไข · ไม่ผ่าน</div></div></div>';
+  // ขั้นความคืบหน้า
+  var stg=STAGES.map(function(x,i){return {k:x[0],n:x[1],c:"var(--c"+(i+1)+")",v:sum(function(r){return r.stages[x[0]]||0})}});
+  h+='<section class="card"><h2>ความคืบหน้างานวิจัยของนักศึกษา</h2><div class="sub">นับตามขั้นที่บันทึกในรายชื่อนักศึกษา (ผลสอบจากประธานสอบปรับขั้นให้อัตโนมัติ)</div>'+
+    (nStu?'<div class="stk" role="img" aria-label="สัดส่วนนักศึกษาตามขั้นความคืบหน้า">'+stg.filter(function(x){return x.v}).map(function(x){var w=x.v/nStu*100;return '<div style="width:'+w+'%;background:'+x.c+'" title="'+esc(x.n)+': '+x.v+' คน">'+(w>=7?x.v:"")+'</div>'}).join("")+'</div>':'<p class="muted">ยังไม่มีนักศึกษาตามตัวกรองนี้</p>')+
+    '<div class="stage-leg">'+stg.map(function(x){return '<span><i style="background:'+x.c+'"></i>'+esc(x.n)+' <b style="color:var(--ink)">'+x.v+'</b></span>'}).join("")+'</div></section>';
+  // ตารางรายหลักสูตร
+  h+='<section class="card" style="margin-top:16px"><h2>รายหลักสูตร</h2><div class="sub">คลิกแถวเพื่อเปิดหลักสูตร · ความพร้อม 4 จุด: มี PLOs · เกณฑ์ประเมินครบ · มีรายชื่อนักศึกษา · เริ่มประเมินแล้ว · รับจริงนับจากปีที่เข้า '+esc(D.yr||"–")+'</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th>สถานะรับ</th><th class="num">แผนรับ/ปี</th><th class="num">รับจริง</th><th class="num">นักศึกษา</th><th>วพ. · สน. · IS</th><th>ความพร้อม</th><th class="num">ประเมินครบ</th><th class="num">ผ่าน PLOs</th><th>ผลสอบ</th></tr></thead><tbody>';
+  R.forEach(function(r){var pr=r.pr,op=OPEN[pr.set.openStatus]||OPEN.open,plan=pr.set.planIntake||0;
+    h+='<tr class="click" data-act="prog" data-id="'+esc(pr.id)+'" tabindex="0"><td class="wrapt">'+esc(pr.name)+'<div class="muted" style="font-size:11px">'+esc(pr.facultyName)+'</div></td><td><span class="chip '+op[0]+'">'+op[1]+'</span></td><td class="num">'+(plan||"–")+'</td>'+
+      '<td class="num">'+(plan?'<span class="chip '+(r.intake>=plan?"good":"warn")+'">'+r.intake+'</span>':r.intake)+'</td><td class="num">'+r.st.length+'</td><td>'+r.types.thesis+' · '+r.types.thematic+' · '+r.types.is+'</td>'+
+      '<td><span class="ready" title="'+esc(r.ready.map(function(x){return (x[1]?"✓ ":"✕ ")+x[0]}).join(" / "))+'">'+r.ready.map(function(x){return '<i class="'+(x[1]?"on":"")+'"></i>'}).join("")+'</span></td>'+
+      '<td class="num">'+r.done+' / '+r.st.length+'</td><td class="num">'+(r.done?Math.round(r.ok/r.done*100)+'%':"–")+'</td><td>✓ '+r.dec.pass+' · ! '+r.dec.pass_cond+' · ✕ '+r.dec.fail+'</td></tr>'});
+  if(!R.length)h+='<tr><td colspan="10" class="muted">ไม่มีหลักสูตรตามตัวกรองนี้</td></tr>';
+  h+='</tbody></table></div></section>';
+  // สิ่งที่ต้องดำเนินการ
+  var todo=[];
+  R.forEach(function(r){var miss=r.ready.filter(function(x){return !x[1]}).map(function(x){return x[0]});if(miss.length)todo.push('<div class="pair"><b>'+esc(r.pr.name)+'</b><div class="muted" style="font-size:12px">ยังขาด: '+esc(miss.join(", "))+'</div></div>')});
+  var waiting=[];R.forEach(function(r){r.ev.forEach(function(x){if(x.s.stage==="defense"&&!x.d)waiting.push({r:r,x:x})})});
+  h+='<div class="grid2" style="margin-top:16px"><section class="card"><h2>หลักสูตรที่ต้องดำเนินการต่อ ('+todo.length+')</h2><div class="sub">เรียงตามความพร้อมของระบบประเมิน PLOs</div>'+(todo.length?todo.join(""):'<p class="muted">ทุกหลักสูตรพร้อมแล้ว</p>')+'</section>';
+  // กำหนดสอบ
+  var today=new Date().toISOString().slice(0,10),up=[];
+  R.forEach(function(r){r.st.forEach(function(s){if(s.examDate&&s.examDate>=today)up.push({r:r,s:s})})});
+  up.sort(function(a,b){return a.s.examDate<b.s.examDate?-1:1});
+  h+='<section class="card"><h2>กำหนดสอบที่จะถึง ('+up.length+')</h2><div class="sub">จากวันสอบในรายชื่อนักศึกษา · รอสอบที่ยังไม่มีผลสอบ '+waiting.length+' คน</div>'+
+    (up.length?up.slice(0,12).map(function(u){return '<div class="pair"><span class="chip warn">'+esc(thDate(u.s.examDate))+'</span> <b>'+esc(u.s.name)+'</b> <span class="muted" style="font-size:12px">'+esc(WORK[u.s.workType])+' · '+esc(u.r.pr.name)+' · กรรมการให้คะแนนแล้ว '+(u.s.n||0)+' คน</span></div>'}).join(""):'<p class="muted">ยังไม่มีวันสอบที่กำหนดไว้</p>')+'</section></div>';
+  // การรับนักศึกษารายปี
+  var yrs=D.ylist.slice(0,5).reverse();
+  if(yrs.length)h+='<section class="card" style="margin-top:16px"><h2>การรับนักศึกษารายปี</h2><div class="sub">จำนวนนักศึกษาตามปีที่เข้า เทียบแผนรับ/ปี (เขียว = ถึงแผน, เหลือง = ต่ำกว่าแผน)</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th class="num">แผนรับ</th>'+yrs.map(function(y){return '<th class="num">'+esc(y)+'</th>'}).join("")+'</tr></thead><tbody>'+
+    R.map(function(r){var plan=r.pr.set.planIntake||0;return '<tr><td>'+esc(r.pr.name)+'</td><td class="num">'+(plan||"–")+'</td>'+yrs.map(function(y){var n=r.pr.students.filter(function(s){return s.intakeYear===y&&(!O.type||s.workType===O.type)}).length;return '<td class="num">'+(plan?'<span class="chip '+(n>=plan?"good":"warn")+'">'+n+'</span>':n)+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div></section>';
+  return h;
+}
+async function openOverview(){
+  G.view="overview";G.cross=null;render();window.scrollTo(0,0);
+  try{G.cross=await call("getCrossData");render()}catch(e){fail(e);G.view="home";render()}
+}
+
+/* ============================================================
+ * แบบประเมินผลการสอบ (พิมพ์ได้) = ตัวชี้วัด PLOs ที่ใช้ระหว่างการสอบ
+ * ============================================================ */
+function examFormHtml(pr,st,ev){
+  var sc=ev?ev.scores:{},e=ev?evalStu(pr,sc):null,wt=st?(WORK[st.workType]||"วิทยานิพนธ์"):"วิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ";
+  var box=function(on){return on?"☑":"☐"},val=function(v){return isNum(v)?v:""},blank='<span class="ln"></span>';
+  var rows="",items=isItems(pr);
+  if(items)pr.items.forEach(function(it,i){rows+='<tr><td><b>'+(i+1)+'. '+esc(it.name)+'</b><div class="sm">สอดคล้องกับ '+esc(it.plos.join(", "))+'</div>'+(it.detail?'<div class="sm">'+esc(it.detail)+'</div>':"")+'</td>'+BANDS.map(function(b,bi){return '<td class="sm">'+esc(desc(it,bi))+'</td>'}).join("")+'<td class="sc">'+val(sc[it.id])+'</td></tr>'});
+  else pr.plos.forEach(function(p){rows+='<tr class="grp"><td colspan="7"><b>'+esc(p.code)+'</b> '+esc(p.th)+'</td></tr>';p.crit.forEach(function(c){rows+='<tr><td>'+esc(c.name)+'</td>'+BANDS.map(function(b,bi){return '<td class="sm">'+esc(desc(c,bi))+'</td>'}).join("")+'<td class="sc">'+val(sc[c.id])+'</td></tr>'})});
+  var plos=pr.plos.map(function(p,i){var r=e?e.rows[i]:null,has=r&&r.pct!=null;return '<tr><td><b>'+esc(p.code)+'</b></td><td>'+esc(p.th)+'</td><td class="c">'+wpct(pr,p)+'%</td><td class="sc">'+(has?ten(r.pct):"")+'</td><td class="c">'+(has?(r.pct>=pr.set.ploPass?"☑ ผ่าน ☐ ไม่ผ่าน":"☐ ผ่าน ☑ ไม่ผ่าน"):"☐ ผ่าน ☐ ไม่ผ่าน")+'</td></tr>'}).join("");
+  var role=ev?ev.role:"";
+  return '<!doctype html><html lang="th"><head><meta charset="utf-8"><title>แบบประเมินผลการสอบ'+esc(wt)+(st?' - '+esc(st.name):"")+'</title>'+
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">'+
+    '<style>@page{size:A4;margin:14mm}body{font:13px/1.45 Sarabun,"TH Sarabun New",sans-serif;color:#000;margin:0 auto;max-width:190mm;padding:12px}h1{font-size:19px;text-align:center;margin:0}h2{font-size:15px;margin:14px 0 6px}.c{text-align:center}.sub{text-align:center;margin:2px 0 10px}'+
+    'table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px 6px;vertical-align:top}th{background:#eee}.sm{font-size:11px}.sc{width:58px;text-align:center;font-weight:700;font-size:15px}tr.grp td{background:#f3f3f3}'+
+    '.info td{border:0;padding:2px 4px}.ln{display:inline-block;border-bottom:1px dotted #000;min-width:180px;height:1em}.box{border:1px solid #000;min-height:70px;padding:6px;white-space:pre-wrap}.sig{margin-top:22px;margin-left:45%;line-height:2.1}'+
+    '.bar{position:sticky;top:0;background:#fff;padding:6px 0;text-align:right}@media print{.bar{display:none}}</style></head><body>'+
+    '<div class="bar"><button onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>'+
+    '<h1>แบบประเมินผลการสอบ'+esc(wt)+'</h1><div class="sub">ตามผลลัพธ์การเรียนรู้ระดับหลักสูตร (PLOs) · '+esc(pr.name)+(pr.facultyName?' · '+esc(pr.facultyName):"")+'</div>'+
+    '<table class="info"><tr><td>ชื่อ-สกุลนักศึกษา: '+(st?'<b>'+esc(st.name)+'</b>':blank)+'</td><td>รหัส: '+(st&&st.code?esc(st.code):blank)+'</td></tr>'+
+    '<tr><td colspan="2">ชื่อเรื่อง: '+(st&&st.topic?esc(st.topic):blank+blank)+'</td></tr><tr><td>อาจารย์ที่ปรึกษา: '+(st&&st.advisor?esc(st.advisor):blank)+'</td><td>วันที่สอบ: '+(st&&st.examDate?esc(thDate(st.examDate)):blank)+'</td></tr>'+
+    (st?'':'<tr><td colspan="2">ประเภท: ☐ วิทยานิพนธ์ ☐ สารนิพนธ์ ☐ การค้นคว้าอิสระ</td></tr>')+'</table>'+
+    '<h2>ส่วนที่ 1 การประเมินตาม'+(items?'หัวข้อการสอบ (แต่ละหัวข้อสอดคล้องกับหลาย PLOs)':'ตัวชี้วัดของแต่ละ PLOs')+'</h2><div class="sm">ให้คะแนน 0-10 ต่อ'+(items?'หัวข้อ':'ตัวชี้วัด')+' ตามเกณฑ์ 5 ช่วงในตาราง</div>'+
+    '<table><thead><tr><th rowspan="2" style="width:22%">รายละเอียดตัวชี้วัด</th><th colspan="5">เกณฑ์การประเมิน</th><th rowspan="2">คะแนน<br>(0-10)</th></tr><tr>'+BANDS.map(function(b){return '<th class="sm">'+b.n+'<br>'+b.k+' ('+bandRange(b)+' คะแนน)</th>'}).join("")+'</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<h2>ส่วนที่ 2 สรุปผลราย PLOs</h2><div class="sm">คะแนน PLOs = ค่าเฉลี่ยของ'+(items?'หัวข้อที่สอดคล้องกับ PLOs นั้น':'ตัวชี้วัดของ PLOs นั้น')+' (เต็ม 10) · เกณฑ์ผ่านต่อ PLOs ≥ '+ten(pr.set.ploPass)+' · คะแนนรวม (เต็ม 100) ต้อง ≥ '+pr.set.overall+'</div>'+
+    '<table><thead><tr><th>PLOs</th><th>ผลลัพธ์การเรียนรู้</th><th>น้ำหนัก</th><th>คะแนน</th><th>ผล</th></tr></thead><tbody>'+plos+'<tr><td colspan="3"><b>คะแนนรวม (เต็ม 100)</b></td><td class="sc">'+(e&&e.total!=null?e.total.toFixed(1):"")+'</td><td></td></tr></tbody></table>'+
+    '<h2>ส่วนที่ 3 ความเห็นและข้อเสนอแนะ</h2><div class="box">'+esc(ev&&ev.comment?ev.comment:"")+'</div>'+
+    '<h2>ส่วนที่ 4 ผลการสอบ</h2><div>☐ ผ่าน &nbsp;&nbsp; ☐ ผ่านโดยมีเงื่อนไข (แก้ไขตามข้อเสนอแนะ) &nbsp;&nbsp; ☐ ไม่ผ่าน</div>'+
+    '<div class="sig">ลงชื่อ '+blank+'<br>( '+(ev?esc(ev.name):blank)+' )<br>'+box(role==="chair")+' ประธานสอบ '+box(role==="member")+' กรรมการสอบ '+box(role==="advisor")+' อาจารย์ที่ปรึกษา<br>วันที่ '+blank+'</div></body></html>';
+}
+function printExam(st,withMine){
+  var html=examFormHtml(G.P,st,withMine&&st?myEval(st.id):null),w=null;
+  try{w=window.open("","_blank");if(w){w.document.open();w.document.write(html);w.document.close();w.focus();return}}catch(e){w=null}
+  try{var url=URL.createObjectURL(new Blob([html],{type:"text/html"}));if(window.open(url,"_blank"))return}catch(e2){}
+  toast("เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up สำหรับหน้านี้แล้วลองอีกครั้ง");
+}
+
 /* ---------- เทียบข้ามหลักสูตร: แผนที่ทักษะ การจับคู่ และออกแบบหลักสูตรใหม่ ---------- */
 /** ธีมทักษะของหลักสูตร พร้อมคะแนนจริงจากผลประเมิน (ค่าเฉลี่ยของ PLOs ในธีมนั้น) */
 function themeStats(pr){
@@ -1172,6 +1308,7 @@ function render(){
   if(G.view==="faculty"){var f=facOf(G.facId);c+=' › <b>'+esc(f?f.name:"")+'</b>'}
   if(G.view==="program"){var f2=facOf(G.facId);c+=' › <a data-act="fac" data-id="'+esc(G.facId)+'">'+esc(f2?f2.name:G.P.facultyName)+'</a> › <b>'+esc(G.P.name)+'</b>'}
   if(G.view==="cross")c+=' › <b>เทียบข้ามหลักสูตร</b>';
+  if(G.view==="overview")c+=' › <b>ภาพรวมความคืบหน้า</b>';
   if(G.view==="admin")c+=' › <b>จัดการระบบ</b>';
   $("crumbs").innerHTML=c;
   var tabs=$("tabs"),T=null,cur=null;
@@ -1183,6 +1320,7 @@ function render(){
   if(G.view==="home")html=viewHome();
   else if(G.view==="faculty")html=viewFaculty();
   else if(G.view==="cross")html=viewCross();
+  else if(G.view==="overview")html=viewOverview();
   else if(G.view==="admin")html=viewAdmin();
   else html=G.tab==="exec"?viewExec():(G.tab==="eval"?viewEval():(G.tab==="ind"?viewIndicators():viewExport()));
   $("app").innerHTML=html;
@@ -1229,7 +1367,7 @@ async function openAdmin(tab,pid){
 /* ---------- editing (admin: PLOs editor) ---------- */
 function applyField(key,val){
   var pr=G.P,a=key.split(":");
-  if(a[0]==="s"){if(a[1]==="name")pr.name=val||pr.name;else pr.set[a[1]]=Math.max(0,Math.min(100,Number(val)||0))}
+  if(a[0]==="s"){if(a[1]==="name")pr.name=val||pr.name;else if(a[1]==="openStatus")pr.set.openStatus=val;else if(a[1]==="planIntake")pr.set.planIntake=Math.max(0,Math.round(Number(val)||0));else pr.set[a[1]]=Math.max(0,Math.min(100,Number(val)||0))}
   else if(a[0]==="p"){var p=pr.plos[+a[1]];if(a[2]==="weight")p.weight=Math.max(0,Number(val)||0);else p[a[2]]=val}
   else if(a[0]==="c"){pr.plos[+a[1]].crit[+a[2]].name=val}
   else if(a[0]==="d"){var c=pr.plos[+a[1]].crit[+a[2]];if(!c.desc)c.desc=BANDS.map(function(b,i){return gen(c.name,i)});while(c.desc.length<BANDS.length)c.desc.push(gen(c.name,c.desc.length));c.desc[+a[3]]=val}
@@ -1280,13 +1418,13 @@ function parseRoster(text){
   var rows=lines.map(function(l){return splitLine(l,d)});
   var h=rows[0].map(function(x){return x.toLowerCase()});
   function find(keys){for(var i=0;i<h.length;i++){if(keys.some(function(k){return h[i].indexOf(k)>=0}))return i}return -1}
-  var map=null,iC=find(["รหัส","code","student id","studentid"]),iN=find(["ชื่อ","name"]),iT=find(["หัวข้อ","topic","thesis"]),iA=find(["ที่ปรึกษา","advisor","adviser"]);
-  if(iN>=0&&(iC>=0||iT>=0||iA>=0||h.length===1)){map={code:iC,name:iN,topic:iT,advisor:iA};rows=rows.slice(1)}
-  else if(/^[A-Za-z]{0,3}\d{5,}$/.test(rows[0][0]||""))map={code:0,name:1,topic:2,advisor:3};
-  else map={code:-1,name:0,topic:1,advisor:2};
+  var map=null,iW=find(["ประเภท","type","แผน"]),iY=find(["ปีที่เข้า","ปีเข้า","รุ่น","intake","year"]),iC=find(["รหัส","code","student id","studentid"]),iN=find(["ชื่อ","name"]),iT=find(["หัวข้อ","topic","title"]),iA=find(["ที่ปรึกษา","advisor","adviser"]);
+  if(iN>=0&&(iC>=0||iT>=0||iA>=0||h.length===1)){map={code:iC,name:iN,topic:iT,advisor:iA,work:iW,year:iY};rows=rows.slice(1)}
+  else if(/^[A-Za-z]{0,3}\d{5,}$/.test(rows[0][0]||""))map={code:0,name:1,topic:2,advisor:3,work:4,year:5};
+  else map={code:-1,name:0,topic:1,advisor:2,work:3,year:4};
   return rows.map(function(r){
     function g(i){return i>=0&&r[i]!==undefined?r[i]:""}
-    return {code:g(map.code),name:g(map.name),topic:g(map.topic),advisor:g(map.advisor)};
+    return {code:g(map.code),name:g(map.name),topic:g(map.topic),advisor:g(map.advisor),workType:parseWork(g(map.work))||"thesis",intakeYear:(function(y){y=String(y).replace(/[^0-9]/g,"");return (y.length===2?"25"+y:y).slice(0,4)})(g(map.year)),stage:"research"};
   }).filter(function(x){return x.name});
 }
 
@@ -1318,6 +1456,7 @@ document.addEventListener("change",async function(ev){
     return;
   }
   try{
+    if(f.indexOf("ov:")===0){G.ov[f.slice(3)]=t.value;render();return}
     if(f==="acting"){G.acting=t.value;try{localStorage.setItem("plo-acting",G.acting)}catch(e){}renderKeep();toast("บทบาทในการสอบ: "+examTh(G.acting)+(G.acting==="view"?"":" (ใช้กับนักศึกษาที่คุณยังไม่ได้ประเมิน)"));return}
     if(f==="myrole"){var st0=stu();if(st0){var me0=myEval(st0.id);me0.role=t.value;me0.roleSet=true;queueSave(st0.id);renderKeep()}return}
     if(f==="decsel"||f==="decnote"){var st7=stu();if(st7){var dm=G.decDraft=G.decDraft||{},d7=decOf(st7.id),cur7=dm[st7.id]||(dm[st7.id]={decision:d7?d7.decision:"",note:d7?d7.note:""});cur7[f==="decsel"?"decision":"note"]=t.value}return}
@@ -1380,6 +1519,15 @@ async function act(el){
     else if(a==="fac"){G.facId=el.getAttribute("data-id");G.view="faculty";render();window.scrollTo(0,0)}
     else if(a==="prog"){await goProgram(el.getAttribute("data-id"))}
     else if(a==="cross"){await openCross()}
+    else if(a==="overview"||a==="ovreload"){await openOverview()}
+    else if(a==="ovsheet"){
+      if(G.busy.ovsheet||!G.cross)return;G.busy.ovsheet=true;render();
+      try{var ol=await call("exportToSheet","ภาพรวมความคืบหน้า",ovRows(ovData()));G.busy.ovsheet=false;render();$("ovlink").innerHTML='<a href="'+esc(ol)+'" target="_blank" rel="noopener">เปิดชีตภาพรวม</a>';toast("ส่งออกภาพรวมแล้ว")}
+      catch(e15){G.busy.ovsheet=false;render();fail(e15)}
+    }
+    else if(a==="printblank"){printExam(null,false)}
+    else if(a==="printstu"){printExam(stu(),false)}
+    else if(a==="printmine"){printExam(stu(),true)}
     else if(a==="adminhome"){await openAdmin(canEdit()?"prog":"plo")}
     else if(a==="adminplo"){await openAdmin("plo",el.getAttribute("data-id")||(pr&&pr.id))}
     else if(a==="adminstu"){await openAdmin("stu",el.getAttribute("data-id"))}
@@ -1418,7 +1566,7 @@ async function act(el){
     else if(a==="nextunscored"){var nu=document.querySelector('.crit-card[data-done="0"]');if(nu)nu.scrollIntoView({behavior:"smooth",block:"center"});else toast("ให้คะแนนครบทุกเกณฑ์แล้ว")}
     else if(a==="addstu"){
       var nmv=$("ns-name").value.trim();if(!nmv){toast("กรอกชื่อนักศึกษาก่อน");return}
-      var res=await call("addStudentList",pr.id,[{code:$("ns-code").value,name:nmv,topic:$("ns-topic").value,advisor:$("ns-adv").value}]);
+      var res=await call("addStudentList",pr.id,[{code:$("ns-code").value,name:nmv,topic:$("ns-topic").value,advisor:$("ns-adv").value,workType:$("ns-work").value,intakeYear:$("ns-year").value,stage:"research"}]);
       if(!res.added){toast("มีนักศึกษารายนี้อยู่แล้ว (รหัสหรือชื่อและหัวข้อซ้ำ)");return}
       G.P=res.program;var ns=G.P.students[G.P.students.length-1];G.stuId=ns.id;G.showAdd=false;await refreshBoot();render();toast("เพิ่มนักศึกษาแล้ว");
     }
@@ -1578,6 +1726,7 @@ $("brand").addEventListener("click",function(){G.view="home";render();window.scr
   try{
     await refreshBoot();
     var fs=G.boot.faculties;
+    if(G.me.role==="executive"){await openOverview();return}
     if(fs.length===1){G.facId=fs[0].id;G.view="faculty"}
     render();
   }catch(e){$("app").innerHTML='<div class="card empty"><h2>เปิดระบบไม่สำเร็จ</h2><p>'+esc(errMsg(e))+'</p><p>ถ้าเพิ่งติดตั้ง ให้รันฟังก์ชัน setup() ใน Apps Script หนึ่งครั้งก่อน</p></div>'}
