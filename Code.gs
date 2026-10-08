@@ -86,9 +86,14 @@ function loadStd_() {
   return rows.map(function (r) { return { id: s_(r.itemId), name: s_(r.name), detail: s_(r.detail), desc: bandDesc_(r) }; });
 }
 
-/** ผู้ดูแลบันทึกเกณฑ์กลาง (หลักสูตรที่ใช้อยู่จะได้ข้อความใหม่เมื่อกด "อัปเดตจากเกณฑ์กลาง") */
+/**
+ * ผู้ดูแลบันทึกเกณฑ์กลาง (หลักสูตรที่ใช้อยู่จะได้ข้อความใหม่เมื่อกด "อัปเดตจากเกณฑ์กลาง")
+ * กด Run จาก Editor โดยไม่ส่งรายการ = บันทึกเกณฑ์กลางปัจจุบัน/ชุดเริ่มต้นลงชีต StdItems เพื่อแก้ในชีตได้
+ */
 function saveStdItems(list) {
   need_(['admin']);
+  var fromEditor = !list || !list.length;
+  if (fromEditor) list = loadStd_();
   return withLock_(function () {
     var rows = (list || []).slice(0, 12).map(function (it, i) {
       var name = s_(it.name).trim();
@@ -98,6 +103,7 @@ function saveStdItems(list) {
     });
     if (rows.length < 2) throw new Error('เกณฑ์กลางต้องมีอย่างน้อย 2 ข้อ');
     writeAll_('StdItems', rows);
+    if (fromEditor) Logger.log('บันทึกเกณฑ์กลาง ' + rows.length + ' ข้อลงชีต StdItems แล้ว แก้ต่อได้ในชีตหรือที่ จัดการระบบ > เกณฑ์กลาง');
     return loadStd_();
   });
 }
