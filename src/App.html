@@ -837,7 +837,7 @@ function csvDownload(what) {
     rows = [['เจ้าของผลงาน', 'ประเภทบุคคล', 'ชื่อผลงาน', 'แหล่งเผยแพร่', 'ปี พ.ศ.', 'ประเภท', 'ฐานข้อมูล', 'Quartile', 'น้ำหนัก', 'เกณฑ์น้ำหนัก', 'สถานะ', 'ในรอบ 5 ปี', 'DOI', 'URL']]
       .concat(M().publications.map(p => [p.personName, p.personType === 'expert' ? 'บุคคลภายนอก' : 'อาจารย์', p.title, p.source, p.year, (S.meta.pubTypes[p.type] || {}).label, (S.meta.databases[p.database] || {}).label, p.quartile, p.weight, p.basis, (S.meta.pubStatus[p.status] || {}).label, p.inWindow ? 'ใช่' : 'ไม่', p.doi, p.url]));
   }
-  const csv = '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n');
+  const csv = '\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = (what === 'faculty' ? 'สถานะอาจารย์' : 'ผลงานวิชาการ') + '_' + M().window.end + '.csv';

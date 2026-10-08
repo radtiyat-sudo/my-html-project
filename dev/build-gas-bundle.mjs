@@ -9,6 +9,29 @@ const src = f => readFileSync(join(root, 'src', f), 'utf8');
 const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Code.gs'];
 const bar = '='.repeat(70);
 
+// สคริปต์หน้าเว็บถูกเข้ารหัส base64 (มีแต่ A-Z a-z 0-9 + / =) เพื่อไม่ให้ Apps Script แก้ไขเนื้อหา JavaScript
+// ระหว่างส่งหน้าเว็บ แล้วถอดรหัสและรันในเบราว์เซอร์ — เลขบรรทัดของ error จะตรงกับ src/App.html
+function appLoader(html) {
+  const js = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  const b64 = Buffer.from(js, 'utf8').toString('base64');
+  const parts = b64.match(/.{1,1000}/g).map(x => '"' + x + '"').join(',\n');
+  return `<script>
+  /* MUGR app script, base64-encoded so Apps Script cannot alter it */
+  (function () {
+    var p = [
+${parts}
+    ];
+    var bin = atob(p.join(''));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var el = document.createElement('script');
+    el.text = new TextDecoder('utf-8').decode(bytes) + '\\n//# sourceURL=mugr-app.js';
+    document.body.appendChild(el);
+  })();
+  </script>`;
+}
+
+
 const code = `/**
  * ${bar}
  *  ระบบติดตามผลงานวิชาการ — บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล (MUGR)
@@ -26,7 +49,7 @@ const code = `/**
 
 const index = src('Index.html')
   .replace(/<\?!= include\('Styles'\) \?>/, () => src('Styles.html').trim())
-  .replace(/<\?!= include\('App'\) \?>/, () => src('App.html').trim());
+  .replace(/<\?!= include\('App'\) \?>/, () => appLoader(src('App.html')));
 if (/include\(/.test(index)) throw new Error('unresolved include in Index.html');
 // Apps Script ทำให้อักขระ 4 ไบต์ (อีโมจิ) ในหน้า HTML เสียหาย → JavaScript พัง — ห้ามมีในไฟล์ที่ส่งออก
 for (const [name, text] of [['Index.html', index], ['Code.gs', code]]) {
