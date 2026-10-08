@@ -1474,7 +1474,7 @@ function boot() {
   }).catch(err => {
     window.__mugrLoaded = true;
     $('#page-title').textContent = 'ไม่สามารถเข้าใช้งานได้';
-    $('#content').innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="card-b"><div class="banner red">${ic('alert-triangle')}<div><b>ไม่สามารถเข้าใช้งานระบบได้</b><span class="sub">${esc(err.message)}</span></div></div>
+    $('#content').innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="card-b"><div class="banner red">${ic('alert-triangle')}<div><b>ไม่สามารถเข้าใช้งานระบบได้</b><span class="sub" style="white-space:pre-line">${esc(err.message)}</span></div></div>
       <p class="small muted mt">หากเป็นการใช้งานครั้งแรก ให้ผู้ดูแลระบบรันฟังก์ชัน <code>setup()</code> ในตัวแก้ไข Apps Script และตรวจว่า Deploy แบบ “Execute as: Me”</p><p class="small muted">แก้ไขแล้วกด F5 เพื่อโหลดหน้าใหม่</p></div></div>`;
   });
 }
