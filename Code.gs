@@ -9,7 +9,7 @@
  *   4) (ไม่บังคับ) Project Settings > Script properties: ANTHROPIC_API_KEY เพื่อเปิดฟีเจอร์ AI
  */
 
-var APP_TITLE = 'ระบบประเมิน PLO วิทยานิพนธ์';
+var APP_TITLE = 'ระบบประเมิน PLOs วิทยานิพนธ์';
 
 var SCHEMA = {
   Faculties: ['facultyId', 'name', 'order'],
@@ -652,7 +652,7 @@ function importPlos(pid, list, mode) {
   needP_(EDIT_ROLES_, pid);
   return withLock_(function () {
     pid = s_(pid);
-    if (!list || !list.length) throw new Error('ไม่มีรายการ PLO');
+    if (!list || !list.length) throw new Error('ไม่มีรายการ PLOs');
     var keepP = readAll_('PLOs').filter(function (p) { return s_(p.programId) !== pid; });
     var keepC = readAll_('Criteria').filter(function (c) { return s_(c.programId) !== pid; });
     var oldP = [], oldC = [];
@@ -974,7 +974,7 @@ function aiDraftRubric(pid, ploId) {
   needP_(EDIT_ROLES_, pid);
   var prog = loadProgram_(s_(pid));
   var p = prog && prog.plos.filter(function (x) { return x.id === s_(ploId); })[0];
-  if (!p) throw new Error('ไม่พบ PLO');
+  if (!p) throw new Error('ไม่พบ PLOs');
   var prompt = 'ช่วยร่างเกณฑ์การประเมินวิทยานิพนธ์ระดับบัณฑิตศึกษา ให้สอดคล้องกับ PLO นี้ของหลักสูตร "' + prog.name + '":\n' + p.code + ' ' + p.th + ': ' + p.en.replace(/\(draft wording[^)]*\)/i, '') + '\n\n' +
     'สร้าง 1-3 ตัวชี้วัด (เกณฑ์) ที่วัดได้จากการสอบวิทยานิพนธ์ แต่ละตัวชี้วัดมีคำอธิบาย 5 ช่วงคะแนน\n' + BAND_GUIDE_ +
     '\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น: {"criteria":[{"name":"ชื่อตัวชี้วัดขึ้นต้นด้วยคำว่า การ...","bands":["ช่วง A","ช่วง B","ช่วง C","ช่วง D","ช่วง E"]}]}';
@@ -991,7 +991,7 @@ function aiExtractPlos(text) {
   need_(EDIT_ROLES_);
   text = String(text || '').trim();
   if (text.length < 20) throw new Error('วางข้อความจากเล่มหลักสูตรก่อน');
-  if (text.length > 60000) throw new Error('ข้อความยาวเกินไป (เกิน 60,000 ตัวอักษร) ให้วางเฉพาะส่วนที่มี PLO');
+  if (text.length > 60000) throw new Error('ข้อความยาวเกินไป (เกิน 60,000 ตัวอักษร) ให้วางเฉพาะส่วนที่มี PLOs');
   var prompt = 'นี่คือข้อความจากเล่มหลักสูตรระดับบัณฑิตศึกษา:\n<doc>\n' + text + '\n</doc>\n\n' +
     'งาน: ดึงผลลัพธ์การเรียนรู้ระดับหลักสูตร (PLO) ทุกข้อตามที่เขียนไว้ในเอกสาร ไม่แต่งเพิ่ม ไม่รวมหรือแยกข้อเอง ถ้าเอกสารใช้ชื่ออื่น เช่น ผลลัพธ์การเรียนรู้ที่คาดหวัง หรือ ELO ก็ให้นับเป็น PLO ' +
     'ไม่ต้องดึงผลลัพธ์ระดับรายวิชา (CLO) หรือผลลัพธ์ย่อย (Sub-PLO) ถ้ามีทั้ง PLO และข้อย่อย ให้ใช้ระดับ PLO\n' +
@@ -1006,7 +1006,7 @@ function aiExtractPlos(text) {
     seen[code] = true;
     out.push({ code: code.slice(0, 20), titleTh: s_(p.titleTh).trim().slice(0, 56) || shortTitle_(body), textEn: body.slice(0, 2000), crit: draftCriteria_(body) });
   });
-  if (!out.length) throw new Error('AI ไม่พบ PLO ในข้อความนี้');
+  if (!out.length) throw new Error('AI ไม่พบ PLOs ในข้อความนี้');
   return out.slice(0, 30);
 }
 
@@ -1022,7 +1022,7 @@ function aiDraftItems(pid, n) {
   needP_(EDIT_ROLES_, pid);
   var prog = loadProgram_(s_(pid));
   if (!prog) throw new Error('ไม่พบหลักสูตร');
-  if (prog.plos.length < 2) throw new Error('หลักสูตรต้องมี PLO อย่างน้อย 2 ข้อ');
+  if (prog.plos.length < 2) throw new Error('หลักสูตรต้องมี PLOs อย่างน้อย 2 ข้อ');
   n = Math.max(2, Math.min(12, Math.round(num_(n, 5))));
   var codes = prog.plos.map(function (p) { return p.code; });
   var prompt = 'คุณช่วยออกแบบแบบประเมินการสอบวิทยานิพนธ์ระดับบัณฑิตศึกษาของหลักสูตร "' + prog.name + '"\n' +
@@ -1059,7 +1059,7 @@ function aiItemBands(pid, item) {
 function aiCompare(stats) {
   var me = need_(['admin', 'chair', 'curriculum', 'executive']);
   var progs = readAll_('Programs').filter(function (p) { return inScope_(me, p.programId); }).map(function (p) { return loadProgram_(s_(p.programId)); }).filter(function (p) { return p && p.plos.length; });
-  if (progs.length < 2) throw new Error('ต้องมีอย่างน้อย 2 หลักสูตรที่มี PLO');
+  if (progs.length < 2) throw new Error('ต้องมีอย่างน้อย 2 หลักสูตรที่มี PLOs');
   var data = progs.map(function (pr) { return { programId: pr.id, name: pr.name, plos: pr.plos.map(function (p) { return { id: p.id, code: p.code, th: p.th, en: p.en.replace(/\(draft wording[^)]*\)/i, '') }; }) }; });
   var ids = {}; progs.forEach(function (pr) { pr.plos.forEach(function (p) { ids[pr.id + ':' + p.id] = true; }); });
   var pids = {}; progs.forEach(function (pr) { pids[pr.id] = true; });
