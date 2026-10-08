@@ -534,6 +534,10 @@ function viewExec(){
   });
   h+='</section><section class="card"><h2>แผนภาพ PLOs ของรุ่น</h2><div class="sub">คะแนนเฉลี่ยต่อ PLOs เทียบเกณฑ์ผ่าน (%)</div>'+
     radar(axesOf(pr),[thresholdSeries(pr),{name:"คะแนนเฉลี่ยรุ่น",vals:C.per.map(function(x){return x.mean}),color:"var(--s1)",fill:true,marks:true}])+'</section></div>';
+  if(isItems(pr)){
+    var im={};pr.items.forEach(function(it){var v=C.ev.map(function(x){return x.s.scores[it.id]}).filter(isNum);im[it.id]=v.length?v.reduce(function(a,b){return a+b},0)/v.length:null});
+    h+='<section class="card" style="margin-top:16px"><h2>คะแนน PLOs จากเกณฑ์ '+pr.items.length+' ข้อ (ทั้งรุ่น)</h2><div class="sub">คะแนนเกณฑ์ = ค่าเฉลี่ยของนักศึกษาทุกคนที่มีคะแนน · คะแนน PLOs = ค่าเฉลี่ยของนักศึกษาที่ประเมินครบ ('+C.done.length+' คน) · ดูได้ว่า PLOs ข้อใดได้คะแนนมาจากเกณฑ์ข้อใด</div>'+itemPloTable(pr,function(id){return im[id]},C.per.map(function(x){return x.mean}))+'</section>';
+  }
   h+='<section class="card" style="margin-top:16px"><h2>สัดส่วน PLOs รวม 100%</h2><div class="sub">เทียบสามมุม: ที่หลักสูตรออกแบบไว้ ส่วนที่แต่ละ PLOs สร้างคะแนนรวมจริง และสิ่งที่อาจารย์พูดถึงในความเห็น (AI แมปให้)</div>'+
     stackBar(pr,C.ws,"1) น้ำหนักตามการออกแบบหลักสูตร")+stackBar(pr,C.contrib,"2) ส่วนร่วมต่อคะแนนรวมจริง ("+C.done.length+" คน)")+stackBar(pr,C.aiAvg,"3) สิ่งที่อาจารย์ให้ความสำคัญในความเห็น"+(C.aiN?" (AI วิเคราะห์ "+C.aiN+" คน)":""))+stackLegend(pr)+
     '<div class="table-scroll" style="margin-top:12px"><table><thead><tr><th>PLOs</th><th class="num">ออกแบบ %</th><th class="num">ส่วนร่วมจริง %</th><th class="num">ความเห็นอาจารย์ %</th><th class="num">ส่วนต่าง (ความเห็น − ออกแบบ)</th></tr></thead><tbody>';
@@ -640,7 +644,7 @@ function viewEval(){
     (e.complete?chip(e.ok?{c:"good",t:"ผ่านเกณฑ์",i:"✓"}:{c:"bad",t:"ไม่ผ่านเกณฑ์",i:"✕"}):chip({c:"na",t:"กรอกไม่ครบ",i:"…"}))+'</div>'+
     '<div class="prog"><i style="width:'+(e.tot?e.cnt/e.tot*100:0)+'%"></i></div><div class="muted" style="font-size:12px">มีคะแนน '+e.cnt+' / '+e.tot+' เกณฑ์ · เกณฑ์ผ่าน PLOs ≥ '+ten(pr.set.ploPass)+'/10 · ผ่าน PLOs '+e.passed+' / '+pr.plos.length+' (ต้อง ≥ '+pr.set.fraction+'%) · คะแนนรวมต้อง ≥ '+pr.set.overall+'</div></section>'+
     '<section class="card"><h2>PLOs ของนักศึกษา</h2>'+radar(axesOf(pr),[thresholdSeries(pr),{name:st.name,vals:e.rows.map(function(r){return r.pct}),color:"var(--s1)",fill:true,marks:true}])+insights(pr,e)+'</section>'+
-    aiCard(pr,st,evs)+'</aside></div></div></div>';
+    (isItems(pr)?'<section class="card"><h2>คะแนน PLOs จากเกณฑ์ '+pr.items.length+' ข้อ</h2><div class="sub">ค่าเฉลี่ยกรรมการ · คะแนน PLOs = ค่าเฉลี่ยของเกณฑ์ที่สอดคล้องกับ PLOs นั้น · เกณฑ์ผ่าน '+ten(pr.set.ploPass)+'/10</div>'+itemPloTable(pr,function(id){return sc[id]},e.rows.map(function(r){return r.pct}))+'</section>':"")+aiCard(pr,st,evs)+'</aside></div></div></div>';
   return h;
 }
 /** การ์ดให้คะแนน 0-10 แบบ 5 ช่วง ใช้ทั้งเกณฑ์ราย PLOs และหัวข้อการสอบ */
@@ -654,6 +658,19 @@ function scoreCard(c,mine,others,ro,prefix,extra){
   });
   return h+'</div><div class="lvl-desc'+(has?"":" empty-d")+'">'+(has?'<b>'+cur+'/10 · '+BANDS[bi].k+' '+BANDS[bi].n+':</b> '+esc(desc(c,bi)):(ro?"ยังไม่มีคะแนนของคุณ":"แตะตัวเลขเพื่อให้คะแนน"))+'</div>'+
     '<details class="lvl-all"><summary>ดูเกณฑ์ทุกช่วงคะแนน</summary>'+BANDS.map(function(b,i){return '<div class="lvl-line'+(bi===i?" on":"")+'"><b>'+b.k+' ('+bandRange(b)+') '+b.n+'</b> '+esc(desc(c,i))+'</div>'}).join("")+'</details></div>';
+}
+/**
+ * ตารางที่มาของคะแนน PLOs: แถว = PLOs, คอลัมน์ = เกณฑ์/หัวข้อที่เชื่อม (แสดงคะแนนเฉพาะช่องที่สอดคล้อง)
+ * itemVal(id) = คะแนนเกณฑ์ (เต็ม 10) หรือ null, ploPct[i] = คะแนน PLOs (%) หรือ null
+ */
+function itemPloTable(pr,itemVal,ploPct){
+  var its=pr.items;
+  return '<div class="table-scroll"><table class="mx pv"><thead><tr><th class="l">PLOs</th>'+its.map(function(it,i){return '<th title="'+esc(it.name)+'">ข้อ '+(i+1)+'</th>'}).join("")+'<th>คะแนน PLOs</th></tr></thead><tbody>'+
+    pr.plos.map(function(p,pi){var v=ploPct[pi];
+      return '<tr><td class="wrapt"><b>'+esc(p.code)+'</b> <span class="muted" style="font-size:11px">'+esc(p.th)+'</span></td>'+its.map(function(it){if(it.plos.indexOf(p.code)<0)return '<td class="muted">·</td>';var x=itemVal(it.id);return '<td>'+(isNum(x)?'<b>'+(Math.round(x*10)/10)+'</b>':'<span class="muted">–</span>')+'</td>'}).join("")+
+        '<td>'+(v==null?'<span class="muted">–</span>':'<span class="chip '+(v>=pr.set.ploPass?"good":"bad")+'">'+ten(v)+'/10</span>')+'</td></tr>'}).join("")+
+    '<tr><th class="l">คะแนนเกณฑ์</th>'+its.map(function(it){var x=itemVal(it.id);return '<th>'+(isNum(x)?(Math.round(x*10)/10):"–")+'</th>'}).join("")+'<th></th></tr></tbody></table></div>'+
+    '<div class="muted" style="font-size:11px;margin-top:4px">'+its.map(function(it,i){return 'ข้อ '+(i+1)+' '+it.name+' ('+it.plos.join(", ")+')'}).join(" · ")+'</div>';
 }
 function ploChips(pr,codes){return codes.map(function(code){var p=pr.plos.find(function(x){return x.code===code});return '<span class="chip good" title="'+esc(p?p.th+" — "+cleanEn(p.en):"")+'">'+esc(code)+'</span>'}).join("")}
 /** ตรวจกติกาหัวข้อ (เหมือนฝั่งเซิร์ฟเวอร์): ทุกหัวข้อเชื่อม ≥ 2 PLOs และทุก PLOs มีหัวข้อประเมิน */
@@ -828,7 +845,7 @@ function viewExport(){
 /* ============================================================
  * หลังบ้าน: จัดการระบบ (ผู้ดูแล)
  * ============================================================ */
-function adminTabs(){var t=[["plo","PLOs และรูบริก"],["items","หัวข้อประเมิน (เชื่อม PLOs)"],["stu","รายชื่อนักศึกษา"]];return canEdit()?[["prog","ส่วนงานและหลักสูตร"]].concat(t,[["users","ผู้ใช้และสิทธิ์"]]):t}
+function adminTabs(){var t=[["plo","PLOs และรูบริก"],["items","หัวข้อประเมิน (เชื่อม PLOs)"],["stu","รายชื่อนักศึกษา"]];return canEdit()?[["prog","ส่วนงานและหลักสูตร"],["std","เกณฑ์กลาง"]].concat(t,[["users","ผู้ใช้และสิทธิ์"]]):t}
 function adminPicker(){
   var fs=G.boot.faculties,a=G.admin,fac=fs.find(function(f){return f.id===a.facId})||fs[0];
   if(!fac)return '<div class="note"><b>ยังไม่มีส่วนงาน</b><span>เพิ่มส่วนงานและหลักสูตรที่แท็บ "ส่วนงานและหลักสูตร" ก่อน</span></div>';
@@ -929,6 +946,20 @@ function viewAdminPlo(){
   if(G.dirty)h+='<div class="savebar"><span>มีการแก้ไขที่ยังไม่บันทึก</span><span class="row"><button class="btn" data-act="discard">ยกเลิก</button><button class="btn primary" data-act="save">บันทึกการเปลี่ยนแปลง</button></span></div>';
   return h;
 }
+/* ---------- หลังบ้าน: เกณฑ์กลางของบัณฑิตวิทยาลัย (ผู้ดูแล) ---------- */
+function viewAdminStd(){
+  if(!G.std)G.std={list:JSON.parse(JSON.stringify(G.boot.stdItems||[])),dirty:false};
+  var S=G.std,h='<section class="card"><h2>เกณฑ์กลางของบัณฑิตวิทยาลัย</h2><div class="sub">เกณฑ์ชุดเดียวที่ทุกหลักสูตรใช้ในการสอบวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ แต่ละหลักสูตรจับคู่เกณฑ์แต่ละข้อกับ PLOs ของตนเองที่แท็บ "หัวข้อประเมิน" · แก้ที่นี่แล้วหลักสูตรกด "อัปเดตข้อความจากเกณฑ์กลาง" เพื่อรับข้อความใหม่</div></section><div class="stack" style="margin-top:16px">';
+  S.list.forEach(function(it,i){
+    h+='<div class="itedit"><div class="it-top"><div class="num">'+(i+1)+'</div><div class="f"><label for="sdn-'+i+'">ชื่อเกณฑ์</label><input type="text" id="sdn-'+i+'" data-f="sd:name:'+i+'" value="'+esc(it.name)+'"></div><button class="btn sm danger" data-act="sddel" data-i="'+i+'" style="margin-top:20px">ลบ</button></div>'+
+      '<div class="f"><label for="sdd-'+i+'">สิ่งที่กรรมการพิจารณา</label><textarea id="sdd-'+i+'" rows="2" data-f="sd:det:'+i+'">'+esc(it.detail||"")+'</textarea></div>'+
+      '<details><summary class="muted" style="cursor:pointer;font-size:12px">เกณฑ์การประเมิน 5 ช่วง (A-E)</summary><div class="lvl-edit">'+BANDS.map(function(b,bi){return '<div><label for="sdb-'+i+'-'+bi+'">'+b.k+' ('+bandRange(b)+' คะแนน) '+b.n+'</label><textarea id="sdb-'+i+'-'+bi+'" rows="2" data-f="sd:b:'+i+':'+bi+'">'+esc(desc(it,bi))+'</textarea></div>'}).join("")+'</div></details></div>';
+  });
+  h+='<div><button class="btn" data-act="sdadd">+ เพิ่มเกณฑ์</button></div></div>';
+  if(S.dirty)h+='<div class="savebar"><span>มีการแก้ไขเกณฑ์กลางที่ยังไม่บันทึก</span><span class="row"><button class="btn" data-act="sddiscard">ยกเลิก</button><button class="btn primary" data-act="sdsave"'+(G.busy.sd?" disabled":"")+'>'+(G.busy.sd?"กำลังบันทึก…":"บันทึกเกณฑ์กลาง")+'</button></span></div>';
+  return h;
+}
+
 /* ---------- หลังบ้าน: หัวข้อการประเมินวิทยานิพนธ์ที่เชื่อมหลาย PLOs ---------- */
 function itState(){
   var pr=G.P;
@@ -943,7 +974,12 @@ function viewAdminItems(){
   h+='<section class="card"><h2>รูปแบบการประเมินของหลักสูตรนี้</h2><div class="sub">เลือกได้ว่ากรรมการจะให้คะแนนแบบใด ทั้งสองแบบใช้เกณฑ์ 5 ช่วงคะแนน (A-E เต็ม 10) และสรุปผลเป็นราย PLOs เหมือนกัน</div><div class="modes">'+
     '<label class="mode'+(S.mode==="plo"?" on":"")+'"><input type="radio" name="itmode" data-f="itmode:plo"'+(S.mode==="plo"?" checked":"")+'><div><b>ราย PLOs (แบบเดิม)</b><span>แต่ละ PLOs มีเกณฑ์ของตัวเอง ตั้งค่าที่แท็บ "PLOs และรูบริก"</span></div></label>'+
     '<label class="mode'+(S.mode==="items"?" on":"")+'"><input type="radio" name="itmode" data-f="itmode:items"'+(S.mode==="items"?" checked":"")+'><div><b>หัวข้อการสอบวิทยานิพนธ์ (เชื่อมหลาย PLOs)</b><span>ให้คะแนนตามหัวข้อด้านล่าง คะแนน PLOs = ค่าเฉลี่ยของหัวข้อที่เชื่อมกับ PLOs นั้น'+(ck.ok?"":" · ต้องครบตามเกณฑ์ก่อนจึงใช้ได้")+'</span></div></label></div></section>';
-  h+='<section class="card" style="margin-top:16px"><h2>สร้างหัวข้อการประเมินจาก PLOs ของหลักสูตร</h2><div class="sub">ใช้ PLOs '+pr.plos.length+' ข้อจากเล่มหลักสูตรเป็นตัวตั้งต้น กติกา: ทุกหัวข้อต้องสอดคล้องกับ PLOs อย่างน้อย 2 ข้อ และรวมทุกหัวข้อต้องประเมิน PLOs ครบทุกข้อ</div>'+
+  var std=G.boot.stdItems||[],usesStd=S.list.some(function(it){return it.stdId});
+  h+='<section class="card" style="margin-top:16px;border-color:var(--accent)"><h2>เกณฑ์กลาง '+std.length+' ข้อของบัณฑิตวิทยาลัย (แนะนำ)</h2><div class="sub">ทุกหลักสูตรใช้เกณฑ์ชุดเดียวกัน แต่ละหลักสูตรกำหนดเองว่าเกณฑ์แต่ละข้อสอดคล้องกับ PLOs ข้อใดของหลักสูตร (อย่างน้อย 2 ข้อ และต้องครอบคลุม PLOs ครบ '+pr.plos.length+' ข้อ) ผลจึงเทียบข้ามหลักสูตรได้ และยังสรุปเป็นคะแนนราย PLOs ของหลักสูตรได้</div>'+
+    '<ol style="margin:0 0 10px;padding-left:20px;font-size:13px">'+std.map(function(x){return '<li><b>'+esc(x.name)+'</b> <span class="muted">'+esc(x.detail)+'</span></li>'}).join("")+'</ol>'+
+    '<div class="row"><button class="btn primary" data-act="itstd">'+(usesStd?"เริ่มจับคู่เกณฑ์กลางใหม่":"ใช้เกณฑ์กลาง "+std.length+" ข้อ")+'</button>'+(usesStd?'<button class="btn" data-act="itstdsync">อัปเดตข้อความจากเกณฑ์กลาง (คงการจับคู่ PLOs ไว้)</button>':"")+
+    '<span class="muted" style="font-size:12px">ระบบเสนอการจับคู่กับ PLOs ให้ก่อน แล้วติ๊กปรับในตาราง "ความสอดคล้อง" ด้านล่าง</span></div></section>';
+  h+='<section class="card" style="margin-top:16px"><h2>หรือสร้างหัวข้อการประเมินเองจาก PLOs ของหลักสูตร</h2><div class="sub">ใช้ PLOs '+pr.plos.length+' ข้อจากเล่มหลักสูตรเป็นตัวตั้งต้น กติกา: ทุกหัวข้อต้องสอดคล้องกับ PLOs อย่างน้อย 2 ข้อ และรวมทุกหัวข้อต้องประเมิน PLOs ครบทุกข้อ</div>'+
     '<div class="links" style="margin-bottom:10px">'+pr.plos.map(function(p){return '<span class="chip na" title="'+esc(cleanEn(p.en))+'">'+esc(p.code)+' '+esc(p.th)+'</span>'}).join("")+'</div>'+
     '<div class="row"><label for="it-n" class="muted">จำนวนหัวข้อ</label><input type="number" id="it-n" data-f="itn" min="2" max="12" value="'+S.n+'" style="width:80px">'+
     '<button class="btn" data-act="itauto">สร้างร่างอัตโนมัติ</button>'+
@@ -952,7 +988,7 @@ function viewAdminItems(){
   h+='<section class="card" style="margin-top:16px"><h2>ความสอดคล้องหัวข้อกับ PLOs</h2><div class="sub">ติ๊กช่องเพื่อกำหนดว่าหัวข้อใดประเมิน PLOs ใด</div>'+(S.list.length?itemMatrix(pr,S.list,true):'<div class="empty">ยังไม่มีหัวข้อ กดสร้างจากกล่องด้านบน หรือเพิ่มเอง</div>')+'</section>';
   h+='<div class="row" style="margin-block:16px 10px;justify-content:space-between"><h2 style="font-size:16px">หัวข้อการประเมิน ('+S.list.length+' ข้อ)</h2>'+(G.boot.aiEnabled&&S.list.length?'<button class="btn sm" data-act="itaibands"'+(G.busy.it?" disabled":"")+'>ให้ AI เขียนเกณฑ์ A-E ทุกหัวข้อ</button>':"")+'</div><div class="stack">';
   S.list.forEach(function(it,i){
-    h+='<div class="itedit"><div class="it-top"><div class="num">'+(i+1)+'</div><div class="f"><label for="itn-'+i+'">ชื่อหัวข้อการประเมิน</label><input type="text" id="itn-'+i+'" data-f="itname:'+i+'" value="'+esc(it.name)+'"></div><button class="btn sm danger" data-act="itdel" data-i="'+i+'" style="margin-top:20px">ลบ</button></div>'+
+    h+='<div class="itedit"><div class="it-top"><div class="num">'+(i+1)+'</div><div class="f"><label for="itn-'+i+'">ชื่อหัวข้อการประเมิน'+(it.stdId?' <span class="chip good">เกณฑ์กลาง</span>':"")+'</label><input type="text" id="itn-'+i+'" data-f="itname:'+i+'" value="'+esc(it.name)+'"'+(it.stdId?' readonly title="ชื่อเกณฑ์กลางกำหนดโดยบัณฑิตวิทยาลัย"':"")+'></div><button class="btn sm danger" data-act="itdel" data-i="'+i+'" style="margin-top:20px">ลบ</button></div>'+
       '<div class="f"><label for="itd-'+i+'">สิ่งที่กรรมการพิจารณา</label><textarea id="itd-'+i+'" rows="2" data-f="itdet:'+i+'">'+esc(it.detail||"")+'</textarea></div>'+
       '<div><span class="muted" style="font-size:12px">สอดคล้องกับ PLOs</span><div class="links">'+(it.plos.length?ploChips(pr,it.plos):'<span class="chip bad">ยังไม่ได้เลือก PLOs</span>')+(it.plos.length===1?' <span class="chip bad">ต้องเพิ่มอีกอย่างน้อย 1 PLOs</span>':"")+'</div>'+(it.why?'<div class="muted" style="font-size:12px;margin-top:4px">เหตุผล: '+esc(it.why)+'</div>':"")+'</div>'+
       '<details><summary class="muted" style="cursor:pointer;font-size:12px">เกณฑ์การประเมิน 5 ช่วง (A-E)'+(it.desc?" (เขียนแล้ว)":" (ร่างอัตโนมัติ)")+'</summary><div class="lvl-edit">'+
@@ -971,6 +1007,14 @@ var ITEM_TPL=[
  ["จริยธรรมการวิจัยและคุณภาพการเขียนวิทยานิพนธ์","การปฏิบัติตามจรรยาบรรณ ความรับผิดชอบ การอ้างอิง และคุณภาพของเล่ม",/ethic|honest|disciplin|integrity|responsib|written|writing|จริยธรรม|ซื่อสัตย์|วินัย|รับผิดชอบ|เขียน/i],
  ["การนำผลงานไปใช้ประโยชน์และนวัตกรรม","คุณค่าของผลงานต่อวิชาชีพ สังคม หรือนโยบาย และความคิดสร้างสรรค์",/innovat|policy|leader|management|apply|application|นวัตกรรม|นโยบาย|ผู้นำ|บริหาร|ประยุกต์/i]
 ];
+/** เสนอการจับคู่เกณฑ์กับ PLOs จากธีมที่ตรงกัน แล้วเติมให้ครบกติกา */
+function suggestPlos(pr,list){
+  list.forEach(function(it){
+    var txt=it.name+" "+(it.detail||""),th=THEMES.filter(function(t){return t[2].test(txt)}).map(function(t){return t[0]});
+    it.plos=pr.plos.filter(function(p){return themesOf(p).some(function(t){return th.indexOf(t[0])>=0})}).map(function(p){return p.code});
+  });
+  repairItems(pr,list);
+}
 function repairItems(pr,list){
   var codes=pr.plos.map(function(p){return p.code}),changed=false;
   function cnt(c){return list.filter(function(it){return it.plos.indexOf(c)>=0}).length}
@@ -1015,6 +1059,7 @@ function importCard(){
 }
 function viewAdmin(){
   var t=G.admin.tab;
+  if(t==="std")return viewAdminStd();
   return t==="prog"?viewAdminProg():(t==="plo"?viewAdminPlo():(t==="items"?viewAdminItems():(t==="stu"?viewAdminStu():viewAdminUsers())));
 }
 
@@ -1118,6 +1163,12 @@ function viewOverview(){
   up.sort(function(a,b){return a.s.examDate<b.s.examDate?-1:1});
   h+='<section class="card"><h2>กำหนดสอบที่จะถึง ('+up.length+')</h2><div class="sub">จากวันสอบในรายชื่อนักศึกษา · รอสอบที่ยังไม่มีผลสอบ '+waiting.length+' คน</div>'+
     (up.length?up.slice(0,12).map(function(u){return '<div class="pair"><span class="chip warn">'+esc(thDate(u.s.examDate))+'</span> <b>'+esc(u.s.name)+'</b> <span class="muted" style="font-size:12px">'+esc(WORK[u.s.workType])+' · '+esc(u.r.pr.name)+' · กรรมการให้คะแนนแล้ว '+(u.s.n||0)+' คน</span></div>'}).join(""):'<p class="muted">ยังไม่มีวันสอบที่กำหนดไว้</p>')+'</section></div>';
+  // เกณฑ์กลางรายหลักสูตร
+  var std=G.boot.stdItems||[],using=R.filter(function(r){return isItems(r.pr)&&r.pr.items.some(function(it){return it.stdId})});
+  if(std.length)h+='<section class="card" style="margin-top:16px"><h2>คะแนนเกณฑ์กลางรายหลักสูตร</h2><div class="sub">ทุกหลักสูตรใช้เกณฑ์ชุดเดียวกัน จึงเทียบกันได้ (เต็ม 10 · ค่าเฉลี่ยนักศึกษาตามตัวกรอง) · ใช้เกณฑ์กลางแล้ว '+using.length+' จาก '+R.length+' หลักสูตร</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th>'+std.map(function(x,i){return '<th class="num" title="'+esc(x.name)+'">ข้อ '+(i+1)+'</th>'}).join("")+'</tr></thead><tbody>'+
+    (using.length?using.map(function(r){return '<tr><td>'+esc(r.pr.name)+'</td>'+std.map(function(x){var its=r.pr.items.filter(function(it){return it.stdId===x.id}),v=[];its.forEach(function(it){r.st.forEach(function(s){var z=(s.scores||{})[it.id];if(isNum(z))v.push(z)})});
+      if(!v.length)return '<td class="num muted">–</td>';var m=v.reduce(function(a,b){return a+b},0)/v.length;return '<td class="num"><span class="chip '+(m*10>=r.pr.set.ploPass?"good":"bad")+'">'+m.toFixed(1)+'</span></td>'}).join("")+'</tr>'}).join(""):'<tr><td colspan="'+(std.length+1)+'" class="muted">ยังไม่มีหลักสูตรที่ใช้เกณฑ์กลาง (ตั้งค่าที่ จัดการข้อมูลหลักสูตร > หัวข้อประเมิน)</td></tr>')+
+    '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px">'+std.map(function(x,i){return 'ข้อ '+(i+1)+' '+x.name}).join(" · ")+'</div></section>';
   // การรับนักศึกษารายปี
   var yrs=D.ylist.slice(0,5).reverse();
   if(yrs.length)h+='<section class="card" style="margin-top:16px"><h2>การรับนักศึกษารายปี</h2><div class="sub">จำนวนนักศึกษาตามปีที่เข้า เทียบแผนรับ/ปี (เขียว = ถึงแผน, เหลือง = ต่ำกว่าแผน)</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th class="num">แผนรับ</th>'+yrs.map(function(y){return '<th class="num">'+esc(y)+'</th>'}).join("")+'</tr></thead><tbody>'+
@@ -1497,6 +1548,9 @@ document.addEventListener("change",async function(ev){
       G.openUser=+q[1];render();return;
     }
     if(f.indexOf("usr:")===0){var b=f.split(":");G.admin.users[+b[1]][b[2]]=t.value;if(b[2]==="role"){G.openUser=null;render()}return}
+    if(f.indexOf("sd:")===0&&G.std){var q3=f.split(":"),it3=G.std.list[+q3[2]];if(!it3)return;
+      if(q3[1]==="name")it3.name=t.value;else if(q3[1]==="det")it3.detail=t.value;else if(q3[1]==="b"){if(!it3.desc)it3.desc=BANDS.map(function(b,i){return gen(it3.name,i)});it3.desc[+q3[3]]=t.value}
+      if(!G.std.dirty){G.std.dirty=true;renderKeep()}else G.std.dirty=true;return}
     if(G.view==="admin"&&G.admin.tab==="items"&&G.it){
       var S=G.it,q2=f.split(":");
       if(q2[0]==="itmode"){S.mode=q2[1];S.dirty=true;render();return}
@@ -1658,11 +1712,29 @@ async function act(el){
     else if(a==="itadd"){var S3=itState();S3.list.push({id:rid("i"),name:"หัวข้อใหม่",detail:"",plos:[],desc:null});S3.dirty=true;render()}
     else if(a==="itdel"){var S4=itState();S4.list.splice(+el.getAttribute("data-i"),1);S4.dirty=true;render()}
     else if(a==="itdiscard"){G.it=null;render()}
+    else if(a==="itstd"){
+      var S6=itState(),std6=G.boot.stdItems||[];
+      S6.list=std6.map(function(x){return {id:rid("i"),stdId:x.id,name:x.name,detail:x.detail,desc:x.desc?x.desc.slice():null,plos:[]}});
+      suggestPlos(pr,S6.list);S6.mode="items";S6.dirty=true;render();toast("ใช้เกณฑ์กลาง "+S6.list.length+" ข้อแล้ว ตรวจการจับคู่กับ PLOs ในตาราง แล้วกดบันทึก");
+    }
+    else if(a==="itstdsync"){
+      var S7=itState(),map7={};(G.boot.stdItems||[]).forEach(function(x){map7[x.id]=x});var n7=0;
+      S7.list.forEach(function(it){var x=map7[it.stdId];if(x){it.name=x.name;it.detail=x.detail;it.desc=x.desc?x.desc.slice():null;n7++}});
+      S7.dirty=true;render();toast("อัปเดตข้อความ "+n7+" ข้อจากเกณฑ์กลางแล้ว กดบันทึกเพื่อใช้งาน");
+    }
+    else if(a==="sdadd"&&G.std){G.std.list.push({id:"",name:"เกณฑ์ใหม่",detail:"",desc:null});G.std.dirty=true;render()}
+    else if(a==="sddel"&&G.std){if(G.std.list.length<=2){toast("เกณฑ์กลางต้องมีอย่างน้อย 2 ข้อ");return}G.std.list.splice(+el.getAttribute("data-i"),1);G.std.dirty=true;render()}
+    else if(a==="sddiscard"){G.std=null;render()}
+    else if(a==="sdsave"&&G.std){
+      if(G.busy.sd)return;G.busy.sd=true;render();
+      try{G.boot.stdItems=await call("saveStdItems",G.std.list);G.std=null;toast("บันทึกเกณฑ์กลางแล้ว")}catch(e16){fail(e16)}
+      G.busy.sd=false;render();
+    }
     else if(a==="itsave"){
       var S5=itState();if(G.busy.itsave)return;
       if(S5.mode==="items"&&!checkItems(pr,S5.list).ok){toast("ใช้แบบหัวข้อการสอบได้เมื่อครบตามเกณฑ์เท่านั้น แก้ให้ครบ หรือเลือกแบบราย PLOs เพื่อบันทึกเป็นร่าง");return}
       G.busy.itsave=true;render();
-      try{G.P=await call("saveItems",pr.id,S5.list.map(function(it){return {id:it.id,name:it.name,detail:it.detail,plos:it.plos,desc:it.desc}}),S5.mode);G.it=null;toast(G.P.set.evalMode==="items"?"บันทึกแล้ว หลักสูตรนี้ประเมินด้วยหัวข้อการสอบ":"บันทึกหัวข้อแล้ว (ยังประเมินแบบราย PLOs)")}catch(e12){fail(e12)}
+      try{G.P=await call("saveItems",pr.id,S5.list.map(function(it){return {id:it.id,name:it.name,detail:it.detail,plos:it.plos,desc:it.desc,stdId:it.stdId||""}}),S5.mode);G.it=null;toast(G.P.set.evalMode==="items"?"บันทึกแล้ว หลักสูตรนี้ประเมินด้วยหัวข้อการสอบ":"บันทึกหัวข้อแล้ว (ยังประเมินแบบราย PLOs)")}catch(e12){fail(e12)}
       G.busy.itsave=false;render();
     }
     else if(a==="doimport"){

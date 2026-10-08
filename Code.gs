@@ -30,13 +30,77 @@ var SCHEMA = {
   CrossAI: ['key', 'resultJson', 'updatedAt'],
   Users: ['email', 'name', 'role', 'programs'],
   // หัวข้อการประเมินวิทยานิพนธ์: 1 แถว/หัวข้อ, plos = รหัส PLO ที่สอดคล้อง คั่นด้วยจุลภาค (อย่างน้อย 2), bA-bE = เกณฑ์ 5 ช่วง
-  Items: ['programId', 'itemId', 'order', 'name', 'detail', 'plos', 'bA', 'bB', 'bC', 'bD', 'bE'],
+  // stdId = รหัสเกณฑ์กลางที่หัวข้อนี้มาจาก (ว่าง = หลักสูตรสร้างเอง)
+  Items: ['programId', 'itemId', 'order', 'name', 'detail', 'plos', 'bA', 'bB', 'bC', 'bD', 'bE', 'stdId'],
+  // เกณฑ์กลางของบัณฑิตวิทยาลัย: ทุกหลักสูตรใช้ชุดเดียวกัน แล้วจับคู่กับ PLOs ของตนเอง
+  StdItems: ['itemId', 'order', 'name', 'detail', 'bA', 'bB', 'bC', 'bD', 'bE'],
   // ผลการสอบที่ประธานสอบสรุป: 1 แถว/นักศึกษา, decision = pass | pass_cond | fail
   Decisions: ['programId', 'studentId', 'decision', 'note', 'email', 'name', 'updatedAt']
 };
 
 var SAMPLE_EMAIL = 'sample@example.com';
 var WORK_TYPES_ = ['thesis', 'thematic', 'is'];
+
+/* เกณฑ์กลาง 5 ข้อเริ่มต้น (ผู้ดูแลแก้ได้ที่ จัดการระบบ > เกณฑ์กลาง) */
+var STD_HINTS_ = [' (10 = โดดเด่นทุกด้าน, 9 = โดดเด่นเกือบทุกด้าน)', ' (8 = ครบและมั่นคง, 7 = ครบแต่ยังไม่สม่ำเสมอ)', ' (6 = ขาดเล็กน้อย, 5 = ขาดหลายจุด)', ' (4 = แก้ได้ตามคำแนะนำ, 3 = ขาดสาระสำคัญ)', ' (2 = มีบางส่วน, 1 = แทบไม่มี, 0 = ไม่มี)'];
+var STD_DEFAULT_ = [
+  ['ความสำคัญของปัญหาและการทบทวนวรรณกรรม', 'ความชัดเจนของปัญหาวิจัย วัตถุประสงค์ การสังเคราะห์งานที่เกี่ยวข้อง และกรอบแนวคิด', [
+    'ระบุปัญหาและช่องว่างขององค์ความรู้ได้ชัดเจน สังเคราะห์วรรณกรรมที่ทันสมัยครบถ้วนเป็นกรอบแนวคิดที่สมเหตุสมผล',
+    'ปัญหาและวัตถุประสงค์ชัดเจน ทบทวนวรรณกรรมครอบคลุมและเชื่อมโยงกับงานวิจัยของตน',
+    'ปัญหาวิจัยพอเข้าใจ วรรณกรรมยังเป็นการสรุปรายเรื่อง เชื่อมโยงกับกรอบแนวคิดได้บางส่วน',
+    'ปัญหาวิจัยไม่ชัด วรรณกรรมไม่เพียงพอหรือไม่ทันสมัย ต้องปรับปรุงมาก',
+    'อธิบายปัญหาและที่มาของงานวิจัยไม่ได้ หรือไม่มีการทบทวนวรรณกรรม']],
+  ['ระเบียบวิธีวิจัยและการดำเนินการวิจัย', 'ความเหมาะสมของรูปแบบการวิจัย เครื่องมือ การเก็บข้อมูล และความสามารถในการดำเนินการวิจัยด้วยตนเอง', [
+    'ออกแบบวิธีวิจัยได้เหมาะสมและรัดกุม เครื่องมือมีคุณภาพ อธิบายเหตุผลและข้อจำกัดได้ดี ดำเนินการได้ด้วยตนเอง',
+    'ระเบียบวิธีเหมาะสมกับคำถามวิจัย ขั้นตอนครบถ้วน ดำเนินการได้โดยมีคำแนะนำเล็กน้อย',
+    'ระเบียบวิธีพอใช้ได้ แต่มีจุดอ่อนด้านการออกแบบ เครื่องมือ หรือการควบคุมตัวแปร',
+    'ระเบียบวิธีมีข้อบกพร่องสำคัญที่กระทบความน่าเชื่อถือของผล ต้องพึ่งอาจารย์มาก',
+    'อธิบายหรือดำเนินการตามระเบียบวิธีวิจัยไม่ได้']],
+  ['การวิเคราะห์ข้อมูล การอภิปรายผล และข้อสรุป', 'ความถูกต้องของการวิเคราะห์ การแปลผล การอภิปรายเชื่อมโยงทฤษฎี และข้อเสนอแนะ', [
+    'วิเคราะห์ถูกต้องเหมาะสม แปลผลแม่นยำ อภิปรายเชิงวิพากษ์เชื่อมโยงทฤษฎีและงานอื่นอย่างลึกซึ้ง ข้อสรุปมีหลักฐานรองรับ',
+    'วิเคราะห์และแปลผลถูกต้อง อภิปรายเชื่อมโยงกับวรรณกรรมได้ ข้อสรุปตรงกับผล',
+    'วิเคราะห์ถูกต้องเป็นส่วนใหญ่ แต่การอภิปรายเป็นการบรรยายผล ยังขาดการเชื่อมโยงหรือการวิพากษ์',
+    'การวิเคราะห์หรือการแปลผลมีข้อผิดพลาดสำคัญ ข้อสรุปเกินกว่าข้อมูล',
+    'วิเคราะห์ผิดวิธี หรือไม่มีการอภิปรายผล']],
+  ['การเขียน การนำเสนอ และการตอบคำถาม', 'คุณภาพของเล่ม การใช้ภาษาและการอ้างอิง การนำเสนอด้วยวาจา และการตอบคำถามกรรมการ', [
+    'เล่มเรียบเรียงดีเยี่ยม ภาษาและการอ้างอิงถูกต้องสมบูรณ์ นำเสนอชัดเจนกระชับ ตอบคำถามได้ลึกและตรงประเด็น',
+    'เล่มถูกต้องตามรูปแบบ มีข้อผิดพลาดเล็กน้อย นำเสนอชัดเจน ตอบคำถามได้เป็นส่วนใหญ่',
+    'เล่มมีข้อผิดพลาดด้านภาษาหรือรูปแบบหลายจุด นำเสนอพอเข้าใจ ตอบคำถามได้บางส่วน',
+    'เล่มต้องแก้ไขมาก การนำเสนอไม่เป็นลำดับ ตอบคำถามไม่ตรงประเด็น',
+    'เล่มไม่สมบูรณ์ หรือนำเสนอและตอบคำถามไม่ได้']],
+  ['จริยธรรมการวิจัย ความรับผิดชอบ และการนำไปใช้ประโยชน์', 'การปฏิบัติตามจรรยาบรรณ ความซื่อสัตย์ทางวิชาการ การรับข้อเสนอแนะ และคุณค่าของผลงานต่อวิชาชีพหรือสังคม', [
+    'ปฏิบัติตามจรรยาบรรณครบถ้วน อ้างอิงถูกต้อง รับข้อเสนอแนะและปรับปรุงได้ดีเยี่ยม ผลงานนำไปใช้ประโยชน์หรือเผยแพร่ได้',
+    'ปฏิบัติตามจรรยาบรรณ รับผิดชอบงานตรงเวลา ผลงานมีประโยชน์ชัดเจน',
+    'ปฏิบัติตามจรรยาบรรณ แต่มีความล่าช้าหรือการอ้างอิงบางส่วนไม่ครบ การนำไปใช้ยังไม่ชัด',
+    'พบข้อบกพร่องด้านจรรยาบรรณหรือความรับผิดชอบที่ต้องแก้ไข',
+    'พบการละเมิดจรรยาบรรณการวิจัยหรือความซื่อสัตย์ทางวิชาการ']]
+];
+
+/** เกณฑ์กลางปัจจุบัน (ถ้ายังไม่เคยบันทึก ใช้ชุดเริ่มต้น) */
+function loadStd_() {
+  var rows = readAll_('StdItems');
+  if (!rows.length) return STD_DEFAULT_.map(function (d, i) {
+    return { id: 'std' + (i + 1), name: d[0], detail: d[1], desc: d[2].map(function (t, bi) { return t + STD_HINTS_[bi]; }) };
+  });
+  rows.sort(function (a, b) { return num_(a.order, 0) - num_(b.order, 0); });
+  return rows.map(function (r) { return { id: s_(r.itemId), name: s_(r.name), detail: s_(r.detail), desc: bandDesc_(r) }; });
+}
+
+/** ผู้ดูแลบันทึกเกณฑ์กลาง (หลักสูตรที่ใช้อยู่จะได้ข้อความใหม่เมื่อกด "อัปเดตจากเกณฑ์กลาง") */
+function saveStdItems(list) {
+  need_(['admin']);
+  return withLock_(function () {
+    var rows = (list || []).slice(0, 12).map(function (it, i) {
+      var name = s_(it.name).trim();
+      if (!name) throw new Error('เกณฑ์ข้อที่ ' + (i + 1) + ' ยังไม่มีชื่อ');
+      var b = it.desc && it.desc.length === 5 ? it.desc : ['', '', '', '', ''];
+      return { itemId: s_(it.id) || uid_('std'), order: i + 1, name: name.slice(0, 200), detail: s_(it.detail).trim().slice(0, 1000), bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]) };
+    });
+    if (rows.length < 2) throw new Error('เกณฑ์กลางต้องมีอย่างน้อย 2 ข้อ');
+    writeAll_('StdItems', rows);
+    return loadStd_();
+  });
+}
 var STAGES_ = ['topic', 'proposal', 'research', 'defense', 'revise', 'passed', 'graduated'];
 var OPEN_STATUS_ = ['open', 'paused', 'closed', 'new'];
 
@@ -335,7 +399,7 @@ function getBootstrap() {
   return {
     me: me,
     aiEnabled: !!PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY'),
-    bands: BANDS, maxScore: MAX_SCORE,
+    bands: BANDS, maxScore: MAX_SCORE, stdItems: loadStd_(),
     sheetUrl: me.role === 'admin' ? ss_().getUrl() : '',
     faculties: fac.filter(function (f) {
       return me.role === 'admin' || prs.some(function (p) { return s_(p.facultyId) === s_(f.facultyId) && inScope_(me, p.programId); });
@@ -366,7 +430,7 @@ function buildProgram_(pr, S) {
     set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80), evalMode: s_(pr.evalMode) === 'items' ? 'items' : 'plo',
       openStatus: OPEN_STATUS_.indexOf(s_(pr.openStatus)) >= 0 ? s_(pr.openStatus) : 'open', planIntake: num_(pr.planIntake, 0) },
     items: items.map(function (it) {
-      return { id: s_(it.itemId), name: s_(it.name), detail: s_(it.detail), plos: matchCodes_(s_(it.plos).split(','), codes), desc: bandDesc_(it) };
+      return { id: s_(it.itemId), name: s_(it.name), detail: s_(it.detail), plos: matchCodes_(s_(it.plos).split(','), codes), desc: bandDesc_(it), stdId: s_(it.stdId) };
     }),
     plos: plos.map(function (p) {
       return {
@@ -673,14 +737,14 @@ function saveItems(pid, items, mode) {
     if (!prog) throw new Error('ไม่พบหลักสูตร');
     var codes = prog.plos.map(function (p) { return p.code; });
     var list = (items || []).slice(0, 30).map(function (it) {
-      return { id: s_(it.id) || uid_('i'), name: s_(it.name).trim().slice(0, 200), detail: s_(it.detail).trim().slice(0, 1000), plos: matchCodes_(it.plos, codes), desc: it.desc };
+      return { id: s_(it.id) || uid_('i'), name: s_(it.name).trim().slice(0, 200), detail: s_(it.detail).trim().slice(0, 1000), plos: matchCodes_(it.plos, codes), desc: it.desc, stdId: s_(it.stdId) };
     });
     mode = mode === 'items' ? 'items' : 'plo';
     var probs = checkItems_(codes, list);
     if (mode === 'items' && probs.length) throw new Error('ใช้แบบหัวข้อการสอบไม่ได้: ' + probs.join(' · '));
     var rows = list.map(function (it, i) {
       var b = it.desc && it.desc.length === 5 ? it.desc : ['', '', '', '', ''];
-      return { programId: pid, itemId: it.id, order: i + 1, name: it.name, detail: it.detail, plos: it.plos.join(','), bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]) };
+      return { programId: pid, itemId: it.id, order: i + 1, name: it.name, detail: it.detail, plos: it.plos.join(','), bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]), stdId: it.stdId };
     });
     writeAll_('Items', readAll_('Items').filter(function (r) { return s_(r.programId) !== pid; }).concat(rows));
     var prs = readAll_('Programs');
