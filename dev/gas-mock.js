@@ -81,8 +81,43 @@ function createGasMock(opts) {
     W('W6', 'Population Projection Workshop Paper (Sample)', 2024, null, 'International Conference on Population (Sample)', { type: 'article', primary_location: { source: { display_name: 'International Conference on Population (Sample)', issn: null, issn_l: null, type: 'conference' } } })
   ];
   const json = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
-  const UrlFetchApp = { fetch(url) {
+  const SC = (eid, title, year, issn, journal, doi, agg) => ({ eid, 'dc:title': title, 'prism:publicationName': journal, 'prism:issn': issn, 'prism:coverDate': year + '-05-01', 'prism:doi': doi, 'dc:creator': 'Tuayangdee N.', 'prism:aggregationType': agg || 'Journal', subtypeDescription: agg === 'Conference Proceeding' ? 'Conference Paper' : 'Article' });
+  const SCOPUS = [
+    SC('2-s2.0-1', 'Fertility Decline in Southeast Asia (Sample)', 2023, '17441730', 'Asian Population Studies (Sample)', '10.9999/w1'),
+    SC('2-s2.0-2', 'Population Ageing Projections in ASEAN (Sample)', 2024, '00324728', 'Population Studies (Sample)', '10.9999/s2'),
+    SC('2-s2.0-3', 'Census Data Linkage Methods (Sample)', 2023, '', 'Proceedings of the Asian Population Conference (Sample)', '10.9999/s3', 'Conference Proceeding')
+  ];
+  const PM = { '38000001': { uid: '38000001', title: 'Ageing Society and Long-term Care Policy (Sample).', fulljournalname: 'Ageing and Society (Sample)', pubdate: '2024 Jan', issn: '0144-686X', essn: '', articleids: [{ idtype: 'doi', value: '10.9999/w2' }], authors: [{ name: 'Tuayangdee N' }] },
+    '38000002': { uid: '38000002', title: 'Diabetes Care in Rural Thailand (Sample).', fulljournalname: 'Rural Health Journal (Sample)', pubdate: '2022 Jun', issn: '7777-0007', essn: '', articleids: [], authors: [{ name: 'Tuayangdee N' }] } };
+  const UrlFetchApp = { fetch(url, opts) {
     calls.push(url);
+    const hdr = (opts && opts.headers) || {};
+    if (/api\.elsevier\.com/.test(url)) {
+      if (!hdr['X-ELS-APIKey']) return json(401, {});
+      const q = decodeURIComponent((url.match(/query=([^&]+)/) || [])[1] || '');
+      const m = q.match(/^DOI\((.+)\)$/);
+      const entry = m ? SCOPUS.filter(e => e['prism:doi'] === m[1]) : SCOPUS;
+      return json(200, { 'search-results': { 'opensearch:totalResults': String(entry.length), entry: entry.length ? entry : [{ error: 'Result set was empty' }] } });
+    }
+    if (/api\.clarivate\.com/.test(url)) {
+      if (!hdr['X-ApiKey']) return json(401, {});
+      return json(200, { metadata: { total: 2 }, hits: [
+        { uid: 'WOS:0001', title: 'Ageing Society and Long-term Care Policy (Sample)', source: { sourceTitle: 'AGEING AND SOCIETY', publishYear: 2024 }, identifiers: { doi: '10.9999/w2', issn: '0144-686X' }, types: ['Article'], sourceTypes: ['Journal'] },
+        { uid: 'WOS:0002', title: 'Health Equity in Thailand (Sample)', source: { sourceTitle: 'EQUITY JOURNAL', publishYear: 2023 }, identifiers: { doi: '10.9999/x1', issn: '2222-3336' }, types: ['Article'], sourceTypes: ['Journal'] }] });
+    }
+    if (/esearch\.fcgi/.test(url)) {
+      const term = decodeURIComponent((url.match(/term=([^&]+)/) || [])[1] || '');
+      const ids = /\[doi\]/.test(term) ? (term.indexOf('10.9999/w2') === 0 ? ['38000001'] : []) : ['38000001', '38000002'];
+      return json(200, { esearchresult: { idlist: ids } });
+    }
+    if (/esummary\.fcgi/.test(url)) {
+      const ids = decodeURIComponent((url.match(/id=([^&]+)/) || [])[1] || '').split(',');
+      const result = { uids: ids }; ids.forEach(i => { if (PM[i]) result[i] = PM[i]; });
+      return json(200, { result });
+    }
+    if (/api\.ies\.ed\.gov\/eric/.test(url)) return json(200, { response: { docs: [
+      { id: 'EJ1400001', title: 'Teaching Demography Online (Sample)', author: ['Tuayangdee, Napa'], source: 'Journal of Population Education (Sample)', publicationdateyear: 2023, issn: ['ISSN-1555-5551'] },
+      { id: 'ED600001', title: 'Annual Report on Graduate Studies (Sample)', author: ['Tuayangdee, Napa'], source: '', publicationdateyear: 2022 }] } });
     if (/openalex\.org\/authors\?/.test(url)) {
       const q = decodeURIComponent((url.match(/search=([^&]+)/) || [])[1] || '');
       return json(200, { results: [

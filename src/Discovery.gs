@@ -16,16 +16,19 @@ const DB_PRIORITY = ['scopus', 'wos', 'pubmed', 'eric', 'mathscinet', 'jstor', '
 
 /* ---------------- HTTP ---------------- */
 
-function httpJson_(url) {
+function httpJson_(url, extraHeaders) {
   const cache = CacheService.getScriptCache();
   const key = 'h' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url)).slice(0, 22);
   const hit = cache.get(key);
   if (hit) return JSON.parse(hit);
   const mail = getSettings_().OPENALEX_MAILTO || Session.getEffectiveUser().getEmail() || '';
   const full = url + (mail && url.indexOf(OPENALEX) === 0 ? (url.indexOf('?') > -1 ? '&' : '?') + 'mailto=' + encodeURIComponent(mail) : '');
-  const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: { 'User-Agent': 'MUGR-Academic-Tracker (Apps Script; mailto:' + mail + ')' } });
+  const headers = Object.assign({ 'User-Agent': 'MUGR-Academic-Tracker (Apps Script; mailto:' + mail + ')' }, extraHeaders || {});
+  const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: headers });
   const code = res.getResponseCode();
   if (code === 404) return null;
+  if (code === 401 || code === 403) throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ') — ตรวจที่ จัดการระบบ > รายชื่อวารสาร > การเชื่อมต่อฐานข้อมูล');
+  if (code === 429) throw new Error('ใช้งานเกินโควตาของฐานข้อมูล (429) — ลองใหม่ภายหลัง');
   if (code >= 400) throw new Error('ฐานข้อมูลภายนอกตอบกลับผิดพลาด (' + code + ') กรุณาลองใหม่อีกครั้ง');
   const text = res.getContentText();
   try { if (text.length < 90000) cache.put(key, text, 21600); } catch (e) { /* cache full */ }
@@ -90,29 +93,53 @@ function classify_(w) {
 
   let database = hits.length ? hits[0].database : '';
   let quartile = hits.length && hits[0].quartile ? hits[0].quartile : '';
+  const dir = w.direct || {};
+  const direct = [];
+  // ผลที่ค้นเจอในฐานโดยตรงมาก่อนรายชื่อ ISSN — Scopus เป็นอันดับแรก
+  if (dir.scopus) { direct.push('scopus'); evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')'); }
+  if (dir.wos) {
+    direct.push('wos');
+    const wosListed = hits.some(function (h) { return h.database === 'wos'; });
+    evidence.push('พบใน Web of Science Core Collection (' + dir.wos.uid + ')' + (wosListed ? ' และ ISSN อยู่ในรายชื่อ SCIE/SSCI/AHCI' : ' — ตรวจ edition: นับเฉพาะ SCIE/SSCI/AHCI (ESCI ไม่นับ)'));
+  }
+  if (dir.pubmed) direct.push('pubmed');
+  if (dir.eric) { if (dir.eric.journal) { direct.push('eric'); evidence.push('พบในฐาน ERIC (' + dir.eric.id + ', บทความวารสาร)'); } else evidence.push('พบใน ERIC แต่เป็นเอกสารประเภท ED (ไม่ใช่บทความวารสาร)'); }
+  const firstDirect = DB_PRIORITY.filter(function (d) { return direct.indexOf(d) > -1; })[0];
+  if (firstDirect && (!database || DB_PRIORITY.indexOf(firstDirect) <= DB_PRIORITY.indexOf(database) || (DATABASES[database] || {}).group !== 'kpa_intl')) {
+    database = firstDirect;
+    const qHit = hits.filter(function (h) { return h.database === firstDirect && /^Q[1-4]$/.test(h.quartile); })[0] ||
+                 hits.filter(function (h) { return h.database === 'scopus' && /^Q[1-4]$/.test(h.quartile); })[0];
+    quartile = qHit ? qHit.quartile : '';
+    if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
+  }
   // ถ้าวารสารอยู่หลายฐาน ใช้ Quartile ที่ดีที่สุดของฐานนานาชาติ
   const kpa = hits.filter(function (h) { return (DATABASES[h.database] || {}).group === 'kpa_intl' && /^Q[1-4]$/.test(h.quartile); });
   if (database && (DATABASES[database] || {}).group === 'kpa_intl' && kpa.length) quartile = kpa.map(function (h) { return h.quartile; }).sort()[0];
 
-  if (w.pmid) {
+  if (w.pmid || dir.pubmed) {
+    if (direct.indexOf('pubmed') === -1) direct.push('pubmed');
+    if (!w.pmid) w.pmid = dir.pubmed.pmid;
     evidence.push('มีรหัส PubMed (PMID ' + w.pmid + ') → อยู่ในฐานข้อมูล PubMed');
     if (!database || DB_PRIORITY.indexOf(database) > DB_PRIORITY.indexOf('pubmed')) { database = 'pubmed'; quartile = quartile || ''; }
   }
 
   let type = 'journal';
   const st = String(w.sourceType || '').toLowerCase(), wt = String(w.workType || '').toLowerCase();
-  if (st === 'conference' || /proceedings/.test(wt)) type = hasThai_(w.journal) || hasThai_(w.title) ? 'proceedings_nat' : 'proceedings_intl';
+  if (dir.eric && !dir.eric.journal && !database) type = 'journal';
+  else if (st === 'conference' || /proceedings/.test(wt)) type = hasThai_(w.journal) || hasThai_(w.title) ? 'proceedings_nat' : 'proceedings_intl';
   else if (wt === 'book' || wt === 'monograph') type = 'book';
 
-  let confidence = 'high';
+  let confidence = direct.length ? 'high' : (hits.length ? 'high' : 'unknown');
+  if (database === 'wos' && direct.indexOf('wos') > -1 && !hits.some(function (h) { return h.database === 'wos'; })) confidence = 'medium';
   if (type === 'journal' && !database) {
     database = 'none';
     confidence = 'unknown';
+    if (direct.length || (dir.eric && !dir.eric.journal)) confidence = 'high';
     evidence.push((w.issns || []).length
       ? 'ไม่พบ ISSN ' + w.issns.map(function (s) { return fmtIssn_(normIssn_(s)); }).filter(String).join(', ') + ' ในรายชื่อวารสารที่นำเข้า — ตรวจด้วยตนเองที่ SCImago / TCI / Web of Science'
       : 'ไม่พบ ISSN ของแหล่งเผยแพร่ — ตรวจด้วยตนเอง');
   }
-  if (type !== 'journal') { evidence.push('ประเภท: ' + PUB_TYPES[type].label + ' (จากข้อมูลแหล่งเผยแพร่)'); confidence = 'medium'; }
+  if (type !== 'journal') { evidence.push('ประเภท: ' + PUB_TYPES[type].label + ' (จากข้อมูลแหล่งเผยแพร่)' + (dir.scopus ? ' — อยู่ใน Scopus' : '')); confidence = 'medium'; }
 
   const db = DATABASES[type === 'journal' ? database : 'none'] || DATABASES.none;
   const p = { type: type, database: type === 'journal' ? database : 'none', quartile: type === 'journal' && db.quartile ? quartile : '' };
@@ -121,7 +148,7 @@ function classify_(w) {
     level: type === 'journal' ? db.level : (PUB_TYPES[type].level || ''),
     group: type === 'journal' ? db.group : 'other',
     accepted: isAccepted_(p),
-    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence
+    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct
   });
 }
 
@@ -270,7 +297,11 @@ function analyzeDocument_(p) {
   } else {
     issnFound.forEach(function (s) { if (work.issns.indexOf(s) === -1) work.issns.push(s); });
   }
+  const dc = directChecksByDoi_(work.doi || doi);
+  work.direct = Object.assign({}, work.direct || {}, dc.direct);
+  if (!work.pmid && dc.pmid) work.pmid = dc.pmid;
   const res = finishWorks_([work], null)[0];
+  res.evidence = res.evidence.concat(dc.evidence);
   // เดาเจ้าของผลงานจากรายชื่อผู้แต่ง
   const owners = [];
   const names = (work.authors || []).map(function (a) { return String(a).toLowerCase(); }).join(' | ');

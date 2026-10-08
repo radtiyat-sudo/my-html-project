@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const root = new URL('..', import.meta.url).pathname;
-const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Code.gs'];
+const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Sources.gs', 'Code.gs'];
 
 function boot(email) {
   const ctx = { console, TextEncoder, crypto, btoa, localStorage: undefined, location: { href: '' } };
@@ -193,6 +193,49 @@ t('journal index import (admin only) and lecturer import limits', () => {
   api('setViewAs', { role: 'executive' });
   assert.equal(api('findWorks', { authorId: 'A5001' }).ok, false);
   api('setViewAs', { role: 'admin' });
+});
+
+t('search all databases in order: Scopus first, then WoS, PubMed, ERIC, TCI, OpenAlex', () => {
+  // ไม่มี API key → Scopus/WoS ตรวจผ่านรายชื่อ ISSN
+  let r = api('searchAll', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: E - 6 });
+  assert.equal(r.ok, true, r.error);
+  assert.deepEqual(r.data.status.map(s => s.key), ['scopus', 'wos', 'pubmed', 'eric', 'tci', 'openalex']);
+  assert.equal(r.data.status[0].mode, 'list'); assert.equal(r.data.status[2].mode, 'direct');
+  // ใส่ API key → ค้น Scopus/WoS โดยตรง
+  assert.equal(api('saveApiKeys', { SCOPUS_API_KEY: 'k1', WOS_API_KEY: 'k2' }).data.SCOPUS_API_KEY, true);
+  r = api('searchAll', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: E - 6 });
+  const st = Object.fromEntries(r.data.status.map(s => [s.key, s]));
+  assert.equal(st.scopus.mode, 'direct'); assert.equal(st.scopus.count, 3); assert.equal(st.wos.mode, 'direct');
+  const by = t => r.data.works.find(w => w.title.startsWith(t));
+  const w1 = by('Fertility'); assert.ok(w1.origins.includes('Scopus') && w1.origins.includes('OpenAlex'), 'merged by DOI');
+  assert.equal(w1.foundIn[0], 'scopus'); assert.equal(w1.quartile, 'Q2'); assert.ok(/โดยตรง/.test(w1.evidence[0]));
+  const s2 = by('Population Ageing Projections'); assert.equal(s2.database, 'scopus'); assert.equal(s2.confidence, 'high'); assert.equal(s2.weight, 1);
+  assert.equal(by('Census').type, 'proceedings_intl');
+  const w2 = by('Ageing Society'); assert.deepEqual([...w2.foundIn].sort(), ['pubmed', 'wos']);
+  assert.equal(w2.database, 'scopus', 'ISSN in SJR list still ranks Scopus first'); assert.equal(w2.quartile, 'Q1');
+  assert.equal(by('Health Equity').database, 'wos'); assert.equal(by('Health Equity').confidence, 'medium');
+  assert.equal(by('Diabetes').database, 'pubmed');
+  assert.equal(by('Teaching Demography').database, 'eric');
+  assert.equal(by('Annual Report').weight, 0);
+  assert.equal(by('ครอบครัว').origins[0], 'Crossref');
+  assert.equal(api('apiKeysStatus', {}).data.WOS_API_KEY, true);
+  api('saveApiKeys', { clear_SCOPUS_API_KEY: true, clear_WOS_API_KEY: true });
+});
+t('attached file DOI is checked directly in Scopus and PubMed', () => {
+  api('saveApiKeys', { SCOPUS_API_KEY: 'k1' });
+  const r = api('analyzeDocument', { text: 'doi: 10.9999/w2' });
+  assert.ok(r.data.work.foundIn.includes('scopus') === false); // W2 ไม่อยู่ในผล Scopus จำลอง
+  assert.ok(r.data.work.foundIn.includes('pubmed'));
+  const r2 = api('analyzeDocument', { text: 'doi: 10.9999/w1' });
+  assert.equal(r2.data.work.foundIn[0], 'scopus');
+  api('saveApiKeys', { clear_SCOPUS_API_KEY: true });
+});
+
+t('test API connection reports success/failure clearly', () => {
+  let r = api('testApiKeys', {}); assert.equal(r.data.scopus.ok, false);
+  api('saveApiKeys', { SCOPUS_API_KEY: 'k1' });
+  r = api('testApiKeys', {}); assert.equal(r.data.scopus.ok, true); assert.match(r.data.scopus.message, /สำเร็จ/);
+  api('saveApiKeys', { clear_SCOPUS_API_KEY: true });
 });
 t('clear sample keeps real data', () => {
   const keep = api('savePublication', { personId: 'FS01', title: 'real', year: E, type: 'book' });

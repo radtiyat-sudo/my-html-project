@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = f => readFileSync(join(root, 'src', f), 'utf8');
-const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Code.gs'];
+const GS = ['Config.gs', 'Database.gs', 'Logic.gs', 'Auth.gs', 'Api.gs', 'Reports.gs', 'SampleData.gs', 'Discovery.gs', 'Sources.gs', 'Code.gs'];
 const server = GS.map(src).join('\n');
 const services = ['SpreadsheetApp', 'PropertiesService', 'Session', 'LockService', 'Utilities', 'DriveApp', 'Logger', 'HtmlService', 'ScriptApp', 'CacheService', 'UrlFetchApp'];
 
