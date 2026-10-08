@@ -185,7 +185,7 @@ function fromCrossref_(it) {
 function finishWorks_(list, person) {
   const settings = getSettings_();
   const win = evalWindow_(settings);
-  const existing = DB.all('Publications').filter(function (p) { return !person || (p.personType === person.personType && p.personId === person.personId); });
+  const existing = !TABLES.Publications ? [] : DB.all('Publications').filter(function (p) { return !person || (p.personType === person.personType && p.personId === person.personId); });
   const doiSet = {}, titleSet = {};
   existing.forEach(function (p) { if (p.doi) doiSet[cleanDoi_(p.doi)] = 1; if (normTitle_(p.title)) titleSet[normTitle_(p.title)] = 1; });
   const seen = {};
@@ -305,7 +305,7 @@ function analyzeDocument_(p) {
   // เดาเจ้าของผลงานจากรายชื่อผู้แต่ง
   const owners = [];
   const names = (work.authors || []).map(function (a) { return String(a).toLowerCase(); }).join(' | ');
-  DB.all('Faculty').concat(DB.all('Experts').map(function (x) { return Object.assign({ _expert: true }, x); })).forEach(function (f) {
+  (TABLES.Faculty ? DB.all('Faculty').concat(DB.all('Experts').map(function (x) { return Object.assign({ _expert: true }, x); })) : []).forEach(function (f) {
     const en = String(f.nameEn || '').toLowerCase().trim();
     const last = en.split(/\s+/).pop();
     if ((last && last.length > 2 && names.indexOf(last) > -1) || (f.nameTh && (work.authors || []).join(' ').indexOf(String(f.nameTh).split(/\s+/)[0]) > -1 && hasThai_(f.nameTh))) {

@@ -3,3 +3,4 @@ dev/node_modules
 dev/preview/
 .clasp.json
 .DS_Store
+dev/preview-checker/

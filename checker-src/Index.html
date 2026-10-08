@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= appName ?></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () { try { var t = localStorage.getItem('mugr-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
+  </script>
+  <?!= include('Styles') ?>
+  <style>
+    .ck-top{position:sticky;top:0;z-index:20;background:var(--sidebar);color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+    .ck-top .in{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
+    .ck-top .t{font-weight:700;font-size:16px;line-height:1.3}
+    .ck-top .s{font-size:12px;color:var(--sidebar-muted)}
+    .ck-top .icon-btn{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:#fff}
+    .ck-main{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+    .steps{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .steps span{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:3px 12px;font-size:13px;font-weight:600}
+    @media print{.ck-top,.no-print,.tabs{display:none!important}.ck-main{padding:0}}
+  </style>
+</head>
+<body>
+  <div class="busy" id="busy"></div>
+  <header class="ck-top"><div class="in">
+    <div class="brand-logo" style="width:38px;height:38px"><svg class="i" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div>
+    <div style="flex:1;min-width:0"><div class="t"><?= appName ?></div><div class="s" id="ck-org">ตามประกาศ ก.พ.อ. พ.ศ. 2562</div></div>
+    <button class="icon-btn" id="theme-btn" aria-label="สลับโหมดมืด/สว่าง" title="สลับโหมดมืด/สว่าง"></button>
+  </div></header>
+  <main class="ck-main" id="content">
+    <div class="loading"><div><div class="spinner"></div>กำลังโหลด…</div></div>
+  </main>
+  <script>
+    (function () {
+      function show(title, msg) {
+        var c = document.getElementById('content');
+        if (c) c.innerHTML = '<div style="max-width:720px;margin:40px auto;padding:20px 22px;border:1px solid #e05252;border-radius:14px;background:rgba(224,82,82,.08)">' +
+          '<b style="color:#e05252;font-size:17px">' + title + '</b><pre style="white-space:pre-wrap;font-size:13px;margin:10px 0">' +
+          String(msg).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre><div style="font-size:14px">ตรวจว่าวางไฟล์ Index.html และ Code.gs ครบ และ Deploy เวอร์ชันใหม่แล้ว จากนั้นกด F5</div></div>';
+      }
+      window.addEventListener('error', function (e) { if (!window.__mugrLoaded) show('สคริปต์หน้าเว็บทำงานไม่ได้', (e.message || 'Script error') + (e.lineno ? '\nบรรทัด ' + e.lineno + ':' + e.colno : '')); });
+      setTimeout(function () { if (!window.__mugrLoaded) show('ระบบไม่ตอบกลับภายใน 30 วินาที', 'ตรวจว่ารัน setup() แล้ว และ Deploy แบบ "ดำเนินการในฐานะ: ฉัน"'); }, 30000);
+    })();
+  </script>
+  <div id="modal-root"></div>
+  <div class="toasts" id="toasts"></div>
+  <?!= include('App') ?>
+</body>
+</html>
