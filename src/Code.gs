@@ -39,7 +39,7 @@ function setupWithSampleData() {
 
 function onOpen() {
   try {
-    SpreadsheetApp.getUi().createMenu('🎓 ' + APP.code)
+    SpreadsheetApp.getUi().createMenu('\uD83C\uDF93 ' + APP.code)
       .addItem('ตั้งค่าเริ่มต้น (สร้างชีต)', 'setup')
       .addItem('เติมข้อมูลตัวอย่าง', 'setupWithSampleData')
       .addSeparator()

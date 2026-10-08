@@ -28,6 +28,11 @@ const index = src('Index.html')
   .replace(/<\?!= include\('Styles'\) \?>/, () => src('Styles.html').trim())
   .replace(/<\?!= include\('App'\) \?>/, () => src('App.html').trim());
 if (/include\(/.test(index)) throw new Error('unresolved include in Index.html');
+// Apps Script ทำให้อักขระ 4 ไบต์ (อีโมจิ) ในหน้า HTML เสียหาย → JavaScript พัง — ห้ามมีในไฟล์ที่ส่งออก
+for (const [name, text] of [['Index.html', index], ['Code.gs', code]]) {
+  const bad = [...text].filter(ch => ch.codePointAt(0) > 0xFFFF);
+  if (bad.length) throw new Error(name + ' contains emoji/4-byte characters: ' + [...new Set(bad)].join(' '));
+}
 
 mkdirSync(join(root, 'gas'), { recursive: true });
 writeFileSync(join(root, 'gas', 'Code.gs'), code);
