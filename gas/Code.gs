@@ -233,16 +233,31 @@ const QA_TARGETS = {
 let SS_ = null;
 const TABLE_CACHE_ = {};
 
-/** คืนค่า Spreadsheet ที่ใช้เก็บข้อมูล (ผูกกับสคริปต์ หรือสร้างใหม่และจำ ID ไว้) */
+const NO_DB_ACCESS_ = 'บัญชีนี้ไม่มีสิทธิ์เปิดไฟล์ฐานข้อมูล (Google Sheets) ของระบบ\n' +
+  'วิธีแก้ (ผู้ดูแลระบบ): Deploy แบบ "ดำเนินการในฐานะ: ฉัน" + "ผู้มีสิทธิ์เข้าถึง: ทุกคนในมหาวิทยาลัยมหิดล" (แนะนำ) ' +
+  'หรือถ้าใช้ "ผู้ใช้ที่เข้าถึงเว็บแอป" ต้องแชร์ไฟล์ Google Sheets ให้บัญชีนี้เป็น "ผู้แก้ไข"';
+
+/**
+ * คืนค่า Spreadsheet ที่ใช้เก็บข้อมูล — ใช้ไฟล์ที่ผูกกับสคริปต์ก่อนเสมอ
+ * (ไม่สร้างไฟล์ใหม่เมื่อเปิดไม่ได้ เพื่อไม่ให้ข้อมูลแยกไปอยู่คนละไฟล์)
+ */
 function getDb_() {
   if (SS_) return SS_;
   const props = PropertiesService.getScriptProperties();
+  let active = null;
+  try { active = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { active = null; }
+  if (active) {
+    try { active.getId(); } catch (e) { throw new Error(NO_DB_ACCESS_); }
+    SS_ = active;
+    if (props.getProperty('DB_ID') !== SS_.getId()) props.setProperty('DB_ID', SS_.getId());
+    return SS_;
+  }
   const id = props.getProperty('DB_ID');
   if (id) {
-    try { SS_ = SpreadsheetApp.openById(id); return SS_; } catch (e) { /* ไฟล์ถูกลบ → สร้างใหม่ */ }
+    try { SS_ = SpreadsheetApp.openById(id); return SS_; }
+    catch (e) { throw new Error(NO_DB_ACCESS_ + '\n(' + e.message + ')'); }
   }
-  const active = SpreadsheetApp.getActiveSpreadsheet();
-  SS_ = active || SpreadsheetApp.create(APP.dbName);
+  SS_ = SpreadsheetApp.create(APP.dbName);
   props.setProperty('DB_ID', SS_.getId());
   return SS_;
 }
@@ -922,7 +937,9 @@ function api(action, payload) {
     }
     return JSON.parse(JSON.stringify(out));
   } catch (e) {
-    return { ok: false, error: e && e.message ? e.message : String(e) };
+    let msg = e && e.message ? e.message : String(e);
+    if (/permission|not have access|ไม่มีสิทธิ์เข้าถึง|Access denied/i.test(msg) && msg.indexOf('Google Sheets') === -1) msg = NO_DB_ACCESS_ + '\n(' + msg + ')';
+    return { ok: false, error: msg };
   } finally {
     if (writes) try { lock.releaseLock(); } catch (e) { /* not held */ }
   }

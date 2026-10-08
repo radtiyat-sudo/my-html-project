@@ -29,7 +29,9 @@ function api(action, payload) {
     }
     return JSON.parse(JSON.stringify(out));
   } catch (e) {
-    return { ok: false, error: e && e.message ? e.message : String(e) };
+    let msg = e && e.message ? e.message : String(e);
+    if (/permission|not have access|ไม่มีสิทธิ์เข้าถึง|Access denied/i.test(msg) && msg.indexOf('Google Sheets') === -1) msg = NO_DB_ACCESS_ + '\n(' + msg + ')';
+    return { ok: false, error: msg };
   } finally {
     if (writes) try { lock.releaseLock(); } catch (e) { /* not held */ }
   }
