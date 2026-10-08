@@ -123,6 +123,7 @@ function nameForm() {
     <div class="field"><label for="q-en">ชื่อ-สกุล ภาษาอังกฤษ</label><input class="input" id="q-en" name="nameEn" value="${esc(f.nameEn || '')}" placeholder="Firstname Lastname"><div class="hint">ค้น Scopus, Web of Science, PubMed, ERIC, OpenAlex</div></div>
     <div class="field"><label for="q-sc">Scopus Author ID (ถ้ามี)</label><input class="input" id="q-sc" name="scopusId" value="${esc(f.scopusId || '')}" placeholder="เช่น 57200000000"><div class="hint">แม่นยำที่สุด ไม่ปนกับคนชื่อซ้ำ</div></div>
     <div class="field"><label for="q-orcid">ORCID (ถ้ามี)</label><input class="input" id="q-orcid" name="orcid" value="${esc(f.orcid || '')}" placeholder="0000-0000-0000-0000"></div>
+    <div class="field"><label for="q-affil">จำกัดสังกัดใน Scopus (ไม่บังคับ)</label><input class="input" id="q-affil" name="affil" value="${esc(f.affil === undefined ? 'Mahidol University' : f.affil)}" placeholder="เช่น Mahidol University"><div class="hint">ลดผลงานของคนชื่อซ้ำ · เว้นว่างถ้ามีผลงานจากสังกัดอื่น (ไม่ใช้เมื่อใส่ Scopus Author ID)</div></div>
     <div class="field"><label for="q-from">ตั้งแต่ปี พ.ศ.</label><input class="input" id="q-from" name="fromYear" type="number" min="2500" max="2700" value="${esc(f.fromYear || C.meta.window.start)}"></div>
     <div class="field"><label for="q-mail">อีเมลผู้ตรวจ (ถ้ามี)</label><input class="input" id="q-mail" name="email" type="email" value="${esc((store.get('requester') || {}).email || '')}"></div>
     ${requesterFields()}
@@ -132,14 +133,14 @@ function nameForm() {
 function statusPanel() {
   const mb = m => m === 'direct' ? '<span class="badge green">ค้นโดยตรง</span>' : m === 'list' ? '<span class="badge amber">ตรวจผ่านรายชื่อ ISSN</span>' : m === 'error' ? '<span class="badge red">ผิดพลาด</span>' : '<span class="badge gray">ข้าม</span>';
   return `<div class="card"><div class="card-h"><h2>${ic('list')} ลำดับการค้นหา (ฐานใหญ่ก่อน)</h2></div><div class="table-wrap"><table class="t"><thead><tr><th class="c">ลำดับ</th><th>ฐานข้อมูล</th><th>วิธีค้น</th><th class="num">พบ</th><th>รายละเอียด</th></tr></thead><tbody>
-    ${C.res.status.map(s => `<tr><td class="c"><b>${s.step}</b></td><td><b>${esc(s.label)}</b></td><td>${mb(s.mode)}</td><td class="num"><b>${s.count}</b></td><td class="small">${esc(s.message || '')}
+    ${C.res.status.map(s => `<tr><td class="c"><b>${s.step}</b></td><td><b>${esc(s.label)}</b></td><td>${mb(s.mode)}</td><td class="num"><b>${s.count}</b></td><td class="small">${esc(s.message || '')}${s.link ? ` · <a href="${esc(s.link)}" target="_blank" rel="noopener">ค้นซ้ำบนเว็บ Scopus ↗</a>` : ''}${s.authorUrl ? ` · <a href="${esc(s.authorUrl)}" target="_blank" rel="noopener">โปรไฟล์ผู้แต่ง ↗</a>` : ''}
       ${s.key === 'openalex' && C.res.candidates && C.res.candidates.length > 1 ? `<div class="row mt-s no-print"><select class="select" id="q-oa" style="width:auto;min-width:240px">${C.res.candidates.map(c => opt(c.id, c.name + (c.institution ? ' — ' + c.institution : '') + ' (' + c.works + ')', C.res.openalexId)).join('')}</select><button class="btn sm" data-act="oa">ใช้นักวิจัยคนนี้</button></div>` : ''}</td></tr>`).join('')}
   </tbody></table></div></div>`;
 }
 
 function workRow(w, i) {
   return `<tr><td class="no-print"><input type="checkbox" class="sel" data-i="${i}" ${C.sel.has(i) ? 'checked' : ''}></td>
-    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}</div>
+    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}${w.scopusUrl ? ` · <a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดใน Scopus ↗</a>` : ''}${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</div>
       ${w.authors && w.authors.length ? `<div class="sub">${esc(w.authors.slice(0, 5).join(', '))}${w.authors.length > 5 ? ' …' : ''}</div>` : ''}
       <div class="chips mt-s">${(w.foundIn || []).map(k => `<span class="badge blue">พบใน ${esc(SRC_NAME[k] || k)}</span>`).join('')}<span class="badge gray">ที่มา: ${esc((w.origins || [w.origin]).join(', '))}</span></div></td>
     <td><b>${w.year || '—'}</b><div>${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</div></td>
@@ -198,7 +199,7 @@ function docResult() {
     <dt>ชื่อบทความ</dt><dd>${esc(w.title || '—')}</dd><dt>วารสาร/แหล่ง</dt><dd>${esc(w.journal || '—')}</dd>
     <dt>ปีที่พิมพ์</dt><dd>${w.year ? w.year + ' (ค.ศ. ' + w.yearCE + ')' : '—'} ${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</dd>
     <dt>ISSN</dt><dd>${esc((w.issns || []).join(', ') || '—')}</dd><dt>DOI</dt><dd>${w.doi ? `<a href="https://doi.org/${esc(w.doi)}" target="_blank">${esc(w.doi)}</a>` : '—'}</dd>
-    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd><dt>ผลการตรวจ</dt><dd>${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : groupBadge(w)}</dd></dl>
+    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd>${w.scopusUrl ? `<dt>Scopus</dt><dd><a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดบทความใน Scopus ↗</a>${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</dd>` : ''}<dt>ผลการตรวจ</dt><dd>${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : groupBadge(w)}</dd></dl>
     <h3 class="mt" style="font-size:14px">หลักฐาน</h3><ul class="small" style="margin:6px 0 0;padding-left:18px">${(w.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul>
     <div class="row mt no-print"><button class="btn primary" data-act="submit-doc">${ic('send', 'sm')} ส่งผลให้ผู้รวบรวม</button><button class="btn" data-act="print">${ic('printer', 'sm')} พิมพ์</button></div></div></div>`;
 }

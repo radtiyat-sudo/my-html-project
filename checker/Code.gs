@@ -836,7 +836,11 @@ function httpJson_(url, extraHeaders) {
   const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: headers });
   const code = res.getResponseCode();
   if (code === 404) return null;
-  if (code === 401 || code === 403) throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ') — ตรวจที่ จัดการระบบ > รายชื่อวารสาร > การเชื่อมต่อฐานข้อมูล');
+  if (code === 401 || code === 403) {
+    let detail = '';
+    try { const b = JSON.parse(res.getContentText()); const se = b['service-error'] && b['service-error'].status; detail = se ? ' [' + se.statusCode + ': ' + se.statusText + ']' : (b.error ? ' [' + (b.error.message || b.error) + ']' : ''); } catch (e) { /* not JSON */ }
+    throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ')' + detail + ' — ถ้าเป็น Scopus ให้ขอ Institutional Token จากหอสมุด แล้วใส่ในหน้าตั้งค่า');
+  }
   if (code === 429) throw new Error('ใช้งานเกินโควตาของฐานข้อมูล (429) — ลองใหม่ภายหลัง');
   if (code >= 400) throw new Error('ฐานข้อมูลภายนอกตอบกลับผิดพลาด (' + code + ') กรุณาลองใหม่อีกครั้ง');
   const text = res.getContentText();
@@ -905,7 +909,17 @@ function classify_(w) {
   const dir = w.direct || {};
   const direct = [];
   // ผลที่ค้นเจอในฐานโดยตรงมาก่อนรายชื่อ ISSN — Scopus เป็นอันดับแรก
-  if (dir.scopus) { direct.push('scopus'); evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')'); }
+  if (dir.scopus) {
+    direct.push('scopus');
+    evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')');
+    const sr = dir.scopus.serial;
+    if (sr) {
+      evidence.splice(1, 0, 'ข้อมูลวารสารจาก Scopus: ' + (sr.title || '') + (sr.citeScore ? ' · CiteScore ' + sr.citeScore : '') +
+        (sr.percentile !== '' ? ' · percentile ' + sr.percentile + (sr.subject ? ' (' + sr.subject + ')' : '') + ' → ' + sr.quartile + ' (CiteScore ' + sr.year + ')' : '') +
+        (sr.coverageEnd ? ' · อยู่ใน Scopus ถึงปี ' + sr.coverageEnd : ''));
+      if (sr.coverageEnd && w.yearCE && Number(sr.coverageEnd) < Number(w.yearCE)) evidence.push('⚠ วารสารอยู่ใน Scopus ถึงปี ' + sr.coverageEnd + ' แต่ผลงานพิมพ์ปี ' + w.yearCE + ' — ตรวจว่ายังอยู่ในฐานตอนตีพิมพ์');
+    }
+  }
   if (dir.wos) {
     direct.push('wos');
     const wosListed = hits.some(function (h) { return h.database === 'wos'; });
@@ -919,7 +933,10 @@ function classify_(w) {
     const qHit = hits.filter(function (h) { return h.database === firstDirect && /^Q[1-4]$/.test(h.quartile); })[0] ||
                  hits.filter(function (h) { return h.database === 'scopus' && /^Q[1-4]$/.test(h.quartile); })[0];
     quartile = qHit ? qHit.quartile : '';
-    if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
+    if (firstDirect === 'scopus' && !quartile && dir.scopus && dir.scopus.serial && dir.scopus.serial.quartile) {
+      quartile = dir.scopus.serial.quartile;
+      evidence.push('ใช้ Quartile จาก CiteScore ของ Scopus (ไม่พบในรายชื่อ SJR ที่นำเข้า)');
+    } else if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
   }
   // ถ้าวารสารอยู่หลายฐาน ใช้ Quartile ที่ดีที่สุดของฐานนานาชาติ
   const kpa = hits.filter(function (h) { return (DATABASES[h.database] || {}).group === 'kpa_intl' && /^Q[1-4]$/.test(h.quartile); });
@@ -957,7 +974,9 @@ function classify_(w) {
     level: type === 'journal' ? db.level : (PUB_TYPES[type].level || ''),
     group: type === 'journal' ? db.group : 'other',
     accepted: isAccepted_(p),
-    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct
+    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct,
+    scopusUrl: dir.scopus ? scopusRecordUrl_(dir.scopus.eid) : '',
+    scopusSourceUrl: dir.scopus && dir.scopus.serial ? dir.scopus.serial.url : ''
   });
 }
 
@@ -1268,7 +1287,9 @@ function testApiKeys_() {
       if (apiKey_('SCOPUS_INSTTOKEN')) h['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
       const r = httpJson_(SCOPUS_API + '?query=' + encodeURIComponent('AFFIL(Mahidol University)') + '&count=1&field=eid&nocache=' + Date.now(), h);
       const n = Number(r && r['search-results'] && r['search-results']['opensearch:totalResults']) || 0;
-      out.scopus = { ok: true, message: 'เชื่อมต่อ Scopus สำเร็จ — ทดสอบค้น AFFIL(Mahidol University) พบ ' + n.toLocaleString() + ' รายการ' };
+      const ser = scopusSerial_('17441730', h);
+      out.scopus = { ok: true, message: 'เชื่อมต่อ Scopus สำเร็จ — ทดสอบค้น AFFIL(Mahidol University) พบ ' + n.toLocaleString() + ' รายการ · ' +
+        (ser ? 'ดึงข้อมูลวารสาร (CiteScore/Quartile) ได้' : 'ดึงข้อมูลวารสาร (Serial Title API) ไม่ได้ — จะใช้ Quartile จากรายชื่อ SJR ที่นำเข้าแทน') };
     } catch (e) { out.scopus = { ok: false, message: e.message + ' · ถ้าขึ้น 401/403 ให้ขอ Institutional Token จากหอสมุด แล้วใส่ช่อง Scopus Institutional Token' }; }
   }
   const wk = apiKey_('WOS_API_KEY');
@@ -1302,9 +1323,10 @@ function searchScopus_(p, fromCE, toCE) {
   if (p.scopusId) q = 'AU-ID(' + String(p.scopusId).replace(/\D+/g, '') + ')';
   else if (n) q = 'AUTHLASTNAME(' + n.last + ')' + (n.first ? ' AND AUTHFIRST(' + n.first + ')' : '');
   else return { mode: 'skipped', items: [], message: 'ต้องมีชื่อภาษาอังกฤษหรือ Scopus Author ID' };
-  const headers = { 'X-ELS-APIKey': key, Accept: 'application/json' };
-  if (apiKey_('SCOPUS_INSTTOKEN')) headers['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
-  const fields = 'dc:title,prism:publicationName,prism:issn,prism:eIssn,prism:coverDate,prism:doi,dc:creator,subtypeDescription,prism:aggregationType,eid,pubmed-id';
+  const affil = String(p.affil || '').trim().replace(/["()]/g, '');
+  if (affil && !p.scopusId) q += ' AND AFFIL("' + affil + '")';
+  const headers = scopusHeaders_(key);
+  const fields = 'dc:title,prism:publicationName,prism:issn,prism:eIssn,prism:coverDate,prism:doi,dc:creator,subtypeDescription,prism:aggregationType,eid,pubmed-id,source-id';
   const items = [];
   let total = 0;
   for (let start = 0; start < 200; start += 25) {
@@ -1317,16 +1339,65 @@ function searchScopus_(p, fromCE, toCE) {
       items.push({
         origin: 'Scopus', sourceId: e.eid, title: e['dc:title'] || '', journal: e['prism:publicationName'] || '',
         yearCE: Number(String(e['prism:coverDate'] || '').slice(0, 4)) || 0, doi: cleanDoi_(e['prism:doi']),
-        url: e['prism:doi'] ? 'https://doi.org/' + e['prism:doi'] : 'https://www.scopus.com/record/display.uri?eid=' + e.eid,
+        url: e['prism:doi'] ? 'https://doi.org/' + e['prism:doi'] : scopusRecordUrl_(e.eid), scopusUrl: scopusRecordUrl_(e.eid),
         issns: [e['prism:issn'], e['prism:eIssn']].filter(String), pmid: e['pubmed-id'] || '',
         sourceType: /conference/i.test(agg) ? 'conference' : 'journal', workType: /book/i.test(agg) && !/series/i.test(agg) ? 'book' : (e.subtypeDescription || ''),
         authors: e['dc:creator'] ? [e['dc:creator']] : [],
-        direct: { scopus: { eid: e.eid, agg: agg } }
+        direct: { scopus: { eid: e.eid, agg: agg, sourceId: e['source-id'] || '' } }
       });
     });
     if (start + 25 >= total || !entries.length) break;
   }
-  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + q + ' (' + total + ' รายการ)', query: q };
+  // ยืนยันวารสารกับ Scopus โดยตรง (CiteScore / Quartile / ปีที่ยังอยู่ในฐาน)
+  const serials = {};
+  items.forEach(function (it) {
+    const k = it.issns.map(normIssn_).filter(String)[0];
+    if (!k) return;
+    if (!(k in serials)) serials[k] = Object.keys(serials).length < 40 ? scopusSerial_(k, headers) : null;
+    if (serials[k]) it.direct.scopus.serial = serials[k];
+  });
+  const verifyUrl = 'https://www.scopus.com/results/results.uri?src=s&sot=a&sdt=a&s=' + encodeURIComponent(q + ' AND PUBYEAR > ' + (fromCE - 1) + ' AND PUBYEAR < ' + (toCE + 1));
+  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + q + ' (' + total + ' รายการ)', query: q, link: verifyUrl,
+    authorUrl: p.scopusId ? 'https://www.scopus.com/authid/detail.uri?authorId=' + String(p.scopusId).replace(/\D+/g, '') : '' };
+}
+
+function scopusHeaders_(key) {
+  const h = { 'X-ELS-APIKey': key || apiKey_('SCOPUS_API_KEY'), Accept: 'application/json' };
+  if (apiKey_('SCOPUS_INSTTOKEN')) h['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
+  return h;
+}
+function scopusRecordUrl_(eid) { return eid ? 'https://www.scopus.com/record/display.uri?eid=' + encodeURIComponent(eid) + '&origin=resultslist' : ''; }
+
+/** เก็บค่า percentile ทุกตัวในข้อมูล CiteScore (โครงสร้าง JSON ซ้อนหลายชั้น) */
+function collectPercentiles_(o, out, subj) {
+  if (!o || typeof o !== 'object') return out;
+  if (Array.isArray(o)) { o.forEach(function (x) { collectPercentiles_(x, out, subj); }); return out; }
+  if (o.percentile !== undefined && !isNaN(Number(o.percentile))) out.push({ p: Number(o.percentile), code: o.subjectCode || '', rank: o.rank || '' });
+  Object.keys(o).forEach(function (k) { if (k !== 'percentile') collectPercentiles_(o[k], out, subj); });
+  return out;
+}
+
+/** ข้อมูลวารสารจาก Scopus Serial Title API → { title, quartile, percentile, citeScore, year, coverageEnd, url } */
+function scopusSerial_(issn, headers) {
+  try {
+    const r = httpJson_('https://api.elsevier.com/content/serial/title/issn/' + issn + '?view=CITESCORE', headers || scopusHeaders_());
+    const e = r && r['serial-metadata-response'] && (r['serial-metadata-response'].entry || [])[0];
+    if (!e || e.error) return null;
+    const info = e.citeScoreYearInfoList || {};
+    const years = [].concat(info.citeScoreYearInfo || []).filter(function (y) { return !y['@status'] || /complete/i.test(y['@status']); });
+    const latest = years.sort(function (a, b) { return Number(b['@year']) - Number(a['@year']); })[0];
+    const pcts = collectPercentiles_(latest || info, []);
+    const best = pcts.sort(function (a, b) { return b.p - a.p; })[0];
+    const q = !best ? '' : best.p >= 75 ? 'Q1' : best.p >= 50 ? 'Q2' : best.p >= 25 ? 'Q3' : 'Q4';
+    const subj = [].concat(e['subject-area'] || []).filter(function (s) { return best && String(s['@code']) === String(best.code); })[0];
+    const link = [].concat(e.link || []).filter(function (l) { return l['@ref'] === 'scopus-source'; })[0];
+    return {
+      title: e['dc:title'] || '', quartile: q, percentile: best ? best.p : '', subject: subj ? subj['$'] : '',
+      citeScore: info.citeScoreCurrentMetric || '', year: latest ? latest['@year'] : (info.citeScoreCurrentMetricYear || ''),
+      coverageStart: e.coverageStartYear || '', coverageEnd: e.coverageEndYear || '',
+      url: link ? link['@href'] : (e['source-id'] ? 'https://www.scopus.com/sourceid/' + e['source-id'] : '')
+    };
+  } catch (err) { return null; }
 }
 
 /* ---------------- 2. Web of Science ---------------- */
@@ -1488,7 +1559,7 @@ function searchAll_(p) {
     let r;
     try { r = run[s.key](); }
     catch (e) { r = { mode: 'error', items: [], message: e.message }; }
-    status.push({ key: s.key, label: s.label, step: s.step, mode: r.mode, count: r.items.length, message: r.message });
+    status.push({ key: s.key, label: s.label, step: s.step, mode: r.mode, count: r.items.length, message: r.message, link: r.link || '', authorUrl: r.authorUrl || '' });
     lists.push(r.items);
     if (s.key === 'openalex') { candidates = r.candidates || []; authorId = r.authorId || ''; }
   });
@@ -1508,7 +1579,11 @@ function directChecksByDoi_(doi) {
       if (apiKey_('SCOPUS_INSTTOKEN')) headers['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
       const r = httpJson_(SCOPUS_API + '?query=' + encodeURIComponent('DOI(' + doi + ')') + '&field=eid,prism:aggregationType,prism:issn,prism:eIssn', headers);
       const e = ((r && r['search-results'] && r['search-results'].entry) || []).filter(function (x) { return !x.error; })[0];
-      if (e) out.direct.scopus = { eid: e.eid, agg: e['prism:aggregationType'] || '' };
+      if (e) {
+        out.direct.scopus = { eid: e.eid, agg: e['prism:aggregationType'] || '' };
+        const k = [e['prism:issn'], e['prism:eIssn']].map(normIssn_).filter(String)[0];
+        if (k) { const ser = scopusSerial_(k, headers); if (ser) out.direct.scopus.serial = ser; }
+      }
     }
   } catch (err) { out.evidence.push('ตรวจ Scopus ไม่สำเร็จ: ' + err.message); }
   try {
@@ -1617,7 +1692,7 @@ const CHECKER_ACTIONS_ = {
 
   search: function (p) {
     throttle_();
-    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, openalexId: p.openalexId, fromYear: p.fromYear });
+    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear });
     const s = r.summary;
     try {
       DB.insert('CheckLog', { ts: nowIso_(), requester: String(p.requester || '').slice(0, 120), email: String(p.email || '').slice(0, 120), org: String(p.org || '').slice(0, 120),

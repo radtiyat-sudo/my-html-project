@@ -1014,7 +1014,7 @@ function userForm(u) {
 }
 
 /* ---------- ตรวจผลงานอัตโนมัติ (ค้นจากชื่อ / แนบไฟล์) ---------- */
-const D = { tab: 'name', nameTh: '', nameEn: '', scopusId: '', orcid: '', openalexId: '', status: null, fromYear: 0, personKey: '', candidates: null, authorId: '', works: null, sources: [], summary: null, sel: new Set(), doc: null, docText: '', stats: null, keepFile: true, file: null };
+const D = { tab: 'name', nameTh: '', nameEn: '', scopusId: '', orcid: '', affil: 'Mahidol University', openalexId: '', status: null, fromYear: 0, personKey: '', candidates: null, authorId: '', works: null, sources: [], summary: null, sel: new Set(), doc: null, docText: '', stats: null, keepFile: true, file: null };
 
 function discoverPeople() {
   const list = M().faculty.filter(f => canEditPerson('faculty', f.id)).map(f => ['faculty:' + f.id, f.displayName + ' (อาจารย์)']);
@@ -1063,6 +1063,7 @@ function discoverNameForm() {
     <div class="field"><label for="d-en">ชื่อ-สกุล ภาษาอังกฤษ</label><input class="input" id="d-en" name="nameEn" value="${esc(D.nameEn)}" placeholder="Firstname Lastname เช่น Napa Tuayangdee"><div class="hint">ใช้ค้น Scopus, Web of Science, PubMed, ERIC และ OpenAlex</div></div>
     <div class="field"><label for="d-scopus">Scopus Author ID (ถ้ามี)</label><input class="input" id="d-scopus" name="scopusId" value="${esc(D.scopusId)}" placeholder="เช่น 57200000000"><div class="hint">ระบุแล้วค้น Scopus ได้แม่นยำที่สุด ไม่ปนกับคนชื่อซ้ำ</div></div>
     <div class="field"><label for="d-orcid">ORCID (ถ้ามี)</label><input class="input" id="d-orcid" name="orcid" value="${esc(D.orcid)}" placeholder="0000-0000-0000-0000"><div class="hint">ใช้ระบุตัวนักวิจัยใน OpenAlex</div></div>
+    <div class="field"><label for="d-affil">จำกัดสังกัดใน Scopus (ไม่บังคับ)</label><input class="input" id="d-affil" name="affil" value="${esc(D.affil)}" placeholder="เช่น Mahidol University"><div class="hint">ลดผลงานของคนชื่อซ้ำ · เว้นว่างถ้ามีผลงานจากสังกัดอื่น (ไม่ใช้เมื่อใส่ Scopus Author ID)</div></div>
     <div class="field"><label for="d-from">ตั้งแต่ปี พ.ศ.</label><input class="input" id="d-from" name="fromYear" type="number" min="2500" max="2700" value="${esc(D.fromYear)}"><div class="hint">ค่าเริ่มต้น = ปีแรกของรอบประเมิน 5 ปี</div></div>
     <div class="field"><label for="d-person">นำเข้าเป็นผลงานของ</label><select class="select" id="d-person" name="personKey">${opt('', '— เลือกภายหลัง —', D.personKey)}${people.map(p => opt(p[0], p[1], D.personKey)).join('')}</select><div class="hint">เลือกจากรายชื่อเพื่อเติมชื่อและรหัสให้อัตโนมัติ</div></div>
   </form><div class="row mt"><button class="btn primary" data-act="disc-search">${ic('search', 'sm')} ค้นหาทุกฐาน (เริ่มจาก Scopus)</button>${D.works ? `<button class="btn" data-act="disc-reset">${ic('refresh', 'sm')} เริ่มใหม่</button>` : ''}</div>`;
@@ -1085,14 +1086,14 @@ const SRC_NAME = { scopus: 'Scopus', wos: 'WoS', pubmed: 'PubMed', eric: 'ERIC' 
 function statusPanel() {
   const modeBadge = m => m === 'direct' ? '<span class="badge green">ค้นโดยตรง</span>' : m === 'list' ? '<span class="badge amber">ตรวจผ่านรายชื่อ ISSN</span>' : m === 'error' ? '<span class="badge red">ผิดพลาด</span>' : '<span class="badge gray">ข้าม</span>';
   return `<div class="card"><div class="card-h"><h2>${ic('list')} ลำดับการค้นหา (ฐานใหญ่ก่อน)</h2></div><div class="table-wrap"><table class="t"><thead><tr><th class="c">ลำดับ</th><th>ฐานข้อมูล</th><th>วิธีค้น</th><th class="num">พบ</th><th>รายละเอียด</th></tr></thead><tbody>
-    ${D.status.map(s => `<tr><td class="c"><b>${s.step}</b></td><td><b>${esc(s.label)}</b></td><td>${modeBadge(s.mode)}</td><td class="num"><b>${s.count}</b></td><td class="small">${esc(s.message || '')}
+    ${D.status.map(s => `<tr><td class="c"><b>${s.step}</b></td><td><b>${esc(s.label)}</b></td><td>${modeBadge(s.mode)}</td><td class="num"><b>${s.count}</b></td><td class="small">${esc(s.message || '')}${s.link ? ` · <a href="${esc(s.link)}" target="_blank" rel="noopener">ค้นซ้ำบนเว็บ Scopus ↗</a>` : ''}${s.authorUrl ? ` · <a href="${esc(s.authorUrl)}" target="_blank" rel="noopener">โปรไฟล์ผู้แต่ง ↗</a>` : ''}
       ${s.key === 'openalex' && D.candidates && D.candidates.length > 1 ? `<div class="row mt-s"><select class="select" id="d-oa" style="width:auto;min-width:260px">${D.candidates.map(c => opt(c.id, c.name + (c.institution ? ' — ' + c.institution : '') + ' (' + c.works + ')', D.openalexId)).join('')}</select><button class="btn sm" data-act="disc-oa">ใช้นักวิจัยคนนี้</button></div>` : ''}
       ${(s.mode === 'list' && (s.key === 'scopus' || s.key === 'wos') && isRole('admin')) ? ` · <a data-go="settings" data-tab-go="journals">ใส่ API key</a>` : ''}</td></tr>`).join('')}
   </tbody></table></div></div>`;
 }
 function workRow(w, i) {
   return `<tr><td><input type="checkbox" class="disc-sel" data-i="${i}" ${D.sel.has(i) ? 'checked' : ''} ${w.duplicate ? 'disabled' : ''}></td>
-    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}</div>
+    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}${w.scopusUrl ? ` · <a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดใน Scopus ↗</a>` : ''}${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</div>
       ${w.authors && w.authors.length ? `<div class="sub">${esc(w.authors.slice(0, 5).join(', '))}${w.authors.length > 5 ? ' …' : ''}</div>` : ''}
       <div class="chips mt-s">${(w.foundIn || []).map(k => `<span class="badge blue">พบใน ${esc(SRC_NAME[k] || k)}</span>`).join('')}<span class="badge gray">ที่มา: ${esc((w.origins || [w.origin]).join(', '))}</span>${w.duplicate ? '<span class="badge teal">มีในระบบแล้ว</span>' : ''}</div></td>
     <td><b>${w.year || '—'}</b><div>${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</div></td>
@@ -1152,7 +1153,7 @@ function discoverDocResult() {
     <dt>ชื่อบทความ</dt><dd>${esc(w.title || '—')}</dd><dt>วารสาร/แหล่ง</dt><dd>${esc(w.journal || '—')}${w.publisher ? '<br><span class="small muted">' + esc(w.publisher) + '</span>' : ''}</dd>
     <dt>ปีที่พิมพ์</dt><dd>${w.year ? w.year + ' (ค.ศ. ' + w.yearCE + ')' : '—'} ${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</dd>
     <dt>ISSN</dt><dd>${esc((w.issns || []).join(', ') || '—')}</dd><dt>DOI</dt><dd>${w.doi ? `<a href="https://doi.org/${esc(w.doi)}" target="_blank">${esc(w.doi)}</a>` : '—'}</dd>
-    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd><dt>ผลการตรวจ</dt><dd>${groupBadge(w)} ${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : ''}</dd></dl>
+    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd>${w.scopusUrl ? `<dt>Scopus</dt><dd><a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดบทความใน Scopus ↗</a>${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</dd>` : ''}<dt>ผลการตรวจ</dt><dd>${groupBadge(w)} ${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : ''}</dd></dl>
     <h3 class="mt" style="font-size:14px">หลักฐาน</h3><ul class="small" style="margin:6px 0 0;padding-left:18px">${(w.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul></div></div>
   <div class="card"><div class="card-h"><h3>${ic('save')} บันทึกเป็นผลงาน</h3></div><div class="card-b stack" style="gap:12px">
     ${r.owners && r.owners.length ? `<div class="small">ผู้แต่งที่ตรงกับรายชื่อในระบบ: ${r.owners.map(o => `<b>${esc(o.name)}</b>`).join(', ')}</div>` : '<div class="small muted">ไม่พบชื่อผู้แต่งที่ตรงกับรายชื่อในระบบ</div>'}
@@ -1237,7 +1238,7 @@ const DISC_ACT = {
   'disc-reset': () => { Object.assign(D, { candidates: null, works: null, status: null, authorId: '', openalexId: '', sel: new Set() }); render(); },
   'disc-search': () => run(async () => {
     const d = readForm($('#disc-form'));
-    Object.assign(D, { nameTh: d.nameTh.trim(), nameEn: d.nameEn.trim(), scopusId: d.scopusId.trim(), orcid: d.orcid.trim(), fromYear: Number(d.fromYear) || M().window.start, personKey: d.personKey, openalexId: '', works: null, status: null, sel: new Set() });
+    Object.assign(D, { nameTh: d.nameTh.trim(), nameEn: d.nameEn.trim(), scopusId: d.scopusId.trim(), orcid: d.orcid.trim(), affil: d.affil.trim(), fromYear: Number(d.fromYear) || M().window.start, personKey: d.personKey, openalexId: '', works: null, status: null, sel: new Set() });
     if (!D.nameTh && !D.nameEn && !D.scopusId && !D.orcid) return toast('กรุณากรอกชื่อภาษาไทยหรืออังกฤษ หรือ Scopus Author ID / ORCID', 'err');
     await ACT['disc-run']();
   }),
@@ -1245,7 +1246,7 @@ const DISC_ACT = {
   'disc-run': () => run(async () => {
     const p = personFromKey(D.personKey) || {};
     toast('กำลังค้น Scopus → Web of Science → PubMed → ERIC → TCI → OpenAlex …');
-    const r = await call('searchAll', { nameTh: D.nameTh, nameEn: D.nameEn, scopusId: D.scopusId, orcid: D.orcid, openalexId: D.openalexId, fromYear: D.fromYear, personType: p.personType, personId: p.personId });
+    const r = await call('searchAll', { nameTh: D.nameTh, nameEn: D.nameEn, scopusId: D.scopusId, orcid: D.orcid, affil: D.affil, openalexId: D.openalexId, fromYear: D.fromYear, personType: p.personType, personId: p.personId });
     Object.assign(D, { works: r.works, status: r.status, summary: r.summary, candidates: r.candidates, openalexId: r.openalexId, stats: r.journalIndex });
     D.sel = new Set(D.works.map((w, i) => (!w.duplicate && w.inWindow && w.confidence !== 'unknown' && w.weight > 0) ? i : -1).filter(i => i >= 0));
     render();

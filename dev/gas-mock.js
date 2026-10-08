@@ -92,6 +92,16 @@ function createGasMock(opts) {
   const UrlFetchApp = { fetch(url, opts) {
     calls.push(url);
     const hdr = (opts && opts.headers) || {};
+    if (/api\.elsevier\.com\/content\/serial/.test(url)) {
+      if (!hdr['X-ELS-APIKey']) return json(401, { 'service-error': { status: { statusCode: 'AUTHENTICATION_ERROR', statusText: 'Invalid API Key' } } });
+      const issn = (url.match(/issn\/(\w+)/) || [])[1];
+      const pct = { '00324728': 82, '17441730': 61 }[issn];
+      if (pct === undefined) return json(404, {});
+      return json(200, { 'serial-metadata-response': { entry: [{ 'dc:title': issn === '00324728' ? 'Population Studies' : 'Asian Population Studies', 'prism:issn': issn, 'source-id': '1' + issn,
+        coverageStartYear: '1947', coverageEndYear: '2025', 'subject-area': [{ '@code': '3317', $: 'Demography' }],
+        citeScoreYearInfoList: { citeScoreCurrentMetric: '4.1', citeScoreCurrentMetricYear: '2024', citeScoreYearInfo: [{ '@year': '2024', '@status': 'Complete', citeScoreInformationList: [{ citeScoreInfo: [{ citeScoreSubjectRank: [{ subjectCode: '3317', rank: '10', percentile: String(pct) }] }] }] }] },
+        link: [{ '@ref': 'scopus-source', '@href': 'https://www.scopus.com/sourceid/1' + issn }] }] } });
+    }
     if (/api\.elsevier\.com/.test(url)) {
       if (!hdr['X-ELS-APIKey']) return json(401, {});
       const q = decodeURIComponent((url.match(/query=([^&]+)/) || [])[1] || '');

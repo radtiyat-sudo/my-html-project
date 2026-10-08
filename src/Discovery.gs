@@ -27,7 +27,11 @@ function httpJson_(url, extraHeaders) {
   const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: headers });
   const code = res.getResponseCode();
   if (code === 404) return null;
-  if (code === 401 || code === 403) throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ') — ตรวจที่ จัดการระบบ > รายชื่อวารสาร > การเชื่อมต่อฐานข้อมูล');
+  if (code === 401 || code === 403) {
+    let detail = '';
+    try { const b = JSON.parse(res.getContentText()); const se = b['service-error'] && b['service-error'].status; detail = se ? ' [' + se.statusCode + ': ' + se.statusText + ']' : (b.error ? ' [' + (b.error.message || b.error) + ']' : ''); } catch (e) { /* not JSON */ }
+    throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ')' + detail + ' — ถ้าเป็น Scopus ให้ขอ Institutional Token จากหอสมุด แล้วใส่ในหน้าตั้งค่า');
+  }
   if (code === 429) throw new Error('ใช้งานเกินโควตาของฐานข้อมูล (429) — ลองใหม่ภายหลัง');
   if (code >= 400) throw new Error('ฐานข้อมูลภายนอกตอบกลับผิดพลาด (' + code + ') กรุณาลองใหม่อีกครั้ง');
   const text = res.getContentText();
@@ -96,7 +100,17 @@ function classify_(w) {
   const dir = w.direct || {};
   const direct = [];
   // ผลที่ค้นเจอในฐานโดยตรงมาก่อนรายชื่อ ISSN — Scopus เป็นอันดับแรก
-  if (dir.scopus) { direct.push('scopus'); evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')'); }
+  if (dir.scopus) {
+    direct.push('scopus');
+    evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')');
+    const sr = dir.scopus.serial;
+    if (sr) {
+      evidence.splice(1, 0, 'ข้อมูลวารสารจาก Scopus: ' + (sr.title || '') + (sr.citeScore ? ' · CiteScore ' + sr.citeScore : '') +
+        (sr.percentile !== '' ? ' · percentile ' + sr.percentile + (sr.subject ? ' (' + sr.subject + ')' : '') + ' → ' + sr.quartile + ' (CiteScore ' + sr.year + ')' : '') +
+        (sr.coverageEnd ? ' · อยู่ใน Scopus ถึงปี ' + sr.coverageEnd : ''));
+      if (sr.coverageEnd && w.yearCE && Number(sr.coverageEnd) < Number(w.yearCE)) evidence.push('⚠ วารสารอยู่ใน Scopus ถึงปี ' + sr.coverageEnd + ' แต่ผลงานพิมพ์ปี ' + w.yearCE + ' — ตรวจว่ายังอยู่ในฐานตอนตีพิมพ์');
+    }
+  }
   if (dir.wos) {
     direct.push('wos');
     const wosListed = hits.some(function (h) { return h.database === 'wos'; });
@@ -110,7 +124,10 @@ function classify_(w) {
     const qHit = hits.filter(function (h) { return h.database === firstDirect && /^Q[1-4]$/.test(h.quartile); })[0] ||
                  hits.filter(function (h) { return h.database === 'scopus' && /^Q[1-4]$/.test(h.quartile); })[0];
     quartile = qHit ? qHit.quartile : '';
-    if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
+    if (firstDirect === 'scopus' && !quartile && dir.scopus && dir.scopus.serial && dir.scopus.serial.quartile) {
+      quartile = dir.scopus.serial.quartile;
+      evidence.push('ใช้ Quartile จาก CiteScore ของ Scopus (ไม่พบในรายชื่อ SJR ที่นำเข้า)');
+    } else if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
   }
   // ถ้าวารสารอยู่หลายฐาน ใช้ Quartile ที่ดีที่สุดของฐานนานาชาติ
   const kpa = hits.filter(function (h) { return (DATABASES[h.database] || {}).group === 'kpa_intl' && /^Q[1-4]$/.test(h.quartile); });
@@ -148,7 +165,9 @@ function classify_(w) {
     level: type === 'journal' ? db.level : (PUB_TYPES[type].level || ''),
     group: type === 'journal' ? db.group : 'other',
     accepted: isAccepted_(p),
-    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct
+    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct,
+    scopusUrl: dir.scopus ? scopusRecordUrl_(dir.scopus.eid) : '',
+    scopusSourceUrl: dir.scopus && dir.scopus.serial ? dir.scopus.serial.url : ''
   });
 }
 

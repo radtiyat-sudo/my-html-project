@@ -91,7 +91,7 @@ const CHECKER_ACTIONS_ = {
 
   search: function (p) {
     throttle_();
-    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, openalexId: p.openalexId, fromYear: p.fromYear });
+    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear });
     const s = r.summary;
     try {
       DB.insert('CheckLog', { ts: nowIso_(), requester: String(p.requester || '').slice(0, 120), email: String(p.email || '').slice(0, 120), org: String(p.org || '').slice(0, 120),

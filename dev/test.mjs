@@ -203,13 +203,16 @@ t('search all databases in order: Scopus first, then WoS, PubMed, ERIC, TCI, Ope
   assert.equal(r.data.status[0].mode, 'list'); assert.equal(r.data.status[2].mode, 'direct');
   // ใส่ API key → ค้น Scopus/WoS โดยตรง
   assert.equal(api('saveApiKeys', { SCOPUS_API_KEY: 'k1', WOS_API_KEY: 'k2' }).data.SCOPUS_API_KEY, true);
-  r = api('searchAll', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: E - 6 });
+  r = api('searchAll', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: E - 6, affil: 'Mahidol University' });
   const st = Object.fromEntries(r.data.status.map(s => [s.key, s]));
-  assert.equal(st.scopus.mode, 'direct'); assert.equal(st.scopus.count, 3); assert.equal(st.wos.mode, 'direct');
+  assert.equal(st.scopus.mode, 'direct'); assert.equal(st.scopus.count, 3); assert.match(st.scopus.message, /AFFIL\("Mahidol University"\)/); assert.equal(st.wos.mode, 'direct');
   const by = t => r.data.works.find(w => w.title.startsWith(t));
   const w1 = by('Fertility'); assert.ok(w1.origins.includes('Scopus') && w1.origins.includes('OpenAlex'), 'merged by DOI');
   assert.equal(w1.foundIn[0], 'scopus'); assert.equal(w1.quartile, 'Q2'); assert.ok(/โดยตรง/.test(w1.evidence[0]));
   const s2 = by('Population Ageing Projections'); assert.equal(s2.database, 'scopus'); assert.equal(s2.confidence, 'high'); assert.equal(s2.weight, 1);
+  assert.equal(s2.quartile, 'Q1', 'Quartile from Scopus CiteScore when not in SJR list');
+  assert.ok(s2.evidence.some(e => /CiteScore/.test(e))); assert.match(s2.scopusUrl, /scopus\.com\/record/);
+  assert.match(st.scopus.link, /scopus\.com\/results/);
   assert.equal(by('Census').type, 'proceedings_intl');
   const w2 = by('Ageing Society'); assert.deepEqual([...w2.foundIn].sort(), ['pubmed', 'wos']);
   assert.equal(w2.database, 'scopus', 'ISSN in SJR list still ranks Scopus first'); assert.equal(w2.quartile, 'Q1');
