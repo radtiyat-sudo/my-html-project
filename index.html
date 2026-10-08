@@ -301,7 +301,7 @@ function scoresOf(b){var o=[];for(var v=b.max;v>=b.min;v--)o.push(v);return o}
 function ten(pct){return pct==null||isNaN(pct)?"–":(pct/10).toFixed(1)}
 var SAMPLE_EMAIL="sample@example.com";
 var G={boot:null,me:{role:"viewer",email:"",name:""},view:"home",facId:null,P:null,tab:"exec",stuId:null,q:"",lq:"",
-  exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},items:[],preview:null,importMode:"replace",impText:"",
+  exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},design:null,designName:null,preview:null,importMode:"replace",impText:"",
   showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",
   admin:{tab:"prog",facId:null,progId:null,users:null,roster:{text:"",list:null}}};
 
@@ -1030,58 +1030,121 @@ function crossStats(P){
     plos:C.per.map(function(x){return {id:x.p.id,code:x.p.code,mean:x.mean,pass:x.pass}})}});
 }
 function hasTheme(pp,t){return pp.plos.some(function(p){return themesOf(p).some(function(x){return x[0]===t[0]})})}
+/* ---------- เทียบข้ามหลักสูตร: แผนที่ทักษะ การจับคู่ และออกแบบหลักสูตรใหม่ ---------- */
+/** ธีมทักษะของหลักสูตร พร้อมคะแนนจริงจากผลประเมิน (ค่าเฉลี่ยของ PLOs ในธีมนั้น) */
+function themeStats(pr){
+  var C=cohort(pr,pr.students),out={};
+  THEMES.forEach(function(t){
+    var idx=[];pr.plos.forEach(function(p,i){if(themesOf(p).some(function(x){return x[0]===t[0]}))idx.push(i)});
+    if(!idx.length)return;
+    var v=idx.map(function(i){return C.per[i].mean}).filter(function(z){return z!=null});
+    out[t[0]]={codes:idx.map(function(i){return pr.plos[i].code}),mean:v.length?v.reduce(function(a,b){return a+b},0)/v.length:null};
+  });
+  return {pr:pr,C:C,th:out,ok:C.done.length>=5};
+}
+function strengthChip(st,pass){
+  if(!st)return '<span class="muted">–</span>';
+  var lab=esc(st.codes.join(", "));
+  if(st.mean==null)return '<span class="chip na" title="มี PLOs ในธีมนี้ แต่ยังไม่มีผลประเมินครบ">'+lab+' · รอผล</span>';
+  var c=st.mean>=pass?"good":(st.mean>=pass-10?"warn":"bad");
+  return '<span class="chip '+c+'" title="คะแนนเฉลี่ยจริงของ PLOs ในธีมนี้">'+lab+' · '+ten(st.mean)+'</span>';
+}
+/** คู่หลักสูตรที่ทักษะจับคู่กันได้: แกนร่วม (ธีมเหมือน) + เติมเต็ม (ธีมที่อีกฝ่ายไม่มี) + จุดแข็งจากผลประเมิน */
+function skillPairs(S){
+  var out=[];
+  for(var i=0;i<S.length;i++)for(var j=i+1;j<S.length;j++){
+    var A=S[i],B=S[j],shared=[],onlyA=[],onlyB=[],strong=[];
+    THEMES.forEach(function(t){var a=A.th[t[0]],b=B.th[t[0]];
+      if(a&&b){shared.push(t[1]);if(a.mean!=null&&b.mean!=null&&a.mean>=A.pr.set.ploPass&&b.mean>=B.pr.set.ploPass)strong.push(t[1])}
+      else if(a)onlyA.push(t[1]);else if(b)onlyB.push(t[1])});
+    if(!shared.length||!(onlyA.length+onlyB.length))continue;
+    var score=shared.length*2+Math.min(onlyA.length,3)+Math.min(onlyB.length,3)+strong.length*2;
+    out.push({A:A,B:B,shared:shared,onlyA:onlyA,onlyB:onlyB,strong:strong,score:score,cross:A.pr.facultyId!==B.pr.facultyId,
+      kind:onlyA.length+onlyB.length>=shared.length?"ข้ามศาสตร์ (เติมเต็มกัน)":"ต่อยอดแกนร่วม"});
+  }
+  return out.sort(function(x,y){return y.score-x.score});
+}
+/** ชุด PLOs ที่เสนอสำหรับหลักสูตรใหม่ (แก้ได้): ธีมซ้ำรวมเป็นข้อเดียว ธีมเฉพาะคงไว้ */
+function designState(sel){
+  var key=sel.map(function(p){return p.id}).join(",");
+  if(G.design&&G.design.key===key)return G.design;
+  var items=[],seen={};
+  sel.forEach(function(pr){pr.plos.forEach(function(p){var t=primary(p),k=t[0]==="other"?"other:"+pr.id+p.id:t[0];
+    if(!seen[k]){seen[k]={on:true,theme:t[1],th:p.th,en:cleanEn(p.en),srcs:[],crit:p.crit.map(function(c){return {name:c.name,bands:c.desc&&c.desc.length===5?c.desc:null}})};items.push(seen[k])}
+    seen[k].srcs.push(pr.name.split(" - ")[0]+" "+p.code)})});
+  G.design={key:key,items:items,name:G.designName||(sel.length?"หลักสูตรผสมผสาน: "+sel.map(function(p){return p.name.split(" - ").pop()}).join(" + "):""),facId:sel[0]?sel[0].facultyId:"",level:sel[0]&&sel[0].level?sel[0].level:"ปริญญาโท"};
+  G.designName=null;
+  return G.design;
+}
+function designRows(D){
+  var on=D.items.filter(function(it){return it.on});
+  var L=[["ข้อเสนอหลักสูตรใหม่",D.name],["ระดับ",D.level],["ส่วนงาน",(facOf(D.facId)||{}).name||""],[],["รหัส","ธีมทักษะ","PLOs (ไทย)","ข้อความ PLOs","ที่มา","ลักษณะ","น้ำหนัก"]];
+  on.forEach(function(it,i){L.push(["PLO"+(i+1),it.theme,it.th,it.en,it.srcs.join(", "),it.srcs.length>1?"แกนร่วม":"เฉพาะทาง",on.length?+(100/on.length).toFixed(1):""])});
+  return L;
+}
+function aiSetupGuide(){
+  if(!canEdit())return '<div class="note"><b>ยังไม่ได้เปิดใช้ AI</b><span>แจ้งผู้ดูแลระบบให้ตั้งค่า ANTHROPIC_API_KEY ส่วนแผนที่ทักษะ การจับคู่ และการออกแบบด้านบนใช้ได้โดยไม่ต้องมี AI</span></div>';
+  return '<div class="note" style="display:block"><b>ยังไม่ได้เปิดใช้ AI ตั้งค่าครั้งเดียว ใช้ได้ทุกฟีเจอร์ AI ในระบบ</b><ol style="margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.7">'+
+    '<li>เข้า <b>console.anthropic.com</b> สมัครหรือเข้าสู่ระบบ แล้วเติมเครดิตที่เมนู Billing</li>'+
+    '<li>เมนู <b>API Keys → Create Key</b> คัดลอกคีย์ (ขึ้นต้นด้วย sk-ant-) เก็บเป็นความลับ</li>'+
+    '<li>ใน Apps Script กด <b>⚙ Project Settings → Script properties → Add script property</b> ชื่อ <code>ANTHROPIC_API_KEY</code> ค่า = คีย์ แล้วกด Save</li>'+
+    '<li>กลับไปหน้า Editor เลือกฟังก์ชัน <code>testAI</code> แล้วกด <b>Run</b> หนึ่งครั้ง กดอนุญาตสิทธิ์ (เชื่อมต่อบริการภายนอก) ถ้าเห็น "พร้อมใช้งาน" ใน Execution log แปลว่าใช้ได้</li>'+
+    '<li>รีเฟรชหน้านี้ ปุ่ม "วิเคราะห์ด้วย AI" จะปรากฏ</li></ol>'+
+    '<div class="muted" style="font-size:12px;margin-top:6px">ค่าใช้จ่ายคิดตามการใช้งานจริง การวิเคราะห์ข้ามหลักสูตร 1 ครั้งโดยทั่วไปไม่กี่บาท · ผู้ที่แก้ไขสคริปต์ได้จะเห็นคีย์ใน Script properties ให้จำกัดผู้แก้ไขสคริปต์</div></div>';
+}
 function viewCross(){
   if(!G.cross)return '<div class="loading">กำลังโหลดข้อมูลทุกหลักสูตร…</div>';
   var P=G.cross.programs.filter(function(p){return p.plos.length}),h="";
   if(P.length<1)return '<div class="card empty">ยังไม่มีหลักสูตรที่มี PLOs</div>';
-  h+='<div class="hero"><h1>เทียบ PLOs ข้ามหลักสูตร</h1><p>ดูแกนร่วมของ PLOs ผลลัพธ์รายหลักสูตร และออกแบบหลักสูตรผสมผสาน</p></div>';
-  h+='<div class="note"><b>ผลลัพธ์ ไม่ใช่การเงิน</b><span>ดัชนีด้านล่างวัดความคุ้มค่าเชิงผลลัพธ์จากผลประเมินจริง ยังไม่รวมต้นทุนเงิน</span></div>';
-  h+='<section class="card"><h2>ดัชนีผลลัพธ์รายหลักสูตร</h2><div class="sub">ดัชนี = 40% × คะแนนรวมเฉลี่ย + 30% × อัตราผ่านโดยรวม + 30% × สัดส่วน PLOs ที่ถึงเป้า (เต็ม 100) คิดจากนักศึกษาที่ประเมินครบเท่านั้น</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th class="num">ประเมินครบ (คน)</th><th class="num">คะแนนเฉลี่ย</th><th class="num">ผ่านโดยรวม %</th><th class="num">PLOs ถึงเป้า</th><th class="num">สอดคล้องกับการออกแบบ %</th><th class="num">ดัชนีผลลัพธ์</th><th>สัญญาณช่วยตัดสินใจ</th></tr></thead><tbody>';
-  P.forEach(function(pr){
-    var C=cohort(pr,pr.students);
-    h+='<tr><td>'+esc(pr.name)+'</td><td class="num">'+C.done.length+'</td><td class="num">'+(C.mean==null?"–":C.mean.toFixed(1))+'</td><td class="num">'+fmt(C.passAll)+'</td><td class="num">'+C.onTarget+' / '+pr.plos.length+'</td><td class="num">'+fmt(C.align)+'</td><td class="num"><b>'+(C.index==null?"–":C.index.toFixed(1))+'</b></td><td>'+chip(signal(C,pr))+'</td></tr>';
-  });
-  h+='</tbody></table></div><p class="muted" style="font-size:12px;margin-bottom:0">เกณฑ์สัญญาณ: พร้อมพิจารณาขยายรับ = ดัชนี ≥ 75 ผ่านโดยรวม ≥ 80% และทุก PLOs ถึงเป้า · คงรับ = ดัชนี ≥ 60 และผ่าน ≥ 60% · ต้องมีนักศึกษาที่ประเมินครบ ≥ 5 คน เป็นสัญญาณจากผลลัพธ์การเรียนรู้เท่านั้น ยังไม่รวมต้นทุน จำนวนผู้สมัคร และความต้องการของตลาด</p></section>';
-  var cands=[];
-  for(var i1=0;i1<P.length;i1++)for(var j1=i1+1;j1<P.length;j1++){
-    var A=P[i1],B=P[j1],CA=cohort(A,A.students),CB=cohort(B,B.students);
-    if(CA.done.length<5||CB.done.length<5||CA.index<70||CB.index<70)continue;
-    var shared=THEMES.filter(function(t){return hasTheme(A,t)&&hasTheme(B,t)}).map(function(t){return t[1]});
-    var uniq=THEMES.filter(function(t){return hasTheme(A,t)!==hasTheme(B,t)}).length;
-    if(shared.length>=2)cands.push({a:A,b:B,shared:shared,uniq:uniq,score:(CA.index+CB.index)/2});
-  }
-  cands.sort(function(x,y){return y.score-x.score});
-  h+='<section class="card" style="margin-top:16px"><h2>หลักสูตรใหม่ที่น่าพิจารณา (ข้ามศาสตร์)</h2><div class="sub">คู่หลักสูตรที่ผลลัพธ์ดี (ดัชนี ≥ 70, ประเมินครบ ≥ 5 คน) และมี PLOs ธีมเดียวกันอย่างน้อย 2 ธีม จึงดึงแกนร่วมมาประยุกต์ได้</div>';
-  if(!cands.length)h+='<p class="muted">ยังไม่มีคู่ที่เข้าเงื่อนไข อาจเพราะข้อมูลการประเมินยังไม่พอ</p>';
-  else h+=cands.slice(0,5).map(function(c){return '<div class="pair"><b>'+esc(c.a.name)+' + '+esc(c.b.name)+'</b> <span class="chip good">ดัชนีเฉลี่ย '+c.score.toFixed(1)+'</span><div class="muted" style="font-size:12px">แกนร่วม: '+esc(c.shared.join(", "))+' · ธีมที่ต่างกัน '+c.uniq+' ธีม (เติมเต็มกัน)</div><button class="btn sm" data-act="blendpair" data-a="'+esc(c.a.id)+'" data-b="'+esc(c.b.id)+'" style="margin-top:6px">เลือกคู่นี้ไปออกแบบ</button></div>'}).join("");
-  h+='</section>';
-  h+='<section class="card" style="margin-top:16px"><h2>ธีมของ PLOs เทียบข้ามหลักสูตร</h2><div class="sub">ช่องที่มีรหัสหมายถึงหลักสูตรนั้นมี PLOs ในธีมนี้ ธีมที่ปรากฏหลายหลักสูตรคือแกนร่วมที่นำมาใช้ซ้ำได้</div><div class="table-scroll"><table><thead><tr><th>ธีม</th>'+P.map(function(p){return '<th>'+esc(p.name)+'</th>'}).join("")+'<th>ลักษณะ</th></tr></thead><tbody>';
-  THEMES.forEach(function(t){
-    var cells=P.map(function(pr){return pr.plos.filter(function(p){return themesOf(p).some(function(x){return x[0]===t[0]})}).map(function(p){return p.code}).join(", ")});
-    var n=cells.filter(Boolean).length;
-    h+='<tr><td>'+esc(t[1])+'</td>'+cells.map(function(c){return '<td>'+(c?'<span class="chip good">✓ '+esc(c)+'</span>':'<span class="muted">–</span>')+'</td>'}).join("")+'<td>'+(n>=2?'<span class="chip good">แกนร่วม ('+n+' หลักสูตร)</span>':(n===1?'<span class="chip na">เฉพาะ 1 หลักสูตร</span>':'<span class="muted">ไม่มี</span>'))+'</td></tr>';
-  });
+  var S=P.map(themeStats);
+  h+='<div class="hero"><h1>เทียบ PLOs ข้ามหลักสูตร และออกแบบหลักสูตรใหม่</h1><p>ใช้ PLOs จากเล่มหลักสูตรและผลประเมินจริง หาทักษะที่จับคู่กันได้ เพื่อเปิดหลักสูตรใหม่หรือหลักสูตรข้ามศาสตร์ ให้บัณฑิตมีทักษะที่หลากหลาย</p></div>';
+  h+='<div class="steps" style="margin-bottom:16px">'+[["1","ดูผลลัพธ์","หลักสูตรไหนผลประเมินดี"],["2","แผนที่ทักษะ","แต่ละหลักสูตรเก่งทักษะใด มีช่องว่างตรงไหน"],["3","จับคู่ทักษะ","คู่หลักสูตรที่มีแกนร่วมและเติมเต็มกัน"],["4","ออกแบบหลักสูตร","เลือก PLOs สร้างหลักสูตรใหม่ แล้วสร้างหัวข้อประเมิน"],["5","AI ช่วยคิด","ไอเดียหลักสูตรและร่าง PLOs (ต้องเปิดใช้ AI)"]].map(function(x){return '<div class="step"><h3>'+x[0]+') '+x[1]+'</h3><span class="muted" style="font-size:12px">'+x[2]+'</span></div>'}).join("")+'</div>';
+  // 1) ผลลัพธ์
+  h+='<section class="card"><h2>ขั้นที่ 1 · ดัชนีผลลัพธ์รายหลักสูตร</h2><div class="sub">ดัชนี = 40% × คะแนนรวมเฉลี่ย + 30% × อัตราผ่านโดยรวม + 30% × สัดส่วน PLOs ที่ถึงเป้า (เต็ม 100) คิดจากนักศึกษาที่ประเมินครบเท่านั้น · เป็นผลลัพธ์การเรียนรู้ ยังไม่รวมต้นทุน จำนวนผู้สมัคร และความต้องการของตลาด</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th class="num">ประเมินครบ (คน)</th><th class="num">คะแนนเฉลี่ย</th><th class="num">ผ่านโดยรวม %</th><th class="num">PLOs ถึงเป้า</th><th class="num">ดัชนีผลลัพธ์</th><th>สัญญาณช่วยตัดสินใจ</th></tr></thead><tbody>';
+  S.forEach(function(x){var C=x.C,pr=x.pr;
+    h+='<tr><td>'+esc(pr.name)+'</td><td class="num">'+C.done.length+'</td><td class="num">'+(C.mean==null?"–":C.mean.toFixed(1))+'</td><td class="num">'+fmt(C.passAll)+'</td><td class="num">'+C.onTarget+' / '+pr.plos.length+'</td><td class="num"><b>'+(C.index==null?"–":C.index.toFixed(1))+'</b></td><td>'+chip(signal(C,pr))+'</td></tr>'});
   h+='</tbody></table></div></section>';
+  // 2) แผนที่ทักษะ
+  var gaps=[];
+  h+='<section class="card" style="margin-top:16px"><h2>ขั้นที่ 2 · แผนที่ทักษะ (ธีมของ PLOs × หลักสูตร)</h2><div class="sub">ช่องแสดงรหัส PLOs ในธีมนั้น และคะแนนเฉลี่ยจริงเต็ม 10 · <span class="chip good">เขียว</span> ถึงเกณฑ์ผ่าน <span class="chip warn">เหลือง</span> ใกล้เกณฑ์ <span class="chip bad">แดง</span> ต่ำกว่าเกณฑ์ · ธีมที่หลายหลักสูตรมีคือแกนร่วม ธีมที่ไม่มีหลักสูตรใดมีคือช่องว่างที่อาจเปิดเป็นหลักสูตรหรือวิชาใหม่</div><div class="table-scroll"><table class="pv"><thead><tr><th>ธีมทักษะ</th>'+S.map(function(x){return '<th title="'+esc(x.pr.name)+'">'+esc(x.pr.name.split(" - ")[0])+'</th>'}).join("")+'<th>ลักษณะ</th></tr></thead><tbody>';
+  THEMES.forEach(function(t){
+    var n=S.filter(function(x){return x.th[t[0]]}).length;if(!n)gaps.push(t[1]);
+    h+='<tr><td>'+esc(t[1])+'</td>'+S.map(function(x){return '<td>'+strengthChip(x.th[t[0]],x.pr.set.ploPass)+'</td>'}).join("")+'<td>'+(n>=2?'<span class="chip good">แกนร่วม ('+n+')</span>':(n===1?'<span class="chip na">เฉพาะทาง</span>':'<span class="chip warn">ช่องว่าง</span>'))+'</td></tr>';
+  });
+  h+='</tbody></table></div>'+(gaps.length?'<div class="insight"><b>ทักษะที่ยังไม่มีหลักสูตรใดครอบคลุม:</b> '+esc(gaps.join(", "))+' · อาจเป็นโอกาสเปิดวิชาเลือก หลักสูตรระยะสั้น หรือใส่ในหลักสูตรผสมผสาน</div>':"")+'</section>';
+  // 3) จับคู่ทักษะ
+  var pairs=skillPairs(S);
+  h+='<section class="card" style="margin-top:16px"><h2>ขั้นที่ 3 · การจับคู่ทักษะข้ามหลักสูตร</h2><div class="sub">คู่ที่มีแกนร่วมให้ต่อยอด และมีทักษะที่อีกฝ่ายไม่มีให้เติมเต็ม จัดอันดับจาก แกนร่วม × 2 + ทักษะเติมเต็ม + จุดแข็งร่วมจากผลประเมิน × 2</div>';
+  if(!pairs.length)h+='<p class="muted">ยังไม่พบคู่ที่มีทั้งแกนร่วมและทักษะเติมเต็ม ต้องมีอย่างน้อย 2 หลักสูตรที่มี PLOs</p>';
+  else h+=pairs.slice(0,8).map(function(c){
+    return '<div class="pair"><div class="row" style="justify-content:space-between"><b>'+esc(c.A.pr.name)+' + '+esc(c.B.pr.name)+'</b><span class="row"><span class="chip '+(c.kind.indexOf("ข้าม")===0?"good":"na")+'">'+c.kind+'</span>'+(c.cross?'<span class="chip warn">ข้ามส่วนงาน</span>':"")+'<span class="chip na">คะแนนจับคู่ '+c.score+'</span></span></div>'+
+      '<div style="font-size:12px;margin-top:4px"><b>แกนร่วม:</b> '+esc(c.shared.join(", "))+(c.strong.length?' · <b style="color:var(--good)">จุดแข็งร่วมจากผลประเมิน:</b> '+esc(c.strong.join(", ")):"")+'</div>'+
+      '<div class="muted" style="font-size:12px">'+esc(c.A.pr.name.split(" - ")[0])+' เติมให้: '+esc(c.onlyA.join(", ")||"–")+' · '+esc(c.B.pr.name.split(" - ")[0])+' เติมให้: '+esc(c.onlyB.join(", ")||"–")+'</div>'+
+      '<div class="muted" style="font-size:11px">'+(c.A.ok&&c.B.ok?'มีผลประเมินยืนยัน (ดัชนี '+c.A.C.index.toFixed(0)+' / '+c.B.C.index.toFixed(0)+')':'ประเมินจากเนื้อหา PLOs (ผลประเมินยังน้อยกว่า 5 คน)')+'</div>'+
+      '<button class="btn sm" data-act="blendpair" data-a="'+esc(c.A.pr.id)+'" data-b="'+esc(c.B.pr.id)+'" style="margin-top:6px">ใช้คู่นี้ออกแบบหลักสูตร ›</button></div>'}).join("");
+  h+='</section>';
+  // 4) ออกแบบหลักสูตร
   var sel=P.filter(function(p){return G.blend[p.id]});
-  h+='<section class="card" id="blend-sec" style="margin-top:16px"><h2>ออกแบบหลักสูตรผสมผสาน / ข้ามศาสตร์</h2><div class="sub">เลือกหลักสูตรต้นทาง ระบบจัดชุด PLOs ที่เสนอ: ธีมที่ซ้ำกันรวมเป็น 1 PLOs ธีมเฉพาะคงไว้ แล้วแจกน้ำหนักรวม 100</div><div class="checks">'+
+  h+='<section class="card" id="blend-sec" style="margin-top:16px"><h2>ขั้นที่ 4 · ออกแบบหลักสูตรผสมผสาน / ข้ามศาสตร์</h2><div class="sub">เลือกหลักสูตรต้นทาง ระบบเสนอชุด PLOs (ธีมที่ซ้ำรวมเป็นข้อเดียว ธีมเฉพาะคงไว้) ติ๊กเลือก แก้ข้อความ แล้วสร้างเป็นหลักสูตรใหม่ จากนั้นสร้างหัวข้อการประเมินต่อได้ทันที</div><div class="checks">'+
     P.map(function(p){return '<label><input type="checkbox" data-f="blend:'+esc(p.id)+'"'+(G.blend[p.id]?" checked":"")+'> '+esc(p.name)+'</label>'}).join("")+'</div>';
-  if(sel.length<2)h+='<p class="muted">เลือกอย่างน้อย 2 หลักสูตร</p>';
+  if(sel.length<2)h+='<p class="muted">เลือกอย่างน้อย 2 หลักสูตร หรือกด "ใช้คู่นี้ออกแบบหลักสูตร" จากขั้นที่ 3</p>';
   else{
-    var items=[],seen={};
-    sel.forEach(function(pr){pr.plos.forEach(function(p){var t=primary(p),k=t[0]==="other"?"other:"+pr.id+p.id:t[0];
-      if(!seen[k]){seen[k]={theme:t[1],plo:p,from:pr,srcs:[]};items.push(seen[k])}
-      seen[k].srcs.push(pr.name+" "+p.code)})});
-    G.items=items;
-    var w=Math.floor(100/items.length),rest=100-w*items.length;
-    h+='<div class="table-scroll"><table><thead><tr><th>#</th><th>ธีม</th><th>PLOs ที่เสนอ (ใช้ข้อความจากหลักสูตรแรกที่มีธีมนี้)</th><th>ที่มา</th><th>ลักษณะ</th><th class="num">น้ำหนัก</th></tr></thead><tbody>'+
-      items.map(function(it,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(it.theme)+'</td><td class="wrapt">'+esc(it.plo.th)+'<div class="muted" style="font-size:11px">'+esc(cleanEn(it.plo.en))+'</div></td><td class="wrapt">'+esc(it.srcs.join(", "))+'</td><td>'+(it.srcs.length>1?'<span class="chip good">แกนร่วม</span>':'<span class="chip na">เฉพาะทาง</span>')+'</td><td class="num">'+(w+(i===0?rest:0))+'</td></tr>'}).join("")+
-      '<tr><td></td><td colspan="4"><b>รวม</b></td><td class="num"><b>100</b></td></tr></tbody></table></div>'+
-      (canEdit()?'<div class="row" style="margin-top:12px"><button class="btn primary" data-act="mkblend"'+(G.busy.blend?" disabled":"")+'>สร้างเป็นหลักสูตรใหม่</button><span class="muted" style="font-size:12px">คัดลอกชื่อเกณฑ์มาด้วย แก้ต่อได้ที่ จัดการระบบ > PLOs และรูบริก</span></div>':"");
+    var D=designState(sel),on=D.items.filter(function(it){return it.on}),w=on.length?(100/on.length).toFixed(1):0,x0=G.cross.cross;
+    h+='<div class="f-grid" style="margin-bottom:12px"><div class="f" style="grid-column:span 2"><label for="dz-name">ชื่อหลักสูตรที่เสนอ</label><input type="text" id="dz-name" data-f="dz:name" value="'+esc(D.name)+'"></div>'+
+      '<div class="f"><label for="dz-level">ระดับ</label><input type="text" id="dz-level" data-f="dz:level" value="'+esc(D.level)+'"></div>'+
+      '<div class="f"><label for="dz-fac">ส่วนงานที่รับผิดชอบ</label><select id="dz-fac" data-f="dz:fac" style="width:100%">'+G.boot.faculties.map(function(f){return '<option value="'+esc(f.id)+'"'+(f.id===D.facId?" selected":"")+'>'+esc(f.name)+'</option>'}).join("")+'</select></div></div>';
+    h+='<div class="table-scroll"><table class="pv"><thead><tr><th>ใช้</th><th>#</th><th>ธีมทักษะ</th><th>PLOs ที่เสนอ (แก้ได้)</th><th>ที่มา</th><th>ลักษณะ</th><th class="num">น้ำหนัก</th></tr></thead><tbody>'+
+      D.items.map(function(it,i){var k=it.on?on.indexOf(it)+1:"";return '<tr'+(it.on?"":' class="dupe"')+'><td><input type="checkbox" data-f="dz:on:'+i+'" aria-label="ใช้ข้อนี้"'+(it.on?" checked":"")+'></td><td>'+(k?"PLO"+k:"")+'</td><td>'+esc(it.theme)+'</td><td class="wrapt"><input type="text" data-f="dz:th:'+i+'" value="'+esc(it.th)+'" aria-label="ชื่อ PLOs" style="width:100%"><input type="text" data-f="dz:en:'+i+'" value="'+esc(it.en)+'" aria-label="ข้อความ PLOs" style="width:100%;margin-top:4px;font-size:12px"></td><td class="wrapt">'+esc(it.srcs.join(", "))+'</td><td>'+(it.srcs.length>1?'<span class="chip good">แกนร่วม</span>':(it.srcs.length?'<span class="chip na">เฉพาะทาง</span>':'<span class="chip warn">เพิ่มเอง</span>'))+'</td><td class="num">'+(it.on?w:"–")+'</td></tr>'}).join("")+
+      '<tr><td></td><td colspan="5"><b>รวม '+on.length+' PLOs</b></td><td class="num"><b>100</b></td></tr></tbody></table></div>';
+    h+='<div class="row" style="margin-top:10px"><button class="btn sm" data-act="dzadd">+ เพิ่ม PLOs เอง</button>'+(x0&&x0.blended&&x0.blended.length?'<button class="btn sm" data-act="dzai">เพิ่มร่าง PLOs จาก AI ('+x0.blended.length+' ข้อ)</button>':"")+'</div>';
+    h+='<div class="row" style="margin-top:12px">'+(canEdit()?'<button class="btn primary" data-act="dzcreate"'+(G.busy.blend||on.length<2?" disabled":"")+'>'+(G.busy.blend?"กำลังสร้าง…":"สร้างเป็นหลักสูตรใหม่ แล้วสร้างหัวข้อประเมิน ›")+'</button>':"")+
+      '<button class="btn" data-act="dzsheet"'+(G.busy.dzsheet?" disabled":"")+'>'+(G.busy.dzsheet?"กำลังส่ง…":"ส่งข้อเสนอไป Google Sheets")+'</button><span class="muted" style="font-size:12px">'+(canEdit()?"หลักสูตรใหม่จะมีสถานะร่าง แก้ต่อได้ที่ จัดการระบบ":"ส่งข้อเสนอให้ผู้ดูแลระบบสร้างเป็นหลักสูตร")+'</span></div><div id="dzlink"></div>';
   }
   h+='</section>';
+  // 5) AI
   var x=G.cross.cross;
-  h+='<section class="card" style="margin-top:16px"><h2>AI ช่วยเทียบ PLOs ข้ามหลักสูตร</h2><div class="sub">อ่านความหมายของ PLOs ทุกหลักสูตร หาคู่ที่คล้ายกัน เสนอ PLOs ที่ควรนำมาใช้ซ้ำ และร่าง PLOs ของหลักสูตรผสมผสาน</div>';
-  if(!G.boot.aiEnabled)h+='<p class="muted">ยังไม่ได้เปิดใช้ AI (ตั้งค่า ANTHROPIC_API_KEY ใน Script properties)</p>';
+  h+='<section class="card" style="margin-top:16px"><h2>ขั้นที่ 5 · AI ช่วยเทียบและเสนอหลักสูตร</h2><div class="sub">AI อ่านความหมายของ PLOs ทุกหลักสูตรและผลประเมินจริง หาคู่ PLOs ที่คล้ายกัน เสนอ PLOs ที่ควรใช้ซ้ำ ไอเดียหลักสูตรข้ามศาสตร์ และร่าง PLOs หลักสูตรผสมผสาน</div>';
+  if(!G.boot.aiEnabled)h+=aiSetupGuide();
   else h+='<div class="row"><button class="btn primary" data-act="xai"'+(G.busy.x?" disabled":"")+'>'+(G.busy.x?"กำลังวิเคราะห์…":(x?"วิเคราะห์ใหม่":"วิเคราะห์ด้วย AI"))+'</button></div>';
   if(x)h+=xBody(x);
   return h+'</section>';
@@ -1090,7 +1153,7 @@ function xBody(x){
   var h='';
   if(x.decisions&&x.decisions.length){var REC={expand:["good","พิจารณาขยายรับ"],maintain:["warn","คงรับ ปรับปรุง"],review:["bad","ทบทวนก่อน"],insufficient_data:["na","ข้อมูลยังน้อย"]};
     h+='<h3 style="font-size:14px;margin-top:14px">ข้อเสนอรายหลักสูตร (จากผลลัพธ์การเรียนรู้)</h3>'+x.decisions.map(function(d){var r=REC[d.recommendation]||REC.review,pg=G.cross.programs.find(function(z){return z.id===d.programId});return '<div class="pair"><b>'+esc(pg?pg.name:d.programId)+'</b> <span class="chip '+r[0]+'">'+r[1]+'</span><div class="muted" style="font-size:12px">'+esc(d.reason)+'</div></div>'}).join("")}
-  if(x.ideas&&x.ideas.length)h+='<h3 style="font-size:14px;margin-top:14px">ไอเดียหลักสูตรใหม่ / ข้ามศาสตร์</h3>'+x.ideas.map(function(d){return '<div class="pair"><b>'+esc(d.title)+'</b><div style="font-size:12px">จาก: '+esc((d.sources||[]).map(function(id){var p=G.cross.programs.find(function(z){return z.id===id});return p?p.name:id}).join(" + "))+'</div><div class="muted" style="font-size:12px">'+esc(d.rationale)+(d.risk?' · ข้อควรระวัง: '+esc(d.risk):"")+'</div></div>'}).join("");
+  if(x.ideas&&x.ideas.length)h+='<h3 style="font-size:14px;margin-top:14px">ไอเดียหลักสูตรใหม่ / ข้ามศาสตร์</h3>'+x.ideas.map(function(d,i){return '<div class="pair"><b>'+esc(d.title)+'</b><div style="font-size:12px">จาก: '+esc((d.sources||[]).map(function(id){var p=G.cross.programs.find(function(z){return z.id===id});return p?p.name:id}).join(" + "))+'</div><div class="muted" style="font-size:12px">'+esc(d.rationale)+(d.risk?' · ข้อควรระวัง: '+esc(d.risk):"")+'</div>'+((d.sources||[]).length>=2?'<button class="btn sm" data-act="useidea" data-i="'+i+'" style="margin-top:6px">ออกแบบจากไอเดียนี้ ›</button>':"")+'</div>'}).join("");
   if(x.pairs&&x.pairs.length)h+='<h3 style="font-size:14px;margin-top:14px">คู่ PLOs ที่คล้ายกัน</h3>'+x.pairs.map(function(p){return '<div class="pair"><span class="chip '+(p.similarity>=70?"good":"na")+'">'+fmt(p.similarity)+'%</span> '+esc(refName(p.a))+' ↔ '+esc(refName(p.b))+'<div class="muted" style="font-size:12px">'+esc(p.reason)+'</div></div>'}).join("");
   if(x.reuse&&x.reuse.length)h+='<h3 style="font-size:14px;margin-top:14px">PLOs ที่ควรนำมาใช้ซ้ำ</h3>'+x.reuse.map(function(p){return '<div class="pair"><b>'+esc(refName(p.ref))+'</b><div class="muted" style="font-size:12px">'+esc(p.why)+'</div></div>'}).join("");
   if(x.blended&&x.blended.length)h+='<h3 style="font-size:14px;margin-top:14px">ร่าง PLOs หลักสูตรผสมผสาน</h3>'+x.blended.map(function(p,i){return '<div class="pair"><b>B'+(i+1)+'. '+esc(p.th)+'</b><div class="muted" style="font-size:12px">'+esc(p.en||"")+'</div><div style="font-size:12px">ที่มา: '+esc((p.sources||[]).map(refName).join(", "))+' · '+esc(p.rationale||"")+'</div></div>'}).join("");
@@ -1260,7 +1323,11 @@ document.addEventListener("change",async function(ev){
     if(f==="decsel"||f==="decnote"){var st7=stu();if(st7){var dm=G.decDraft=G.decDraft||{},d7=decOf(st7.id),cur7=dm[st7.id]||(dm[st7.id]={decision:d7?d7.decision:"",note:d7?d7.note:""});cur7[f==="decsel"?"decision":"note"]=t.value}return}
     if(f==="comment"){var st=stu();if(st){myEval(st.id).comment=t.value;queueSave(st.id)}return}
     if(f==="expstu"){G.exp.stu=t.value;render();return}
-    if(f.indexOf("blend:")===0){G.blend[f.slice(6)]=t.checked;render();return}
+    if(f.indexOf("blend:")===0){G.blend[f.slice(6)]=t.checked;renderKeep();return}
+    if(f.indexOf("dz:")===0&&G.design){var z=f.split(":"),D=G.design;
+      if(z[1]==="name")D.name=t.value;else if(z[1]==="level")D.level=t.value;else if(z[1]==="fac")D.facId=t.value;
+      else if(z[1]==="on"){D.items[+z[2]].on=t.checked;renderKeep()}else if(z[1]==="th"||z[1]==="en")D.items[+z[2]][z[1]]=t.value;
+      return}
     if(f.indexOf("imode:")===0){G.importMode=f.slice(6);render();return}
     if(f==="autodraft"){G.autoDraft=t.checked;return}
     if(f.indexOf("pv:")===0){G.preview[+f.slice(3)].titleTh=t.value;return}
@@ -1386,14 +1453,27 @@ async function act(el){
       try{G.cross.cross=await call("aiCompare",crossStats(G.cross.programs.filter(function(p){return p.plos.length})))}catch(e3){fail(e3)}
       G.busy.x=false;render();
     }
-    else if(a==="mkblend"){
-      if(G.busy.blend||!G.items.length)return;G.busy.blend=true;render();
+    else if(a==="dzadd"&&G.design){G.design.items.push({on:true,theme:"เพิ่มเอง",th:"PLOs ใหม่",en:"",srcs:[],crit:null});renderKeep()}
+    else if(a==="dzai"&&G.design){var bl2=(G.cross.cross&&G.cross.cross.blended)||[];bl2.forEach(function(p){G.design.items.push({on:true,theme:"ร่างจาก AI",th:p.th,en:p.en||"",srcs:(p.sources||[]).map(refName),crit:null})});renderKeep();toast("เพิ่มร่าง PLOs จาก AI แล้ว "+bl2.length+" ข้อ")}
+    else if(a==="useidea"){
+      var idea=((G.cross.cross||{}).ideas||[])[+el.getAttribute("data-i")];if(!idea)return;
+      G.blend={};idea.sources.forEach(function(id){G.blend[id]=true});G.design=null;G.designName=idea.title;render();
+      var bs=document.getElementById("blend-sec");if(bs)bs.scrollIntoView();toast("เลือกหลักสูตรต้นทางตามไอเดียแล้ว ตรวจชุด PLOs ด้านล่าง");
+    }
+    else if(a==="dzsheet"&&G.design){
+      if(G.busy.dzsheet)return;G.busy.dzsheet=true;renderKeep();
+      try{var lk=await call("exportToSheet","ข้อเสนอหลักสูตร_"+G.design.name,designRows(G.design));G.busy.dzsheet=false;renderKeep();$("dzlink").innerHTML='<p><a href="'+esc(lk)+'" target="_blank" rel="noopener">เปิดชีตข้อเสนอหลักสูตร</a></p>';toast("ส่งข้อเสนอไปชีตแล้ว")}
+      catch(e14){G.busy.dzsheet=false;renderKeep();fail(e14)}
+    }
+    else if(a==="dzcreate"&&G.design){
+      var D2=G.design,on2=D2.items.filter(function(it){return it.on});
+      if(G.busy.blend||on2.length<2)return;if(!D2.name.trim()){toast("ตั้งชื่อหลักสูตรก่อน");return}
+      G.busy.blend=true;renderKeep();
       try{
-        var srcs=G.cross.programs.filter(function(p){return G.blend[p.id]});
-        var list=G.items.map(function(it,i){return {code:"PLO"+(i+1),titleTh:it.plo.th,textEn:cleanEn(it.plo.en),crit:it.plo.crit.map(function(c){return {name:c.name,bands:c.desc&&c.desc.length===5?c.desc:null}})}});
-        var nr=await call("createProgram",srcs[0].facultyId,"หลักสูตรผสม: "+srcs.map(function(p){return p.name}).join(" + "),"");
+        var list=on2.map(function(it,i){return {code:"PLO"+(i+1),titleTh:it.th,textEn:it.en||it.th,weight:100,crit:it.crit&&it.crit.length?it.crit:null}});
+        var nr=await call("createProgram",D2.facId,D2.name.trim(),D2.level);
         await call("importPlos",nr.id,list,"replace");
-        await refreshBoot();G.busy.blend=false;await openAdmin("plo",nr.id);toast("สร้างหลักสูตรใหม่แล้ว ตรวจและแก้ข้อความ PLOs ได้ที่นี่");
+        await refreshBoot();G.busy.blend=false;G.design=null;G.blend={};await openAdmin("items",nr.id);toast("สร้างหลักสูตรใหม่แล้ว ต่อด้วยสร้างหัวข้อการประเมินจาก PLOs ของหลักสูตรนี้");
       }catch(e4){G.busy.blend=false;render();fail(e4)}
     }
     else if(a==="fetchdoc"){
@@ -1450,7 +1530,7 @@ async function act(el){
       try{var rr=await call("addStudentList",pr.id,G.admin.roster.list);G.P=rr.program;G.admin.roster={text:"",list:null};await refreshBoot();toast("เพิ่ม "+rr.added+" คน"+(rr.skipped?" ข้ามที่ซ้ำ "+rr.skipped+" คน":""))}catch(e7){fail(e7)}
       G.busy.roster=false;render();
     }
-    else if(a==="blendpair"){G.blend={};G.blend[el.getAttribute("data-a")]=true;G.blend[el.getAttribute("data-b")]=true;render();var bl=document.getElementById("blend-sec");if(bl)bl.scrollIntoView()}
+    else if(a==="blendpair"){G.blend={};G.blend[el.getAttribute("data-a")]=true;G.blend[el.getAttribute("data-b")]=true;G.design=null;render();var bl=document.getElementById("blend-sec");if(bl)bl.scrollIntoView()}
     else if(a==="eqw"){pr.plos.forEach(function(p){p.weight=100});G.dirty=true;render()}
     else if(a==="addplo"){pr.plos.push({id:rid("l"),code:"PLO"+(pr.plos.length+1),th:"PLOs ใหม่",en:"",weight:100,crit:[{id:rid("c"),name:"เกณฑ์ที่ 1",desc:null},{id:rid("c"),name:"เกณฑ์ที่ 2",desc:null}]});G.dirty=true;render()}
     else if(a==="delplo"){if(pr.plos.length<=1){toast("ต้องมีอย่างน้อย 1 PLO");return}pr.plos.splice(+el.getAttribute("data-p"),1);G.dirty=true;render()}

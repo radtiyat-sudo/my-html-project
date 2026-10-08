@@ -910,6 +910,13 @@ function callClaude_(prompt, maxTokens, effort) {
   try { return JSON.parse(txt.slice(a, b + 1)); } catch (e2) { throw new Error('AI ตอบ JSON ไม่สมบูรณ์ ลองใหม่อีกครั้ง'); }
 }
 
+/** รันใน Editor หนึ่งครั้งหลังตั้ง ANTHROPIC_API_KEY เพื่ออนุญาตสิทธิ์เชื่อมต่อภายนอกและทดสอบว่า AI ใช้ได้ */
+function testAI() {
+  var r = callClaude_('ทดสอบการเชื่อมต่อ ตอบเป็น JSON เท่านั้น: {"ok":true,"msg":"พร้อมใช้งาน"}', 1000, 'low');
+  Logger.log('AI: ' + (r && r.msg ? r.msg : JSON.stringify(r)));
+  return r;
+}
+
 function norm100_(map, ids) {
   var raw = ids.map(function (id) { return Math.max(0, Number(map && map[id]) || 0); });
   var sum = raw.reduce(function (a, b) { return a + b; }, 0);
