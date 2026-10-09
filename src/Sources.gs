@@ -40,6 +40,7 @@ function apiKeysStatus_() {
 function saveApiKeys_(p) {
   requireRole_(['admin']);
   const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('LAST_KEY_TEST');
   API_KEY_NAMES.forEach(function (k) {
     if (p['clear_' + k]) props.deleteProperty(k);
     else if (String(p[k] || '').trim()) props.setProperty(k, String(p[k]).trim());
@@ -47,6 +48,9 @@ function saveApiKeys_(p) {
   audit_('api_keys', API_KEY_NAMES.filter(function (k) { return p[k] || p['clear_' + k]; }).join(','));
   return apiKeysStatus_();
 }
+
+/** ผลการทดสอบการเชื่อมต่อครั้งล่าสุด (แสดงในหน้าเว็บ) */
+function lastKeyTest_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_KEY_TEST') || 'null'); } catch (e) { return null; } }
 
 /** ทดสอบการเชื่อมต่อ Scopus / WoS ด้วย key ที่บันทึกไว้ */
 function testApiKeys_() {
@@ -74,6 +78,8 @@ function testApiKeys_() {
     } catch (e) { out.wos = { ok: false, message: e.message }; }
   }
   audit_('api_test', JSON.stringify({ scopus: out.scopus.ok, wos: out.wos.ok }));
+  out.ts = nowIso_();
+  PropertiesService.getScriptProperties().setProperty('LAST_KEY_TEST', JSON.stringify(out));
   return out;
 }
 
@@ -317,7 +323,7 @@ function searchAll_(p) {
   if (!String(p.nameEn || '').trim() && !String(p.nameTh || '').trim() && !p.scopusId && !p.orcid) throw new Error('กรุณากรอกชื่อภาษาไทยหรืออังกฤษ หรือ Scopus Author ID / ORCID');
   const win = evalWindow_(getSettings_());
   const fromCE = (Number(p.fromYear) || win.start) - 543;
-  const toCE = win.end - 543 + 1;
+  const toCE = Number(p.toYear) ? Number(p.toYear) - 543 : win.end - 543 + 1;
   const run = {
     scopus: function () { return searchScopus_(p, fromCE, toCE); },
     wos: function () { return searchWos_(p, fromCE, toCE); },

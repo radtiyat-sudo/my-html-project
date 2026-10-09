@@ -1083,6 +1083,13 @@ function bucketOf(w) {
   return 'none';
 }
 const SRC_NAME = { scopus: 'Scopus', wos: 'WoS', pubmed: 'PubMed', eric: 'ERIC' };
+function proofHtml(w) {
+  const badge = w.proof === 'record' ? '<span class="badge green">✓ ยืนยันจากฐานข้อมูลโดยตรง</span>'
+    : w.proof === 'journal' ? '<span class="badge blue">ยืนยันจากรายชื่อวารสาร (ISSN)</span>'
+    : '<span class="badge gray">ยังยืนยันไม่ได้ — ตรวจด้วยตนเอง</span>';
+  const links = (w.links || []).map(l => `<a class="badge ${l.kind === 'record' ? 'purple' : 'gray'}" style="text-decoration:none" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join(' ');
+  return `<div>${badge}</div>${links ? `<div class="chips mt-s">${links}</div>` : ''}`;
+}
 function statusPanel() {
   const modeBadge = m => m === 'direct' ? '<span class="badge green">ค้นโดยตรง</span>' : m === 'list' ? '<span class="badge amber">ตรวจผ่านรายชื่อ ISSN</span>' : m === 'error' ? '<span class="badge red">ผิดพลาด</span>' : '<span class="badge gray">ข้าม</span>';
   return `<div class="card"><div class="card-h"><h2>${ic('list')} ลำดับการค้นหา (ฐานใหญ่ก่อน)</h2></div><div class="table-wrap"><table class="t"><thead><tr><th class="c">ลำดับ</th><th>ฐานข้อมูล</th><th>วิธีค้น</th><th class="num">พบ</th><th>รายละเอียด</th></tr></thead><tbody>
@@ -1093,12 +1100,13 @@ function statusPanel() {
 }
 function workRow(w, i) {
   return `<tr><td><input type="checkbox" class="disc-sel" data-i="${i}" ${D.sel.has(i) ? 'checked' : ''} ${w.duplicate ? 'disabled' : ''}></td>
-    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}${w.scopusUrl ? ` · <a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดใน Scopus ↗</a>` : ''}${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</div>
+    <td style="min-width:260px"><div class="title">${esc(w.title)}</div><div class="sub">${esc(w.journal)}${w.doi ? ` · <a href="https://doi.org/${esc(w.doi)}" target="_blank">DOI</a>` : ''}</div>
       ${w.authors && w.authors.length ? `<div class="sub">${esc(w.authors.slice(0, 5).join(', '))}${w.authors.length > 5 ? ' …' : ''}</div>` : ''}
       <div class="chips mt-s">${(w.foundIn || []).map(k => `<span class="badge blue">พบใน ${esc(SRC_NAME[k] || k)}</span>`).join('')}<span class="badge gray">ที่มา: ${esc((w.origins || [w.origin]).join(', '))}</span>${w.duplicate ? '<span class="badge teal">มีในระบบแล้ว</span>' : ''}</div></td>
     <td><b>${w.year || '—'}</b><div>${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</div></td>
     <td>${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : groupBadge(w)}${w.confidence === 'medium' ? ' <span class="badge amber">ควรตรวจซ้ำ</span>' : ''}${w.type === 'journal' && w.database !== 'none' && (w.foundIn || []).indexOf(w.database) === -1 ? ' <span class="badge gray">ยืนยันจากรายชื่อ ISSN</span>' : ''}
-      <details class="small muted" style="margin-top:6px"><summary style="cursor:pointer">หลักฐาน (${(w.evidence || []).length})</summary><ul style="margin:4px 0 0;padding-left:16px">${(w.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul></details></td>
+      <details class="small muted" style="margin-top:6px"><summary style="cursor:pointer">รายละเอียดการตรวจ (${(w.evidence || []).length})</summary><ul style="margin:4px 0 0;padding-left:16px">${(w.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul></details></td>
+    <td style="min-width:220px">${proofHtml(w)}</td>
     <td class="num"><b>${fmt2(w.weight)}</b></td></tr>`;
 }
 
@@ -1118,7 +1126,7 @@ function discoverResults() {
     if (!n) html += `<div class="card-b small muted">ไม่พบผลงานในกลุ่มนี้</div>`;
     subs.filter(sb => sb.rows.length).forEach(sb => {
       html += `<div class="toolbar" style="background:var(--surface-2)"><b>${esc(sb.label)}</b><span class="badge gray">${sb.rows.length} รายการ</span></div>
-        <div class="table-wrap"><table class="t"><thead><tr><th></th><th>ผลงาน</th><th>ปี</th><th>ผลการตรวจตามประกาศ</th><th class="num">น้ำหนัก</th></tr></thead><tbody>${sb.rows.map(x => workRow(x.w, x.i)).join('')}</tbody></table></div>`;
+        <div class="table-wrap"><table class="t"><thead><tr><th></th><th>ผลงาน</th><th>ปี</th><th>ผลการตรวจตามประกาศ</th><th>ลิงก์ยืนยันในฐานข้อมูล</th><th class="num">น้ำหนัก</th></tr></thead><tbody>${sb.rows.map(x => workRow(x.w, x.i)).join('')}</tbody></table></div>`;
     });
     html += `</div>`;
   });
@@ -1153,7 +1161,7 @@ function discoverDocResult() {
     <dt>ชื่อบทความ</dt><dd>${esc(w.title || '—')}</dd><dt>วารสาร/แหล่ง</dt><dd>${esc(w.journal || '—')}${w.publisher ? '<br><span class="small muted">' + esc(w.publisher) + '</span>' : ''}</dd>
     <dt>ปีที่พิมพ์</dt><dd>${w.year ? w.year + ' (ค.ศ. ' + w.yearCE + ')' : '—'} ${w.expired ? '<span class="badge red">เกิน 5 ปี</span>' : ''}</dd>
     <dt>ISSN</dt><dd>${esc((w.issns || []).join(', ') || '—')}</dd><dt>DOI</dt><dd>${w.doi ? `<a href="https://doi.org/${esc(w.doi)}" target="_blank">${esc(w.doi)}</a>` : '—'}</dd>
-    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd>${w.scopusUrl ? `<dt>Scopus</dt><dd><a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดบทความใน Scopus ↗</a>${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</dd>` : ''}<dt>ผลการตรวจ</dt><dd>${groupBadge(w)} ${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : ''}</dd></dl>
+    <dt>ผู้แต่ง</dt><dd>${esc((w.authors || []).join(', ') || '—')}</dd>${w.scopusUrl ? `<dt>Scopus</dt><dd><a href="${esc(w.scopusUrl)}" target="_blank" rel="noopener">เปิดบทความใน Scopus ↗</a>${w.scopusSourceUrl ? ` · <a href="${esc(w.scopusSourceUrl)}" target="_blank" rel="noopener">วารสารใน Scopus ↗</a>` : ''}</dd>` : ''}<dt>ผลการตรวจ</dt><dd>${groupBadge(w)} ${w.type === 'journal' && w.database !== 'none' ? dbBadge(w) : ''}</dd><dt>ลิงก์ยืนยัน</dt><dd>${proofHtml(w)}</dd></dl>
     <h3 class="mt" style="font-size:14px">หลักฐาน</h3><ul class="small" style="margin:6px 0 0;padding-left:18px">${(w.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul></div></div>
   <div class="card"><div class="card-h"><h3>${ic('save')} บันทึกเป็นผลงาน</h3></div><div class="card-b stack" style="gap:12px">
     ${r.owners && r.owners.length ? `<div class="small">ผู้แต่งที่ตรงกับรายชื่อในระบบ: ${r.owners.map(o => `<b>${esc(o.name)}</b>`).join(', ')}</div>` : '<div class="small muted">ไม่พบชื่อผู้แต่งที่ตรงกับรายชื่อในระบบ</div>'}
@@ -1303,7 +1311,12 @@ const DISC_ACT = {
     const r = await call('clearJournalIndex', { database: db || '' }); D.stats = r.stats; toast('ลบแล้ว ' + r.removed + ' รายการ', 'ok'); render();
   }),
   'discover-person': el => openDiscoverFor(el.dataset.type, el.dataset.id),
-  'key-save': () => run(async () => { D.keys = await call('saveApiKeys', readForm($('#key-form'))); D.keyTest = null; toast('บันทึก API key แล้ว — กด “ทดสอบการเชื่อมต่อ” เพื่อตรวจ', 'ok'); render(); }),
+  'key-save': () => run(async () => {
+    D.keys = await call('saveApiKeys', readForm($('#key-form')));
+    toast('บันทึกแล้ว — กำลังทดสอบการเชื่อมต่อ…');
+    D.keyTest = await call('testApiKeys'); render();
+    toast(D.keyTest.scopus.ok ? 'Scopus เชื่อมต่อได้ ✓' : 'Scopus เชื่อมต่อไม่ได้ — ดูรายละเอียดในกล่องสีเหลือง', D.keyTest.scopus.ok ? 'ok' : 'err');
+  }),
   'key-test': () => run(async () => { toast('กำลังทดสอบการเชื่อมต่อ…'); D.keyTest = await call('testApiKeys'); render(); }),
   'key-clear': el => run(async () => { if (!await confirmBox('ลบ API key', 'ลบ ' + el.dataset.k + ' ?', 'ลบ', true)) return; D.keys = await call('saveApiKeys', { ['clear_' + el.dataset.k]: true }); toast('ลบแล้ว', 'ok'); render(); })
 };

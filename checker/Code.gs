@@ -1024,13 +1024,43 @@ function finishWorks_(list, person) {
   }).map(function (w) {
     const c = classify_(w);
     const year = w.yearCE ? w.yearCE + 543 : 0;
+    const v = verifyLinks_(w, c);
     return Object.assign({}, w, c, {
-      year: year,
+      year: year, links: v.links, proof: v.proof,
       inWindow: year >= win.start && year <= win.end,
       expired: year > 0 && year < win.start,
       duplicate: !!((w.doi && doiSet[w.doi]) || (normTitle_(w.title) && titleSet[normTitle_(w.title)]))
     });
   }).sort(function (a, b) { return b.year - a.year; });
+}
+
+/**
+ * ลิงก์ยืนยันว่าผลงาน/วารสารอยู่ในฐานตามประกาศจริง
+ * proof: 'record'  = พบตัวบทความในฐานที่จัดกลุ่มโดยตรง
+ *        'journal' = ยืนยันจากรายชื่อวารสาร (ISSN) เท่านั้น
+ *        ''        = ยังยืนยันไม่ได้
+ */
+function verifyLinks_(w, c) {
+  const d = w.direct || {};
+  const issn = (w.issns || []).map(normIssn_).filter(String)[0] || '';
+  const fi = fmtIssn_(issn);
+  const L = [];
+  const add = function (db, kind, label, url) { if (url && !L.some(function (x) { return x.url === url; })) L.push({ db: db, kind: kind, label: label, url: url }); };
+  if (d.scopus) add('scopus', 'record', 'บทความใน Scopus', scopusRecordUrl_(d.scopus.eid));
+  if (d.scopus && d.scopus.serial && d.scopus.serial.url) add('scopus', 'journal', 'วารสารใน Scopus', d.scopus.serial.url);
+  if (d.wos) add('wos', 'record', 'บทความใน Web of Science', 'https://www.webofscience.com/wos/woscc/full-record/' + encodeURIComponent(d.wos.uid));
+  if ((d.wos || c.database === 'wos') && fi) add('wos', 'journal', 'ตรวจ SCIE/SSCI/AHCI (Master Journal List)', 'https://mjl.clarivate.com/search-results?issn=' + fi);
+  const pmid = w.pmid || (d.pubmed && d.pubmed.pmid);
+  if (pmid) add('pubmed', 'record', 'บทความใน PubMed', 'https://pubmed.ncbi.nlm.nih.gov/' + pmid + '/');
+  if (d.eric) add('eric', 'record', 'บทความใน ERIC', 'https://eric.ed.gov/?id=' + encodeURIComponent(d.eric.id));
+  if ((c.database === 'scopus' || d.scopus) && issn) add('scopus', 'journal', 'Quartile ที่ SCImago (SJR)', 'https://www.scimagojr.com/journalsearch.php?q=' + issn);
+  if (/^tci/.test(c.database) && fi) add(c.database, 'journal', 'ตรวจกลุ่มวารสาร TCI (ค้นด้วย ISSN ' + fi + ')', 'https://tci-thailand.org/');
+  if (w.doi) add('doi', 'record', 'DOI', 'https://doi.org/' + w.doi);
+  let proof = '';
+  if (c.database && c.database !== 'none' && L.some(function (x) { return x.db === c.database && x.kind === 'record'; })) proof = 'record';
+  else if (c.database && c.database !== 'none' && c.confidence !== 'unknown') proof = 'journal';
+  else if (c.type !== 'journal' && L.some(function (x) { return x.kind === 'record' && ['scopus', 'wos', 'pubmed', 'eric'].indexOf(x.db) > -1; })) proof = 'record';
+  return { links: L, proof: proof };
 }
 
 /* ---------------- Actions ---------------- */
@@ -1267,6 +1297,7 @@ function apiKeysStatus_() {
 function saveApiKeys_(p) {
   requireRole_(['admin']);
   const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('LAST_KEY_TEST');
   API_KEY_NAMES.forEach(function (k) {
     if (p['clear_' + k]) props.deleteProperty(k);
     else if (String(p[k] || '').trim()) props.setProperty(k, String(p[k]).trim());
@@ -1274,6 +1305,9 @@ function saveApiKeys_(p) {
   audit_('api_keys', API_KEY_NAMES.filter(function (k) { return p[k] || p['clear_' + k]; }).join(','));
   return apiKeysStatus_();
 }
+
+/** ผลการทดสอบการเชื่อมต่อครั้งล่าสุด (แสดงในหน้าเว็บ) */
+function lastKeyTest_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_KEY_TEST') || 'null'); } catch (e) { return null; } }
 
 /** ทดสอบการเชื่อมต่อ Scopus / WoS ด้วย key ที่บันทึกไว้ */
 function testApiKeys_() {
@@ -1301,6 +1335,8 @@ function testApiKeys_() {
     } catch (e) { out.wos = { ok: false, message: e.message }; }
   }
   audit_('api_test', JSON.stringify({ scopus: out.scopus.ok, wos: out.wos.ok }));
+  out.ts = nowIso_();
+  PropertiesService.getScriptProperties().setProperty('LAST_KEY_TEST', JSON.stringify(out));
   return out;
 }
 
@@ -1544,7 +1580,7 @@ function searchAll_(p) {
   if (!String(p.nameEn || '').trim() && !String(p.nameTh || '').trim() && !p.scopusId && !p.orcid) throw new Error('กรุณากรอกชื่อภาษาไทยหรืออังกฤษ หรือ Scopus Author ID / ORCID');
   const win = evalWindow_(getSettings_());
   const fromCE = (Number(p.fromYear) || win.start) - 543;
-  const toCE = win.end - 543 + 1;
+  const toCE = Number(p.toYear) ? Number(p.toYear) - 543 : win.end - 543 + 1;
   const run = {
     scopus: function () { return searchScopus_(p, fromCE, toCE); },
     wos: function () { return searchWos_(p, fromCE, toCE); },
@@ -1612,8 +1648,8 @@ function directChecksByDoi_(doi) {
 /* ---- ปรับโครงสร้างตารางสำหรับเว็บแอปนี้ (ไม่ใช้ตารางของระบบหลัก) ---- */
 ['Users', 'Curricula', 'Faculty', 'Experts', 'Publications', 'Assessments'].forEach(function (t) { delete TABLES[t]; });
 TABLES.CheckLog = ['ts', 'requester', 'email', 'org', 'nameTh', 'nameEn', 'scopusId', 'orcid', 'fromYear', 'total', 'intl', 'nat', 'other', 'unknown', 'sources'];
-TABLES.CheckResults = ['ts', 'batch', 'requester', 'email', 'org', 'personTh', 'personEn', 'title', 'journal', 'year', 'type', 'database', 'quartile', 'groupLabel', 'weight', 'foundIn', 'origins', 'doi', 'url', 'evidence'];
-APP.schemaVersion = 101;
+TABLES.CheckResults = ['ts', 'batch', 'requester', 'email', 'org', 'personTh', 'personEn', 'title', 'journal', 'year', 'type', 'database', 'quartile', 'groupLabel', 'weight', 'foundIn', 'origins', 'doi', 'url', 'evidence', 'proof', 'links'];
+APP.schemaVersion = 102;
 APP.checkerName = 'ระบบตรวจผลงานวิชาการอัตโนมัติ';
 
 let CHECKER_ADMIN_ = false;
@@ -1686,13 +1722,13 @@ const CHECKER_ACTIONS_ = {
     ['SCOPUS_API_KEY', 'WOS_API_KEY'].forEach(function (k) { keys[k] = !!apiKey_(k); });
     return {
       databases: DATABASES, pubTypes: PUB_TYPES, window: evalWindow_(getSettings_()), keys: keys,
-      journalIndex: journalIndexStats_(), org: getSettings_().ORG_NAME || APP.org, admin: CHECKER_ADMIN_
+      journalIndex: journalIndexStats_(), org: getSettings_().ORG_NAME || APP.org, admin: CHECKER_ADMIN_, keyTest: lastKeyTest_(), currentBE: currentBE_()
     };
   },
 
   search: function (p) {
     throttle_();
-    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear });
+    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear, toYear: p.toYear });
     const s = r.summary;
     try {
       DB.insert('CheckLog', { ts: nowIso_(), requester: String(p.requester || '').slice(0, 120), email: String(p.email || '').slice(0, 120), org: String(p.org || '').slice(0, 120),
@@ -1723,7 +1759,9 @@ const CHECKER_ACTIONS_ = {
         year: w.year || '', type: (PUB_TYPES[w.type] || {}).label || w.type, database: (DATABASES[w.database] || {}).label || w.database,
         quartile: w.quartile || '', groupLabel: w.type !== 'journal' ? 'ผลงานประเภทอื่น' : (GROUP_LABEL_[w.group] || 'ไม่อยู่ในฐานตามประกาศ/ยังระบุไม่ได้'),
         weight: w.weight, foundIn: [].concat(w.foundIn || []).join(', '), origins: [].concat(w.origins || []).join(', '),
-        doi: w.doi || '', url: w.url || '', evidence: [].concat(w.evidence || []).join(' / ').slice(0, 1500) };
+        doi: w.doi || '', url: w.url || '', evidence: [].concat(w.evidence || []).join(' / ').slice(0, 1500),
+        proof: w.proof === 'record' ? 'ยืนยันจากฐานข้อมูลโดยตรง' : w.proof === 'journal' ? 'ยืนยันจากรายชื่อวารสาร' : 'ยังยืนยันไม่ได้',
+        links: [].concat(w.links || []).map(function (l) { return l.label + ': ' + l.url; }).join(' | ').slice(0, 1500) };
     }));
     return { batch: batch, count: works.length };
   },

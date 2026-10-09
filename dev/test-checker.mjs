@@ -32,12 +32,16 @@ t('admin can save keys and import journal list', () => {
   const r = api('importJournals', { token, database: 'scopus', source: 'SJR', rows: [{ title: 'APS', issns: ['1744-1730'], quartile: 'Q2' }] });
   assert.equal(r.data.added, 1);
   assert.equal(api('testKeys', { token }).data.scopus.ok, true);
+  assert.equal(api('meta', {}).data.keyTest.scopus.ok, true, 'public page sees last test result');
 });
 t('public search: Scopus first, logged to CheckLog', () => {
-  const r = api('search', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: 2563, requester: 'ทดสอบ', org: 'หลักสูตรทดสอบ' });
+  const r = api('search', { nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', fromYear: 2560, toYear: 2570, requester: 'ทดสอบ', org: 'หลักสูตรทดสอบ' });
   assert.equal(r.ok, true, r.error);
   assert.equal(r.data.status[0].key, 'scopus'); assert.equal(r.data.status[0].mode, 'direct');
   const w = r.data.works.find(x => x.title.startsWith('Fertility')); assert.equal(w.database, 'scopus'); assert.equal(w.quartile, 'Q2');
+  assert.equal(w.proof, 'record'); assert.ok(w.links.some(l => /scopus\.com\/record/.test(l.url))); assert.ok(w.links.some(l => /scimagojr/.test(l.url)));
+  const pm = r.data.works.find(x => x.title.startsWith('Diabetes')); assert.equal(pm.proof, 'record'); assert.ok(pm.links.some(l => /pubmed\.ncbi/.test(l.url)));
+  const unk = r.data.works.find(x => x.title.startsWith('Household')); assert.equal(unk.proof, '');
   const sum = api('adminSummary', { token }).data; assert.equal(sum.searches, 1); assert.equal(sum.recent[0].requester, 'ทดสอบ');
   const sub = api('submit', { requester: 'ทดสอบ', nameEn: 'Napa Tuayangdee', works: r.data.works.slice(0, 3) });
   assert.equal(sub.data.count, 3);

@@ -11,8 +11,8 @@
 /* ---- ปรับโครงสร้างตารางสำหรับเว็บแอปนี้ (ไม่ใช้ตารางของระบบหลัก) ---- */
 ['Users', 'Curricula', 'Faculty', 'Experts', 'Publications', 'Assessments'].forEach(function (t) { delete TABLES[t]; });
 TABLES.CheckLog = ['ts', 'requester', 'email', 'org', 'nameTh', 'nameEn', 'scopusId', 'orcid', 'fromYear', 'total', 'intl', 'nat', 'other', 'unknown', 'sources'];
-TABLES.CheckResults = ['ts', 'batch', 'requester', 'email', 'org', 'personTh', 'personEn', 'title', 'journal', 'year', 'type', 'database', 'quartile', 'groupLabel', 'weight', 'foundIn', 'origins', 'doi', 'url', 'evidence'];
-APP.schemaVersion = 101;
+TABLES.CheckResults = ['ts', 'batch', 'requester', 'email', 'org', 'personTh', 'personEn', 'title', 'journal', 'year', 'type', 'database', 'quartile', 'groupLabel', 'weight', 'foundIn', 'origins', 'doi', 'url', 'evidence', 'proof', 'links'];
+APP.schemaVersion = 102;
 APP.checkerName = 'ระบบตรวจผลงานวิชาการอัตโนมัติ';
 
 let CHECKER_ADMIN_ = false;
@@ -85,13 +85,13 @@ const CHECKER_ACTIONS_ = {
     ['SCOPUS_API_KEY', 'WOS_API_KEY'].forEach(function (k) { keys[k] = !!apiKey_(k); });
     return {
       databases: DATABASES, pubTypes: PUB_TYPES, window: evalWindow_(getSettings_()), keys: keys,
-      journalIndex: journalIndexStats_(), org: getSettings_().ORG_NAME || APP.org, admin: CHECKER_ADMIN_
+      journalIndex: journalIndexStats_(), org: getSettings_().ORG_NAME || APP.org, admin: CHECKER_ADMIN_, keyTest: lastKeyTest_(), currentBE: currentBE_()
     };
   },
 
   search: function (p) {
     throttle_();
-    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear });
+    const r = searchAll_({ nameTh: p.nameTh, nameEn: p.nameEn, scopusId: p.scopusId, orcid: p.orcid, affil: p.affil, openalexId: p.openalexId, fromYear: p.fromYear, toYear: p.toYear });
     const s = r.summary;
     try {
       DB.insert('CheckLog', { ts: nowIso_(), requester: String(p.requester || '').slice(0, 120), email: String(p.email || '').slice(0, 120), org: String(p.org || '').slice(0, 120),
@@ -122,7 +122,9 @@ const CHECKER_ACTIONS_ = {
         year: w.year || '', type: (PUB_TYPES[w.type] || {}).label || w.type, database: (DATABASES[w.database] || {}).label || w.database,
         quartile: w.quartile || '', groupLabel: w.type !== 'journal' ? 'ผลงานประเภทอื่น' : (GROUP_LABEL_[w.group] || 'ไม่อยู่ในฐานตามประกาศ/ยังระบุไม่ได้'),
         weight: w.weight, foundIn: [].concat(w.foundIn || []).join(', '), origins: [].concat(w.origins || []).join(', '),
-        doi: w.doi || '', url: w.url || '', evidence: [].concat(w.evidence || []).join(' / ').slice(0, 1500) };
+        doi: w.doi || '', url: w.url || '', evidence: [].concat(w.evidence || []).join(' / ').slice(0, 1500),
+        proof: w.proof === 'record' ? 'ยืนยันจากฐานข้อมูลโดยตรง' : w.proof === 'journal' ? 'ยืนยันจากรายชื่อวารสาร' : 'ยังยืนยันไม่ได้',
+        links: [].concat(w.links || []).map(function (l) { return l.label + ': ' + l.url; }).join(' | ').slice(0, 1500) };
     }));
     return { batch: batch, count: works.length };
   },
