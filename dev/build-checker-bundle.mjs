@@ -46,7 +46,7 @@ for (const [name, text] of [['Index.html', index], ['Code.gs', code]]) {
 }
 const manifest = {
   timeZone: 'Asia/Bangkok', dependencies: {}, exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8',
-  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/script.external_request'],
+  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/script.external_request', 'https://www.googleapis.com/auth/userinfo.email'],
   webapp: { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' }
 };
 mkdirSync(join(root, 'checker'), { recursive: true });

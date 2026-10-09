@@ -830,7 +830,8 @@ function httpJson_(url, extraHeaders) {
   const key = 'h' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url)).slice(0, 22);
   const hit = cache.get(key);
   if (hit) return JSON.parse(hit);
-  const mail = getSettings_().OPENALEX_MAILTO || Session.getEffectiveUser().getEmail() || '';
+  let mail = getSettings_().OPENALEX_MAILTO || '';
+  if (!mail) { try { mail = Session.getEffectiveUser().getEmail() || ''; } catch (e) { mail = ''; } } // ไม่มีสิทธิ์อ่านอีเมล → ค้นต่อได้โดยไม่ใส่อีเมล
   const full = url + (mail && url.indexOf(OPENALEX) === 0 ? (url.indexOf('?') > -1 ? '&' : '?') + 'mailto=' + encodeURIComponent(mail) : '');
   const headers = Object.assign({ 'User-Agent': 'MUGR-Academic-Tracker (Apps Script; mailto:' + mail + ')' }, extraHeaders || {});
   const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: headers });

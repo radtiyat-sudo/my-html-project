@@ -48,5 +48,13 @@ t('public search: Scopus first, logged to CheckLog', () => {
   assert.equal(api('adminSummary', { token }).data.submitted, 3);
   assert.equal(api('submit', { works: r.data.works.slice(0, 1) }).ok, false, 'requester required');
 });
+t('search still works when the email scope is missing', () => {
+  vm.runInContext("Session.getEffectiveUser = function () { throw new Error('You do not have permission to call Session.getEffectiveUser'); }; for (const k in __g) {}", ctx);
+  vm.runInContext("CacheService.getScriptCache().put = function () {}; CacheService.getScriptCache().get = function () { return null; };", ctx);
+  const r = api('search', { nameEn: 'Somsak Riandee', fromYear: 2560, toYear: 2570 });
+  assert.equal(r.ok, true, r.error);
+  assert.ok(r.data.status.every(s => s.mode !== 'error'), JSON.stringify(r.data.status.filter(s => s.mode === 'error')));
+  assert.ok(r.data.works.length > 0);
+});
 t('public analyze DOI', () => { const r = api('analyze', { text: 'doi 10.9999/w1' }); assert.equal(r.data.found, true); assert.equal(r.data.work.foundIn[0], 'scopus'); assert.equal(r.data.owners, undefined); });
 console.log(`\n${n} checker tests passed`);
