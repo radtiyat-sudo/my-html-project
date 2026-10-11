@@ -15,12 +15,13 @@ var SCHEMA = {
   Faculties: ['facultyId', 'name', 'order'],
   // evalMode = 'plo' (แบบเดิม: เกณฑ์ราย PLO) หรือ 'items' (หัวข้อการสอบวิทยานิพนธ์ที่เชื่อมหลาย PLO)
   // openStatus = สถานะการเปิดรับ (open|paused|closed|new), planIntake = แผนรับนักศึกษาต่อปี
-  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target', 'evalMode', 'openStatus', 'planIntake'],
+  Programs: ['programId', 'facultyId', 'name', 'level', 'status', 'source', 'ploPass', 'overall', 'fraction', 'target', 'evalMode', 'openStatus', 'planIntake', 'pilot'],
   PLOs: ['programId', 'ploId', 'code', 'titleTh', 'textEn', 'weight', 'order'],
   // d1-d4 = คำอธิบายระดับแบบเก่า (1-4); bA-bE = คำอธิบาย 5 ช่วงคะแนนแบบใหม่ (A 9-10, B 7-8, C 5-6, D 3-4, E 0-2)
   Criteria: ['programId', 'ploId', 'critId', 'name', 'd1', 'd2', 'd3', 'd4', 'order', 'bA', 'bB', 'bC', 'bD', 'bE'],
   // workType = thesis (วิทยานิพนธ์) | thematic (สารนิพนธ์) | is (การค้นคว้าอิสระ), intakeYear = ปีที่เข้า (พ.ศ.), stage = ขั้นความคืบหน้า, examDate = วันสอบ
-  Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code', 'workType', 'intakeYear', 'stage', 'examDate'],
+  // chairEmail / memberEmails / advisorEmail = คณะกรรมการสอบที่แต่งตั้ง (อาจารย์เห็นงานของตัวเองทันทีเมื่อล็อกอิน), docUrl = ลิงก์เล่ม/เอกสาร
+  Students: ['studentId', 'programId', 'name', 'topic', 'advisor', 'sample', 'code', 'workType', 'intakeYear', 'stage', 'examDate', 'chairEmail', 'memberEmails', 'advisorEmail', 'docUrl'],
   // Evals = หนึ่งแถวต่อกรรมการต่อนักศึกษา (ความเห็น); คะแนนรายเกณฑ์อยู่ในชีต Scores (อ่านง่าย 1 แถวต่อ 1 เกณฑ์)
   // role = บทบาทของผู้ประเมินในการสอบนักศึกษาคนนี้: chair (ประธานสอบ) | member (กรรมการสอบ) | advisor (อาจารย์ที่ปรึกษา)
   Evals: ['evalKey', 'programId', 'studentId', 'email', 'name', 'scoresJson', 'comment', 'updatedAt', 'role'],
@@ -251,11 +252,39 @@ function me_() {
   if (email && email === owner) role = 'admin';
   if (ROLES_.concat(['viewer']).indexOf(role) < 0) role = 'viewer';
   var progs = (role === 'chair' || role === 'faculty' || role === 'curriculum') ? parsePrograms_(u && u.programs) : ['*'];
-  return { email: email || 'anonymous', name: (found && s_(found.name)) || email || 'ผู้ใช้ที่ไม่ระบุตัวตน', role: role, programs: progs };
+  // กรรมการสอบที่ได้รับแต่งตั้ง: เห็นและประเมินนักศึกษาที่ตนเป็นกรรมการได้ แม้ไม่ได้อยู่ในรายชื่อผู้ใช้
+  var assigned = email ? assignmentsOf_(email, readAll_('Students')) : [];
+  if (role === 'viewer' && assigned.length) { role = 'faculty'; progs = []; }
+  return { email: email || 'anonymous', name: (found && s_(found.name)) || email || 'ผู้ใช้ที่ไม่ระบุตัวตน', role: role, programs: progs, assigned: assigned };
 }
 
+function emailsOf_(v) { return s_(v).toLowerCase().split(/[,;\s]+/).filter(function (e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); }); }
+
+/** นักศึกษาที่อีเมลนี้เป็นกรรมการสอบ: [{sid, pid, role}] (role: chair > advisor > member) */
+function assignmentsOf_(email, students) {
+  var out = [];
+  students.forEach(function (s) {
+    var r = '';
+    if (s_(s.chairEmail).toLowerCase() === email) r = 'chair';
+    else if (s_(s.advisorEmail).toLowerCase() === email) r = 'advisor';
+    else if (emailsOf_(s.memberEmails).indexOf(email) >= 0) r = 'member';
+    if (r) out.push({ sid: s_(s.studentId), pid: s_(s.programId), role: r });
+  });
+  return out;
+}
+function assignedRole_(me, sid) { var a = (me.assigned || []).filter(function (x) { return x.sid === s_(sid); })[0]; return a ? a.role : ''; }
+
 function inScope_(me, pid) {
-  return me.programs.indexOf('*') >= 0 || me.programs.indexOf(s_(pid)) >= 0;
+  return me.programs.indexOf('*') >= 0 || me.programs.indexOf(s_(pid)) >= 0 || (me.assigned || []).some(function (a) { return a.pid === s_(pid); });
+}
+
+/** สิทธิ์ให้คะแนนนักศึกษาคนนี้: กรรมการที่แต่งตั้ง หรือบทบาทที่ให้คะแนนได้ในหลักสูตรที่รับผิดชอบ */
+function needScore_(pid, sid) {
+  var me = me_();
+  if (assignedRole_(me, sid)) return me;
+  if (SCORE_ROLES_.indexOf(me.role) < 0) throw new Error('บัญชีนี้ไม่มีสิทธิ์ให้คะแนน (บทบาท: ' + me.role + ')');
+  if (!inScope_(me, pid)) throw new Error('หลักสูตรนี้ไม่ได้อยู่ในความรับผิดชอบของบัญชีนี้');
+  return me;
 }
 
 function need_(roles) {
@@ -434,7 +463,7 @@ function buildProgram_(pr, S) {
   return {
     id: pid, facultyId: s_(pr.facultyId), facultyName: S.fac[s_(pr.facultyId)] || '', name: s_(pr.name), level: s_(pr.level), status: s_(pr.status), source: s_(pr.source),
     set: { ploPass: num_(pr.ploPass, 60), overall: num_(pr.overall, 70), fraction: num_(pr.fraction, 100), target: num_(pr.target, 80), evalMode: s_(pr.evalMode) === 'items' ? 'items' : 'plo',
-      openStatus: OPEN_STATUS_.indexOf(s_(pr.openStatus)) >= 0 ? s_(pr.openStatus) : 'open', planIntake: num_(pr.planIntake, 0) },
+      openStatus: OPEN_STATUS_.indexOf(s_(pr.openStatus)) >= 0 ? s_(pr.openStatus) : 'open', planIntake: num_(pr.planIntake, 0), pilot: isSample_(pr.pilot) },
     items: items.map(function (it) {
       return { id: s_(it.itemId), name: s_(it.name), detail: s_(it.detail), plos: matchCodes_(s_(it.plos).split(','), codes), desc: bandDesc_(it), stdId: s_(it.stdId) };
     }),
@@ -461,7 +490,8 @@ function stuOut_(s) {
   return {
     id: s_(s.studentId), code: s_(s.code), name: s_(s.name), topic: s_(s.topic), advisor: s_(s.advisor), sample: isSample_(s.sample),
     workType: WORK_TYPES_.indexOf(s_(s.workType)) >= 0 ? s_(s.workType) : 'thesis', intakeYear: s_(s.intakeYear),
-    stage: STAGES_.indexOf(s_(s.stage)) >= 0 ? s_(s.stage) : 'research', examDate: s_(d)
+    stage: STAGES_.indexOf(s_(s.stage)) >= 0 ? s_(s.stage) : 'research', examDate: s_(d),
+    chairEmail: s_(s.chairEmail).toLowerCase(), memberEmails: emailsOf_(s.memberEmails), advisorEmail: s_(s.advisorEmail).toLowerCase(), docUrl: s_(s.docUrl)
   };
 }
 
@@ -472,6 +502,9 @@ function cleanStuField_(k, v) {
   if (k === 'stage') return STAGES_.indexOf(v) >= 0 ? v : 'research';
   if (k === 'intakeYear') { var y = v.replace(/[^0-9]/g, ''); if (y.length === 2) y = '25' + y; return y.slice(0, 4); }
   if (k === 'examDate') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? "'" + v : '';
+  if (k === 'chairEmail' || k === 'advisorEmail') { var e = emailsOf_(v)[0] || ''; if (v && !e) throw new Error('อีเมลไม่ถูกต้อง: ' + v); return e; }
+  if (k === 'memberEmails') return emailsOf_(v).join(',');
+  if (k === 'docUrl') { if (v && !/^https?:\/\//i.test(v)) throw new Error('ลิงก์เอกสารต้องขึ้นต้นด้วย http:// หรือ https://'); return v.slice(0, 500); }
   return v;
 }
 
@@ -559,6 +592,30 @@ function getProgram(pid) {
     try { prog.ai[s_(a.studentId)] = JSON.parse(s_(a.resultJson)); } catch (x) { }
   });
   return prog;
+}
+
+/**
+ * งานประเมินของฉัน: นักศึกษาที่ผู้ใช้เป็นกรรมการสอบ พร้อมความคืบหน้าการให้คะแนนของตนเอง
+ * อาจารย์ล็อกอินแล้วเห็นรายการนี้ทันที กดเข้าไปให้คะแนนได้เลย
+ */
+function getMyTasks() {
+  var me = me_();
+  if (!me.assigned.length) return { tasks: [] };
+  var S = progSheets_(), progs = {}, decs = {}, mine = {};
+  readAll_('Programs').forEach(function (p) { progs[s_(p.programId)] = p; });
+  readAll_('Decisions').forEach(function (d) { decs[s_(d.studentId)] = s_(d.decision); });
+  readAll_('Scores').forEach(function (r) { var k = s_(r.evalKey); if (k.slice(-(me.email.length + 1)) === '|' + me.email) (mine[k] = mine[k] || {})[s_(r.critId)] = true; });
+  var stu = {}; readAll_('Students').forEach(function (s) { stu[s_(s.studentId)] = s; });
+  var built = {};
+  return {
+    tasks: me.assigned.filter(function (a) { return stu[a.sid] && progs[a.pid]; }).map(function (a) {
+      var pr = built[a.pid] || (built[a.pid] = buildProgram_(progs[a.pid], S));
+      var units = (pr.set.evalMode === 'items' && pr.items.length) ? pr.items : [].concat.apply([], pr.plos.map(function (p) { return p.crit; }));
+      var got = mine[a.sid + '|' + me.email] || {};
+      return { programId: a.pid, programName: pr.name, facultyName: pr.facultyName, role: a.role, student: stuOut_(stu[a.sid]),
+        done: units.filter(function (u) { return got[u.id]; }).length, total: units.length, decision: decs[a.sid] || '' };
+    })
+  };
 }
 
 /** ข้อมูลทุกหลักสูตรในขอบเขตของผู้ใช้ (หน้าเทียบข้ามหลักสูตร และหน้าภาพรวมความคืบหน้า): PLOs + นักศึกษา + คะแนนเฉลี่ยกรรมการ + ผลสอบ */
@@ -710,6 +767,7 @@ function saveProgram(prog) {
       p.ploPass = clamp_(prog.set.ploPass); p.overall = clamp_(prog.set.overall); p.fraction = clamp_(prog.set.fraction); p.target = clamp_(prog.set.target);
       if (OPEN_STATUS_.indexOf(s_(prog.set.openStatus)) >= 0) p.openStatus = s_(prog.set.openStatus);
       p.planIntake = Math.max(0, Math.round(num_(prog.set.planIntake, 0)));
+      p.pilot = !!prog.set.pilot;
     });
     if (!found) throw new Error('ไม่พบหลักสูตร');
     writeAll_('Programs', prs);
@@ -820,7 +878,8 @@ function addStudentList(pid, list) {
       if (code) codes[code.toLowerCase()] = true;
       names[nk] = true;
       rows.push({ studentId: uid_('s'), programId: pid, code: code, name: name, topic: topic, advisor: s_(it.advisor).trim(), sample: false,
-        workType: cleanStuField_('workType', it.workType), intakeYear: cleanStuField_('intakeYear', it.intakeYear), stage: cleanStuField_('stage', it.stage), examDate: cleanStuField_('examDate', it.examDate) });
+        workType: cleanStuField_('workType', it.workType), intakeYear: cleanStuField_('intakeYear', it.intakeYear), stage: cleanStuField_('stage', it.stage), examDate: cleanStuField_('examDate', it.examDate),
+        chairEmail: cleanStuField_('chairEmail', it.chairEmail), memberEmails: cleanStuField_('memberEmails', it.memberEmails), advisorEmail: cleanStuField_('advisorEmail', it.advisorEmail), docUrl: cleanStuField_('docUrl', it.docUrl) });
     });
     if (rows.length) appendRows_('Students', rows);
     return { added: rows.length, skipped: skipped.length, program: getProgram(pid) };
@@ -836,7 +895,7 @@ function updateStudent(pid, sid, fields) {
       if (s_(x.studentId) !== s_(sid) || s_(x.programId) !== s_(pid)) return;
       hit = true;
       ['code', 'name', 'topic', 'advisor'].forEach(function (k) { if (fields && fields[k] !== undefined) x[k] = s_(fields[k]).trim(); });
-      ['workType', 'intakeYear', 'stage', 'examDate'].forEach(function (k) { if (fields && fields[k] !== undefined) x[k] = cleanStuField_(k, fields[k]); });
+      ['workType', 'intakeYear', 'stage', 'examDate', 'chairEmail', 'memberEmails', 'advisorEmail', 'docUrl'].forEach(function (k) { if (fields && fields[k] !== undefined) x[k] = cleanStuField_(k, fields[k]); });
       if (!s_(x.name)) throw new Error('ชื่อนักศึกษาต้องไม่ว่าง');
     });
     if (!hit) throw new Error('ไม่พบนักศึกษา');
@@ -865,8 +924,9 @@ function deleteStudent(pid, sid) {
  *  - Scores: 1 แถว/เกณฑ์ที่ให้คะแนน พร้อมรหัส-ชื่อนักศึกษา ชื่อกรรมการ PLO เกณฑ์ ระดับ (เปิดดูและทำ Pivot ในชีตได้ตรง ๆ)
  */
 function saveEval(pid, sid, scores, comment, examRole) {
-  var me = needP_(SCORE_ROLES_, pid);
-  examRole = EXAM_ROLES_.indexOf(s_(examRole)) >= 0 ? s_(examRole) : 'member';
+  var me = needScore_(pid, sid);
+  // กรรมการที่แต่งตั้งใช้บทบาทตามที่แต่งตั้งเสมอ
+  examRole = assignedRole_(me, sid) || (EXAM_ROLES_.indexOf(s_(examRole)) >= 0 ? s_(examRole) : 'member');
   return withLock_(function () {
     pid = s_(pid); sid = s_(sid);
     var st = readAll_('Students').filter(function (s) { return s_(s.studentId) === sid && s_(s.programId) === pid; })[0];
@@ -878,6 +938,7 @@ function saveEval(pid, sid, scores, comment, examRole) {
     prog.items.forEach(function (it) { meta[it.id] = { ploCode: it.plos.join(','), name: it.name }; });
     var now = new Date().toISOString(), key = sid + '|' + me.email;
     var allEvals = readAll_('Evals');
+    if (examRole === 'chair' && st.chairEmail && s_(st.chairEmail).toLowerCase() !== me.email) throw new Error('ประธานสอบของนักศึกษาคนนี้แต่งตั้งไว้แล้ว (' + s_(st.chairEmail) + ') เลือกบทบาทกรรมการสอบแทน');
     if (examRole === 'chair') {
       // นักศึกษา 1 คนมีประธานสอบได้คนเดียว
       var other = allEvals.filter(function (e) { return s_(e.studentId) === sid && s_(e.role) === 'chair' && s_(e.evalKey) !== key; })[0];
@@ -905,11 +966,11 @@ function saveEval(pid, sid, scores, comment, examRole) {
  * ต้องเป็นผู้ที่บันทึกบทบาท "ประธานสอบ" ของนักศึกษาคนนี้ไว้แล้ว (หรือผู้ดูแลระบบ)
  */
 function saveDecision(pid, sid, decision, note) {
-  var me = needP_(SCORE_ROLES_, pid);
+  var me = needScore_(pid, sid);
   return withLock_(function () {
     pid = s_(pid); sid = s_(sid); decision = s_(decision);
     if (!readAll_('Students').some(function (s) { return s_(s.studentId) === sid && s_(s.programId) === pid; })) throw new Error('ไม่พบนักศึกษา');
-    var isChair = readAll_('Evals').some(function (e) { return s_(e.evalKey) === sid + '|' + me.email && s_(e.role) === 'chair'; });
+    var isChair = assignedRole_(me, sid) === 'chair' || readAll_('Evals').some(function (e) { return s_(e.evalKey) === sid + '|' + me.email && s_(e.role) === 'chair'; });
     if (!isChair && me.role !== 'admin') throw new Error('สรุปผลการสอบได้เฉพาะประธานสอบของนักศึกษาคนนี้');
     if (decision && DECISIONS_.indexOf(decision) < 0) throw new Error('ผลการสอบไม่ถูกต้อง');
     var list = readAll_('Decisions').filter(function (d) { return !(s_(d.studentId) === sid && s_(d.programId) === pid); });

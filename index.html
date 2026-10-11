@@ -252,6 +252,13 @@ tr.click:hover td{background:var(--surface-2)}
 .band .lvl b{font-size:18px}
 .chip.band-chip{font-variant-numeric:tabular-nums}
 .theme-btn{min-width:44px}
+/* งานประเมินของฉัน */
+.tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.task{display:grid;gap:6px;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.task:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.task h3{font-size:16px}
+.task .meta{font-size:12px;color:var(--muted)}
+.pilot-steps{display:flex;flex-wrap:wrap;gap:4px}
 /* ภาพรวมความคืบหน้า */
 .filters{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .filters label{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
@@ -311,7 +318,7 @@ function ten(pct){return pct==null||isNaN(pct)?"–":(pct/10).toFixed(1)}
 var SAMPLE_EMAIL="sample@example.com";
 var G={boot:null,me:{role:"viewer",email:"",name:""},view:"home",facId:null,P:null,tab:"exec",stuId:null,q:"",lq:"",
   exp:{kind:"people",stu:null},dirty:false,busy:{},cross:null,blend:{},design:null,designName:null,preview:null,importMode:"replace",impText:"",
-  showAdd:false,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",ov:{fac:"",year:"",type:""},
+  showAdd:false,onlyMine:true,tasks:null,confirmDel:null,autoDraft:true,theme:null,it:null,acting:"member",ov:{fac:"",year:"",type:""},
   admin:{tab:"prog",facId:null,progId:null,users:null,roster:{text:"",list:null}}};
 
 /* ---------- utils ---------- */
@@ -331,11 +338,15 @@ function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(t
 function fail(e){toast(errMsg(e))}
 function canEdit(){return G.me.role==="admin"}
 function canCurr(){return ["admin","chair","curriculum"].indexOf(G.me.role)>=0}
-function canScore(){return ["admin","chair","faculty","evaluator"].indexOf(G.me.role)>=0}
+function canScore(){return ["admin","chair","faculty","evaluator"].indexOf(G.me.role)>=0||(G.me.assigned||[]).length>0}
+/** บทบาทกรรมการสอบที่ได้รับแต่งตั้งสำหรับนักศึกษาคนนี้ (หรือ null) */
+function myAsg(sid){return (G.me.assigned||[]).find(function(a){return a.sid===sid})||null}
+function mEmails(s){var m=s.memberEmails||[];return Array.isArray(m)?m:String(m).split(/[,;\s]+/).filter(Boolean)}
+function stuById(sid){return G.P&&G.P.students.find(function(s){return s.id===sid})}
 /* บทบาทในการสอบ: ผู้ประเมินเลือกเองที่แถบด้านบน และเปลี่ยนได้ต่อนักศึกษาแต่ละคน */
 var EXAM=[["chair","ประธานสอบ","ให้คะแนน และสรุปผลการสอบ (1 คนต่อนักศึกษา)"],["member","กรรมการสอบ","ให้คะแนนและความเห็น"],["advisor","อาจารย์ที่ปรึกษา","ให้คะแนนและความเห็นในฐานะที่ปรึกษา"],["view","ดูผลอย่างเดียว","ไม่ให้คะแนน"]];
 function examTh(k){var r=EXAM.find(function(x){return x[0]===k});return r?r[1]:"กรรมการสอบ"}
-function canScoreNow(){return canScore()&&G.acting!=="view"}
+function canScoreNow(){var s=G.P&&G.view==="program"?stu():null;return canScore()&&(G.acting!=="view"||!!(s&&myAsg(s.id)))}
 /* ข้อมูลงานวิจัยของนักศึกษา */
 var WORK={thesis:"วิทยานิพนธ์",thematic:"สารนิพนธ์",is:"การค้นคว้าอิสระ"};
 var STAGES=[["topic","อนุมัติหัวข้อ"],["proposal","สอบเค้าโครงผ่าน"],["research","ดำเนินการวิจัย"],["defense","รอสอบ/สอบป้องกัน"],["revise","แก้ไขหลังสอบ"],["passed","สอบผ่าน"],["graduated","สำเร็จการศึกษา"]];
@@ -349,7 +360,7 @@ var DEC={pass:["good","✓","ผ่าน"],pass_cond:["warn","!","ผ่าน�
 function decOf(sid){return (G.P.decisions||{})[sid]||null}
 function decChip(d){if(!d||!DEC[d.decision])return '<span class="chip na">ยังไม่สรุปผลสอบ</span>';var x=DEC[d.decision];return '<span class="chip '+x[0]+'"><span aria-hidden="true">'+x[1]+'</span>'+x[2]+'</span>'}
 function decText(d){return d&&DEC[d.decision]?DEC[d.decision][2]:""}
-function chairOf(sid,exceptEmail){return G.P.evals.find(function(x){return x.studentId===sid&&x.role==="chair"&&x.updatedAt&&x.email!==exceptEmail})}
+function chairOf(sid,exceptEmail){var s=stuById(sid);if(s&&s.chairEmail&&s.chairEmail!==exceptEmail)return {name:s.chairEmail,email:s.chairEmail};return G.P.evals.find(function(x){return x.studentId===sid&&x.role==="chair"&&x.updatedAt&&x.email!==exceptEmail})}
 function rid(p){return p+Math.random().toString(36).slice(2,10)}
 var ROLE_TH={admin:"ผู้ดูแลระบบ",chair:"ประธานหลักสูตร",faculty:"อาจารย์ประจำหลักสูตร",evaluator:"อาจารย์ประจำหลักสูตร",curriculum:"เจ้าหน้าที่หลักสูตร",executive:"ผู้บริหาร (ดูอย่างเดียว)",viewer:"ผู้ชม (ดูอย่างเดียว)"};
 /* ร่างคำอธิบายอัตโนมัติของช่วง i (0=A … 4=E) เมื่อยังไม่ได้เขียนเอง */
@@ -580,6 +591,7 @@ function myEval(sid){
   var e=G.P.evals.find(function(x){return x.studentId===sid&&x.email===me()});
   if(!e){e={studentId:sid,email:me(),name:G.me.name,scores:{},comment:"",updatedAt:"",role:"member"};G.P.evals.push(e)}
   // ยังไม่เคยบันทึก: ใช้บทบาทที่เลือกไว้ที่แถบด้านบน (ถ้ามีประธานสอบอยู่แล้ว ให้เป็นกรรมการสอบ)
+  var asg=myAsg(sid);if(asg){e.role=asg.role;return e}
   if(!e.updatedAt&&!e.roleSet&&G.acting!=="view")e.role=(G.acting==="chair"&&chairOf(sid,me()))?"member":G.acting;
   return e;
 }
@@ -593,9 +605,11 @@ function myProgress(pr,sid){
 }
 function studentList(pr){
   var q=G.lq.trim().toLowerCase(),sel=stu();
-  var list=pr.students.filter(function(s){return !q||(s.name+" "+s.code+" "+s.topic).toLowerCase().indexOf(q)>=0});
+  var hasMine=pr.students.some(function(s){return myAsg(s.id)}),onlyMine=hasMine&&G.onlyMine;
+  var list=pr.students.filter(function(s){return (!onlyMine||myAsg(s.id))&&(!q||(s.name+" "+s.code+" "+s.topic).toLowerCase().indexOf(q)>=0)});
   var h='<aside class="slist"><div class="plo-head"><b>นักศึกษา ('+pr.students.length+')</b>'+(canCurr()?'<button class="btn sm" data-act="toggleadd">'+(G.showAdd?"ปิด":"+ เพิ่ม")+'</button>':"")+'</div>'+
     '<input type="search" id="lq" placeholder="ค้นหาชื่อ รหัส หรือหัวข้อ" aria-label="ค้นหานักศึกษา" value="'+esc(G.lq)+'">';
+  if(hasMine)h+='<label class="row" style="gap:6px;font-size:12px"><input type="checkbox" data-f="onlymine"'+(onlyMine?" checked":"")+'> เฉพาะนักศึกษาที่ฉันเป็นกรรมการสอบ</label>';
   if(G.showAdd)h+=addStuForm();
   list.forEach(function(s){
     h+='<button class="sitem" data-act="pickstu" data-id="'+esc(s.id)+'" aria-current="'+(sel&&s.id===sel.id)+'"><div class="row"><b>'+esc(s.name)+'</b>'+(canScore()?myProgress(pr,s.id):"")+'</div><small>'+(s.code?esc(s.code)+' · ':"")+esc(s.topic)+'</small></button>';
@@ -616,10 +630,12 @@ function viewEval(){
   }
   var sc=meanOf(evalsOf(st.id)),e=evalStu(pr,sc),mine=myEval(st.id),evs=evalsOf(st.id),others=evs.filter(function(x){return x.email!==me()}),ro=!canScoreNow();
   h+='<div class="row" style="margin-bottom:12px;justify-content:space-between"><div><h2 style="font-size:18px">'+esc(st.name)+(st.sample?' <span class="muted" style="font-size:12px">(ตัวอย่าง)</span>':"")+'</h2><div class="muted" style="font-size:12px">'+(st.code?esc(st.code)+' · ':"")+esc(st.topic)+(st.advisor?' · ที่ปรึกษา '+esc(st.advisor):"")+'</div><div class="links" style="margin-top:4px"><span class="chip good">'+esc(WORK[st.workType]||"วิทยานิพนธ์")+'</span><span class="chip na">'+esc(stageTh(st.stage))+'</span>'+(st.intakeYear?'<span class="chip na">รุ่น '+esc(st.intakeYear)+'</span>':"")+(st.examDate?'<span class="chip warn">สอบ '+esc(thDate(st.examDate))+'</span>':"")+'</div></div>'+
-    '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span><button class="btn sm" data-act="printstu">พิมพ์แบบประเมินการสอบ</button>'+(Object.keys(mine.scores).length||mine.comment?'<button class="btn sm" data-act="printmine">พิมพ์พร้อมคะแนนของฉัน</button>':"")+'<button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
+    '<div class="row"><span class="chip na">ประเมินแล้ว '+evs.filter(function(x){return Object.keys(x.scores).length}).length+' คน</span><span id="savestate" class="muted" style="font-size:12px"></span>'+(st.docUrl?'<a class="btn sm primary" href="'+esc(st.docUrl)+'" target="_blank" rel="noopener" style="text-decoration:none">เปิดเล่ม/เอกสาร</a>':"")+'<button class="btn sm" data-act="printstu">พิมพ์แบบประเมินการสอบ</button>'+(Object.keys(mine.scores).length||mine.comment?'<button class="btn sm" data-act="printmine">พิมพ์พร้อมคะแนนของฉัน</button>':"")+'<button class="btn sm" data-act="exportone">ส่งออกรายงานคนนี้</button></div></div>';
   if(ro)h+='<div class="note"><b>ดูอย่างเดียว</b><span>'+(canScore()?'คุณเลือกบทบาท "ดูผลอย่างเดียว" เปลี่ยนบทบาทในการสอบได้ที่แถบด้านบน':'บทบาทของคุณ ('+esc(ROLE_TH[G.me.role]||G.me.role)+') ไม่มีสิทธิ์ให้คะแนน')+'</span></div>';
   else{
-    var ch=chairOf(st.id,me());
+    var asg0=myAsg(st.id);
+    if(asg0)h+='<div class="myrole"><b>บทบาทของฉันในการสอบคนนี้: '+esc(examTh(asg0.role))+'</b><span class="muted" style="font-size:12px">แต่งตั้งโดยหลักสูตร/บัณฑิตวิทยาลัย'+(asg0.role==="chair"?" · สรุปผลการสอบได้ที่การ์ดด้านขวา":"")+'</span></div>';
+    var ch=chairOf(st.id,me());if(!asg0)
     h+='<div class="myrole"><label for="my-role"><b>บทบาทของฉันในการสอบคนนี้</b></label><select id="my-role" data-f="myrole">'+EXAM.filter(function(r){return r[0]!=="view"}).map(function(r){var dis=r[0]==="chair"&&ch;return '<option value="'+r[0]+'"'+(mine.role===r[0]?" selected":"")+(dis?" disabled":"")+'>'+r[1]+(dis?" (มีแล้ว: "+esc(ch.name)+")":"")+'</option>'}).join("")+'</select><span class="muted" style="font-size:12px">'+(mine.role==="chair"?"ประธานสอบสรุปผลการสอบได้ที่การ์ดด้านขวา":"บันทึกพร้อมคะแนนของคุณ")+'</span></div>';
   }
   var tot2=allUnits(pr).length,myc=allUnits(pr).filter(function(c){return isNum(mine.scores[c.id])}).length;
@@ -705,12 +721,14 @@ function itemMatrix(pr,items,edit){
 function committeeCard(pr,st,e,mine,evs,ro){
   var list=evs.filter(function(x){return x.updatedAt||Object.keys(x.scores||{}).length||x.comment});
   var order={chair:0,member:1,advisor:2};list.sort(function(a,b){return (a.role in order?order[a.role]:1)-(b.role in order?order[b.role]:1)});
+  var asgList=[];if(st.chairEmail)asgList.push([st.chairEmail,"chair"]);mEmails(st).forEach(function(x){asgList.push([x,"member"])});if(st.advisorEmail)asgList.push([st.advisorEmail,"advisor"]);
+  var pend=asgList.filter(function(a){return !list.some(function(x){return x.email===a[0]})});
   var d=decOf(st.id),tot=allUnits(pr).length,dd=(G.decDraft||{})[st.id]||{decision:d?d.decision:"",note:d?d.note:""};
   var h='<section class="card"><div class="plo-head"><h2>คณะกรรมการสอบ</h2>'+decChip(d)+'</div><div class="sub">'+(d?'สรุปโดย '+esc(d.name)+(d.updatedAt?' เมื่อ '+new Date(d.updatedAt).toLocaleString("th-TH"):""):"ประธานสอบเป็นผู้สรุปผลการสอบ")+'</div>'+(d&&d.note?'<div class="insight">'+esc(d.note)+'</div>':"");
   h+='<div class="cmt">'+(list.length?list.map(function(x){var ex=evalStu(pr,x.scores||{}),n=allUnits(pr).filter(function(u){return isNum((x.scores||{})[u.id])}).length;
-    return '<div class="cmt-row"><span><span class="chip '+(x.role==="chair"?"good":"na")+'">'+esc(examTh(x.role))+'</span> '+esc(x.name)+(x.email===me()?' <span class="muted">(ฉัน)</span>':"")+'</span><span class="muted" style="font-variant-numeric:tabular-nums">'+n+'/'+tot+' · รวม <b style="color:var(--ink)">'+(ex.total==null?"–":ex.total.toFixed(1))+'</b></span></div>'}).join(""):'<div class="muted" style="font-size:12px">ยังไม่มีกรรมการบันทึกคะแนน</div>')+'</div>';
+    return '<div class="cmt-row"><span><span class="chip '+(x.role==="chair"?"good":"na")+'">'+esc(examTh(x.role))+'</span> '+esc(x.name)+(x.email===me()?' <span class="muted">(ฉัน)</span>':"")+'</span><span class="muted" style="font-variant-numeric:tabular-nums">'+n+'/'+tot+' · รวม <b style="color:var(--ink)">'+(ex.total==null?"–":ex.total.toFixed(1))+'</b></span></div>'}).join(""):(pend.length?"":'<div class="muted" style="font-size:12px">ยังไม่มีกรรมการบันทึกคะแนน</div>'))+pend.map(function(a){return '<div class="cmt-row"><span><span class="chip '+(a[1]==="chair"?"good":"na")+'">'+esc(examTh(a[1]))+'</span> '+esc(a[0])+(a[0]===me()?' <span class="muted">(ฉัน)</span>':"")+'</span><span class="muted">ยังไม่ให้คะแนน</span></div>'}).join("")+'</div>';
   if(!ro&&mine.role==="chair"){
-    if(!mine.updatedAt)h+='<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="claimchair">ยืนยันบทบาทประธานสอบ</button><span class="muted" style="font-size:12px">ยืนยันแล้วจึงสรุปผลการสอบได้ (หรือให้คะแนนข้อใดก็ได้)</span></div>';
+    if(!mine.updatedAt&&!myAsg(st.id))h+='<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="claimchair">ยืนยันบทบาทประธานสอบ</button><span class="muted" style="font-size:12px">ยืนยันแล้วจึงสรุปผลการสอบได้ (หรือให้คะแนนข้อใดก็ได้)</span></div>';
     else h+='<div style="margin-top:10px;display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b style="font-size:13px">สรุปผลการสอบ (ประธานสอบ)</b><div class="muted" style="font-size:12px">ผลจากคะแนนเฉลี่ยกรรมการ: '+esc(verdict(e))+(e.total==null?"":" ("+e.total.toFixed(1)+"/100)")+'</div>'+
       '<select id="dec-sel" data-f="decsel" aria-label="ผลการสอบ"><option value="">— ยังไม่สรุป —</option>'+Object.keys(DEC).map(function(k){return '<option value="'+k+'"'+(dd.decision===k?" selected":"")+'>'+DEC[k][2]+'</option>'}).join("")+'</select>'+
       '<textarea id="dec-note" data-f="decnote" rows="2" placeholder="เงื่อนไขหรือข้อเสนอแนะของคณะกรรมการ">'+esc(dd.note)+'</textarea><div><button class="btn primary sm" data-act="savedec"'+(G.busy.dec?" disabled":"")+'>'+(G.busy.dec?"กำลังบันทึก…":"บันทึกผลการสอบ")+'</button></div></div>';
@@ -882,12 +900,14 @@ function viewAdminStu(){
       r.list.slice(0,60).map(function(x){var dup=(x.code&&exist["c:"+x.code.toLowerCase()])||exist["n:"+x.name+"|"+(x.topic||"ยังไม่ระบุหัวข้อ")];return '<tr class="'+(dup?"dupe":"")+'"><td>'+esc(x.code)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.topic)+'</td><td>'+esc(x.advisor)+'</td><td>'+esc(WORK[x.workType]||"วิทยานิพนธ์")+'</td><td>'+esc(x.intakeYear)+'</td></tr>'}).join("")+'</tbody></table></div>'+
       (fresh?'<div class="row" style="margin-top:10px"><button class="btn primary" data-act="rimport"'+(G.busy.roster?" disabled":"")+'>'+(G.busy.roster?"กำลังบันทึก…":"เพิ่ม "+fresh+" คน")+'</button></div>':"");
   }
-  h+='</section><section class="card" style="margin-top:16px"><h2>นักศึกษาในหลักสูตรนี้ ('+pr.students.length+' คน)</h2><div class="sub">แก้ข้อมูลในช่องได้โดยตรง ระบบบันทึกเมื่อกดออกจากช่อง · ขั้นความคืบหน้าจะเปลี่ยนเองเมื่อประธานสอบสรุปผลสอบ</div>';
+  h+='</section><section class="card" style="margin-top:16px"><h2>นักศึกษาในหลักสูตรนี้ ('+pr.students.length+' คน)</h2><div class="sub">แก้ข้อมูลในช่องได้โดยตรง ระบบบันทึกเมื่อกดออกจากช่อง · ขั้นความคืบหน้าจะเปลี่ยนเองเมื่อประธานสอบสรุปผลสอบ · <b>ใส่อีเมลคณะกรรมการสอบ</b> แล้วอาจารย์จะเห็นนักศึกษาคนนั้นในหน้า "งานประเมินของฉัน" ทันทีที่ล็อกอิน โดยบทบาทถูกกำหนดให้อัตโนมัติ (ตารางเลื่อนซ้าย-ขวาได้)</div>';
   if(!pr.students.length)h+='<div class="empty">ยังไม่มีนักศึกษา</div>';
-  else h+='<div class="table-scroll"><table class="mgr"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th><th>ประเภทงาน</th><th>ปีที่เข้า</th><th>ขั้นความคืบหน้า</th><th>วันสอบ</th><th></th></tr></thead><tbody>'+pr.students.map(function(s){
+  else h+='<div class="table-scroll"><table class="mgr"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>หัวข้อ</th><th>ที่ปรึกษา</th><th>ประเภทงาน</th><th>ปีที่เข้า</th><th>ขั้นความคืบหน้า</th><th>วันสอบ</th><th>ประธานสอบ (อีเมล)</th><th>กรรมการสอบ (อีเมล คั่นด้วย ,)</th><th>ที่ปรึกษาร่วมประเมิน (อีเมล)</th><th>ลิงก์เล่ม/เอกสาร</th><th></th></tr></thead><tbody>'+pr.students.map(function(s){
     return '<tr><td><input type="text" data-f="stuf:'+esc(s.id)+':code" value="'+esc(s.code)+'" aria-label="รหัส" style="max-width:120px"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':name" value="'+esc(s.name)+'" aria-label="ชื่อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':topic" value="'+esc(s.topic)+'" aria-label="หัวข้อ"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':advisor" value="'+esc(s.advisor)+'" aria-label="ที่ปรึกษา"></td>'+
       '<td><select data-f="stuf:'+esc(s.id)+':workType" aria-label="ประเภทงาน">'+optList(workPairs(),s.workType)+'</select></td><td><input type="text" data-f="stuf:'+esc(s.id)+':intakeYear" value="'+esc(s.intakeYear)+'" aria-label="ปีที่เข้า" style="width:70px"></td>'+
-      '<td><select data-f="stuf:'+esc(s.id)+':stage" aria-label="ขั้นความคืบหน้า">'+optList(STAGES,s.stage)+'</select></td><td><input type="date" data-f="stuf:'+esc(s.id)+':examDate" value="'+esc(s.examDate)+'" aria-label="วันสอบ"></td><td>'+delBtn("stu:"+s.id,"ลบ","ยืนยันลบ (รวมคะแนน)")+'</td></tr>';
+      '<td><select data-f="stuf:'+esc(s.id)+':stage" aria-label="ขั้นความคืบหน้า">'+optList(STAGES,s.stage)+'</select></td><td><input type="date" data-f="stuf:'+esc(s.id)+':examDate" value="'+esc(s.examDate)+'" aria-label="วันสอบ"></td>'+
+      '<td><input type="text" data-f="stuf:'+esc(s.id)+':chairEmail" value="'+esc(s.chairEmail||"")+'" aria-label="อีเมลประธานสอบ" placeholder="name@..." style="min-width:170px"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':memberEmails" value="'+esc(mEmails(s).join(", "))+'" aria-label="อีเมลกรรมการสอบ" style="min-width:220px"></td>'+
+      '<td><input type="text" data-f="stuf:'+esc(s.id)+':advisorEmail" value="'+esc(s.advisorEmail||"")+'" aria-label="อีเมลอาจารย์ที่ปรึกษา" style="min-width:170px"></td><td><input type="text" data-f="stuf:'+esc(s.id)+':docUrl" value="'+esc(s.docUrl||"")+'" aria-label="ลิงก์เล่ม" placeholder="https://drive.google.com/..." style="min-width:200px"></td><td>'+delBtn("stu:"+s.id,"ลบ","ยืนยันลบ (รวมคะแนน)")+'</td></tr>';
   }).join("")+'</tbody></table></div>';
   return h+'</section>';
 }
@@ -928,6 +948,7 @@ function viewAdminPlo(){
   h+='<section class="card" style="margin-top:16px"><h2>เกณฑ์ตัดสินของหลักสูตร</h2><div class="sub">แหล่งข้อมูล: '+esc(pr.source)+'</div>'+
     '<div class="f-grid">'+fld("ชื่อหลักสูตร","text","name",pr.name)+fld("เกณฑ์ผ่านต่อ PLOs (%)","number","ploPass",pr.set.ploPass)+fld("เกณฑ์คะแนนรวม (เต็ม 100)","number","overall",pr.set.overall)+fld("สัดส่วน PLOs ที่ต้องผ่าน (%)","number","fraction",pr.set.fraction)+fld("เป้า % นักศึกษาที่ผ่านแต่ละ PLO","number","target",pr.set.target)+
     '<div class="f"><label for="f-open">สถานะการเปิดรับ</label><select id="f-open" data-f="s:openStatus" style="width:100%">'+optList(Object.keys(OPEN).map(function(k){return [k,OPEN[k][1]]}),pr.set.openStatus||"open")+'</select></div>'+fld("แผนรับนักศึกษา (คน/ปี)","number","planIntake",pr.set.planIntake||0)+
+    '<div class="f"><label>โครงการนำร่อง</label><label class="row" style="gap:6px;min-height:38px"><input type="checkbox" data-f="s:pilot"'+(pr.set.pilot?" checked":"")+'> หลักสูตรนำร่องของบัณฑิตวิทยาลัย</label></div>'+
     '</div><p class="muted" style="font-size:12px;margin-bottom:0">ทุก PLOs ใช้เกณฑ์การประเมินเดียวกัน: แต่ละเกณฑ์ให้คะแนน 0-10 แบ่ง 5 ช่วง ('+BANDS.map(function(b){return b.k+" "+bandRange(b)+" "+b.n}).join(", ")+') คะแนน PLOs = ค่าเฉลี่ยของเกณฑ์ใน PLOs นั้น (เต็ม 10) แล้วถ่วงน้ำหนักเป็นคะแนนรวม 100 ถ้ามีกรรมการหลายคน ใช้ค่าเฉลี่ยของกรรมการต่อเกณฑ์ · เกณฑ์ผ่านต่อ PLOs '+pr.set.ploPass+'% = '+ten(pr.set.ploPass)+'/10</p></section>';
   h+='<div class="row" style="margin-block:16px 10px;justify-content:space-between"><h2 style="font-size:16px">PLOs ที่ใช้เป็นตัวชี้วัด ('+pr.plos.length+' ข้อ)</h2><span class="row"><span class="chip good">แต่ละ PLOs เต็ม 10 · คะแนนรวมเต็ม 100</span>'+(G.boot.aiEnabled&&pr.plos.length?'<button class="btn sm primary" data-act="aidraftall"'+(G.busy.all?" disabled":"")+'>'+(G.busy.all?"AI กำลังร่าง "+G.busy.all+"…":"ให้ AI ร่างเกณฑ์ 5 ช่วงทุก PLO")+'</button>':"")+'</span></div><p class="muted" style="font-size:12px;margin:0 0 10px">ตั้งน้ำหนักเท่ากันทุก PLOs (เช่น 100 ทั้งหมด) ได้ ระบบคิดคะแนนรวมเป็นค่าเฉลี่ยถ่วงน้ำหนักเต็ม 100% ไม่ต้องให้ผลรวมน้ำหนักเป็น 100 <button class="btn sm" data-act="eqw">ตั้งทุก PLOs = 100</button></p><div class="stack">';
   if(!pr.plos.length)h+='<div class="card empty">ยังไม่มี PLOs นำเข้าจากกล่องด้านบน</div>';
@@ -1097,6 +1118,30 @@ function crossStats(P){
 }
 function hasTheme(pp,t){return pp.plos.some(function(p){return themesOf(p).some(function(x){return x[0]===t[0]})})}
 /* ============================================================
+ * งานประเมินของฉัน: อาจารย์ล็อกอินแล้วเห็นนักศึกษาที่ตนเป็นกรรมการสอบทันที
+ * ============================================================ */
+function viewMyTasks(){
+  if(!G.tasks)return '<div class="loading">กำลังโหลดงานประเมินของคุณ…</div>';
+  var T=G.tasks.slice().sort(function(a,b){var x=a.student.examDate||"9999",y=b.student.examDate||"9999";return x<y?-1:(x>y?1:0)});
+  var todo=T.filter(function(t){return t.done<t.total}),done=T.filter(function(t){return t.total&&t.done>=t.total});
+  var h='<div class="hero"><h1>งานประเมินของฉัน</h1><p>นักศึกษาที่คุณได้รับแต่งตั้งเป็นกรรมการสอบ กดที่นักศึกษาเพื่อให้คะแนนตามเกณฑ์ได้ทันที ข้อมูลหลักสูตร PLOs และบทบาทของคุณถูกเตรียมไว้ให้แล้ว</p></div>';
+  h+='<div class="kpis"><div class="kpi"><div class="l">ทั้งหมด</div><div class="v">'+T.length+'<small> คน</small></div></div><div class="kpi"><div class="l">รอให้คะแนน</div><div class="v">'+todo.length+'</div></div><div class="kpi"><div class="l">ให้คะแนนครบแล้ว</div><div class="v">'+done.length+'</div></div></div>';
+  function card(t){var s=t.student,pct=t.total?Math.round(t.done/t.total*100):0;
+    return '<button class="task" data-act="opentask" data-p="'+esc(t.programId)+'" data-s="'+esc(s.id)+'"><div class="row" style="justify-content:space-between"><h3>'+esc(s.name)+'</h3><span class="chip '+(t.role==="chair"?"good":"na")+'">'+esc(examTh(t.role))+'</span></div>'+
+      '<div class="meta">'+(s.code?esc(s.code)+' · ':"")+esc(WORK[s.workType]||"วิทยานิพนธ์")+' · '+esc(t.programName)+'</div><div class="meta" style="color:var(--ink)">'+esc(s.topic)+'</div>'+
+      '<div class="links">'+(s.examDate?'<span class="chip warn">สอบ '+esc(thDate(s.examDate))+'</span>':"")+(t.decision?decChip({decision:t.decision}):"")+(s.docUrl?'<span class="chip na">มีเล่ม/เอกสาร</span>':"")+'</div>'+
+      '<div class="prog" style="margin:4px 0 0"><i style="width:'+pct+'%"></i></div><div class="meta">ให้คะแนนแล้ว '+t.done+'/'+t.total+' เกณฑ์'+(t.done>=t.total&&t.total?' · ✓ ครบ':"")+'</div></button>'}
+  if(!T.length)return h+'<div class="card empty">ยังไม่มีนักศึกษาที่คุณได้รับแต่งตั้งเป็นกรรมการสอบ</div>';
+  if(todo.length)h+='<h2 style="font-size:16px;margin-bottom:10px">รอให้คะแนน ('+todo.length+')</h2><div class="tasks">'+todo.map(card).join("")+'</div>';
+  if(done.length)h+='<h2 style="font-size:16px;margin:20px 0 10px">ให้คะแนนครบแล้ว ('+done.length+')</h2><div class="tasks">'+done.map(card).join("")+'</div>';
+  return h;
+}
+async function openMyTasks(){
+  G.view="mytasks";G.tasks=null;render();window.scrollTo(0,0);
+  try{G.tasks=(await call("getMyTasks")).tasks;render()}catch(e){fail(e);G.view="home";render()}
+}
+
+/* ============================================================
  * ภาพรวมความคืบหน้า (บัณฑิตวิทยาลัย / ผู้บริหาร / ประธานหลักสูตร / อาจารย์)
  * ============================================================ */
 function ovData(){
@@ -1104,7 +1149,7 @@ function ovData(){
   all.forEach(function(p){p.students.forEach(function(s){if(s.intakeYear)years[s.intakeYear]=1})});
   var ylist=Object.keys(years).sort().reverse(),yr=O.year||ylist[0]||"";
   function ok(s){return (!O.year||s.intakeYear===O.year)&&(!O.type||s.workType===O.type)}
-  var rows=all.filter(function(p){return !O.fac||p.facultyId===O.fac}).map(function(pr){
+  var rows=all.filter(function(p){return (!O.fac||p.facultyId===O.fac)&&(!O.pilot||p.set.pilot)}).map(function(pr){
     var st=pr.students.filter(ok),ev=st.map(function(s){return {s:s,e:evalStu(pr,s.scores||{}),d:(pr.decisions||{})[s.id]}});
     var dec={pass:0,pass_cond:0,fail:0},types={thesis:0,thematic:0,is:0},stages={};
     ev.forEach(function(x){if(x.d&&x.d.decision in dec)dec[x.d.decision]++});
@@ -1131,7 +1176,7 @@ function viewOverview(){
   h+='<div class="filters"><label>ส่วนงาน <select data-f="ov:fac"><option value="">ทั้งหมด</option>'+optList(G.boot.faculties.map(function(f){return [f.id,f.name]}),O.fac)+'</select></label>'+
     '<label>ปีที่เข้า <select data-f="ov:year"><option value="">ทุกปี</option>'+optList(D.ylist.map(function(y){return [y,y]}),O.year)+'</select></label>'+
     '<label>ประเภทงาน <select data-f="ov:type"><option value="">ทุกประเภท</option>'+optList(workPairs(),O.type)+'</select></label>'+
-    '<button class="btn sm" data-act="ovreload">รีเฟรชข้อมูล</button><button class="btn sm" data-act="ovsheet"'+(G.busy.ovsheet?" disabled":"")+'>'+(G.busy.ovsheet?"กำลังส่ง…":"ส่งออกไป Google Sheets")+'</button><span id="ovlink"></span></div>';
+    '<label><input type="checkbox" data-f="ov:pilot"'+(O.pilot?" checked":"")+'> เฉพาะหลักสูตรนำร่อง</label><button class="btn sm" data-act="ovreload">รีเฟรชข้อมูล</button><button class="btn sm" data-act="ovsheet"'+(G.busy.ovsheet?" disabled":"")+'>'+(G.busy.ovsheet?"กำลังส่ง…":"ส่งออกไป Google Sheets")+'</button><span id="ovlink"></span></div>';
   h+='<div class="kpis">'+
     '<div class="kpi"><div class="l">หลักสูตร</div><div class="v">'+R.length+'</div><div class="s">พร้อมประเมิน (มี PLOs และเกณฑ์ครบ) '+nReady+' หลักสูตร</div></div>'+
     '<div class="kpi"><div class="l">นักศึกษา</div><div class="v">'+nStu+'<small> คน</small></div><div class="s">วิทยานิพนธ์ '+sum(function(r){return r.types.thesis})+' · สารนิพนธ์ '+sum(function(r){return r.types.thematic})+' · IS '+sum(function(r){return r.types.is})+'</div></div>'+
@@ -1146,7 +1191,7 @@ function viewOverview(){
   // ตารางรายหลักสูตร
   h+='<section class="card" style="margin-top:16px"><h2>รายหลักสูตร</h2><div class="sub">คลิกแถวเพื่อเปิดหลักสูตร · ความพร้อม 4 จุด: มี PLOs · เกณฑ์ประเมินครบ · มีรายชื่อนักศึกษา · เริ่มประเมินแล้ว · รับจริงนับจากปีที่เข้า '+esc(D.yr||"–")+'</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th><th>สถานะรับ</th><th class="num">แผนรับ/ปี</th><th class="num">รับจริง</th><th class="num">นักศึกษา</th><th>วพ. · สน. · IS</th><th>ความพร้อม</th><th class="num">ประเมินครบ</th><th class="num">ผ่าน PLOs</th><th>ผลสอบ</th></tr></thead><tbody>';
   R.forEach(function(r){var pr=r.pr,op=OPEN[pr.set.openStatus]||OPEN.open,plan=pr.set.planIntake||0;
-    h+='<tr class="click" data-act="prog" data-id="'+esc(pr.id)+'" tabindex="0"><td class="wrapt">'+esc(pr.name)+'<div class="muted" style="font-size:11px">'+esc(pr.facultyName)+'</div></td><td><span class="chip '+op[0]+'">'+op[1]+'</span></td><td class="num">'+(plan||"–")+'</td>'+
+    h+='<tr class="click" data-act="prog" data-id="'+esc(pr.id)+'" tabindex="0"><td class="wrapt">'+esc(pr.name)+(pr.set.pilot?' <span class="chip warn">นำร่อง</span>':"")+'<div class="muted" style="font-size:11px">'+esc(pr.facultyName)+'</div></td><td><span class="chip '+op[0]+'">'+op[1]+'</span></td><td class="num">'+(plan||"–")+'</td>'+
       '<td class="num">'+(plan?'<span class="chip '+(r.intake>=plan?"good":"warn")+'">'+r.intake+'</span>':r.intake)+'</td><td class="num">'+r.st.length+'</td><td>'+r.types.thesis+' · '+r.types.thematic+' · '+r.types.is+'</td>'+
       '<td><span class="ready" title="'+esc(r.ready.map(function(x){return (x[1]?"✓ ":"✕ ")+x[0]}).join(" / "))+'">'+r.ready.map(function(x){return '<i class="'+(x[1]?"on":"")+'"></i>'}).join("")+'</span></td>'+
       '<td class="num">'+r.done+' / '+r.st.length+'</td><td class="num">'+(r.done?Math.round(r.ok/r.done*100)+'%':"–")+'</td><td>✓ '+r.dec.pass+' · ! '+r.dec.pass_cond+' · ✕ '+r.dec.fail+'</td></tr>'});
@@ -1163,6 +1208,22 @@ function viewOverview(){
   up.sort(function(a,b){return a.s.examDate<b.s.examDate?-1:1});
   h+='<section class="card"><h2>กำหนดสอบที่จะถึง ('+up.length+')</h2><div class="sub">จากวันสอบในรายชื่อนักศึกษา · รอสอบที่ยังไม่มีผลสอบ '+waiting.length+' คน</div>'+
     (up.length?up.slice(0,12).map(function(u){return '<div class="pair"><span class="chip warn">'+esc(thDate(u.s.examDate))+'</span> <b>'+esc(u.s.name)+'</b> <span class="muted" style="font-size:12px">'+esc(WORK[u.s.workType])+' · '+esc(u.r.pr.name)+' · กรรมการให้คะแนนแล้ว '+(u.s.n||0)+' คน</span></div>'}).join(""):'<p class="muted">ยังไม่มีวันสอบที่กำหนดไว้</p>')+'</section></div>';
+  // หลักสูตรนำร่อง
+  var pil=R.filter(function(r){return r.pr.set.pilot});
+  if(pil.length){
+    h+='<section class="card" style="margin-top:16px;border-color:var(--warn)"><h2>ติดตามหลักสูตรนำร่อง ('+pil.length+')</h2><div class="sub">ทดลองกระบวนการประเมิน PLOs กับหลักสูตรนำร่องก่อนขยายทั้งบัณฑิตวิทยาลัย · 5 ขั้น: นำเข้า PLOs → เกณฑ์/จับคู่ PLOs ครบ → แต่งตั้งกรรมการสอบ → กรรมการให้คะแนน → ประธานสอบสรุปผล</div>'+
+      pil.map(function(r){var pr=r.pr,st=pr.students,steps=[["นำเข้า PLOs",pr.plos.length>0],["เกณฑ์ครบ",r.ready[1][1]],["แต่งตั้งกรรมการ",st.length>0&&st.every(function(s){return s.chairEmail||mEmails(s).length})],["กรรมการให้คะแนน",st.some(function(s){return s.n>0})],["สรุปผลสอบ",Object.keys(pr.decisions||{}).length>0]],n=steps.filter(function(x){return x[1]}).length;
+        return '<div class="pair"><div class="row" style="justify-content:space-between"><b>'+esc(pr.name)+'</b><span class="chip '+(n===5?"good":"na")+'">'+n+'/5 ขั้น</span></div><div class="pilot-steps" style="margin-top:4px">'+steps.map(function(x,i){return '<span class="chip '+(x[1]?"good":"na")+'">'+(x[1]?"✓":(i+1))+' '+x[0]+'</span>'}).join("")+'</div></div>'}).join("")+'</section>';
+  }
+  // แผนที่การจับคู่เกณฑ์ ↔ PLOs รายหลักสูตร
+  var stdA=G.boot.stdItems||[],mapR=R.filter(function(r){return isItems(r.pr)});
+  if(mapR.length)h+='<section class="card" style="margin-top:16px"><h2>การจับคู่เกณฑ์การประเมินกับ PLOs รายหลักสูตร</h2><div class="sub">แต่ละหลักสูตรกำหนดว่าเกณฑ์ข้อใดสอดคล้องกับ PLOs ข้อใดของตนเอง ใช้ดูว่า PLOs ของแต่ละหลักสูตรถูกประเมินผ่านเกณฑ์ใดในการสอบวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ</div><div class="table-scroll"><table class="pv"><thead><tr><th>หลักสูตร</th>'+
+    (stdA.length?stdA.map(function(x,i){return '<th title="'+esc(x.name)+'">เกณฑ์ '+(i+1)+'</th>'}).join(""):"")+'<th>หัวข้อเฉพาะหลักสูตร</th><th>PLOs ที่ถูกประเมิน (จำนวนเกณฑ์)</th></tr></thead><tbody>'+
+    mapR.map(function(r){var pr=r.pr,own=pr.items.filter(function(it){return !it.stdId});
+      var cnt=pr.plos.map(function(p){return p.code+" ("+pr.items.filter(function(it){return it.plos.indexOf(p.code)>=0}).length+")"});
+      return '<tr><td>'+esc(pr.name)+'</td>'+stdA.map(function(x){var it=pr.items.find(function(z){return z.stdId===x.id});return '<td>'+(it?'<div class="links">'+ploChips(pr,it.plos)+'</div>':'<span class="muted">–</span>')+'</td>'}).join("")+
+        '<td class="wrapt">'+(own.length?own.map(function(it){return esc(it.name)+' → '+esc(it.plos.join(", "))}).join("<br>"):'<span class="muted">–</span>')+'</td><td class="wrapt">'+esc(cnt.join(" · "))+'</td></tr>'}).join("")+
+    '</tbody></table></div>'+(stdA.length?'<div class="muted" style="font-size:11px;margin-top:4px">'+stdA.map(function(x,i){return 'เกณฑ์ '+(i+1)+' '+x.name}).join(" · ")+'</div>':"")+'</section>';
   // เกณฑ์กลางรายหลักสูตร
   var std=G.boot.stdItems||[],using=R.filter(function(r){return isItems(r.pr)&&r.pr.items.some(function(it){return it.stdId})});
   if(std.length)h+='<section class="card" style="margin-top:16px"><h2>คะแนนเกณฑ์กลางรายหลักสูตร</h2><div class="sub">ทุกหลักสูตรใช้เกณฑ์ชุดเดียวกัน จึงเทียบกันได้ (เต็ม 10 · ค่าเฉลี่ยนักศึกษาตามตัวกรอง) · ใช้เกณฑ์กลางแล้ว '+using.length+' จาก '+R.length+' หลักสูตร</div><div class="table-scroll"><table><thead><tr><th>หลักสูตร</th>'+std.map(function(x,i){return '<th class="num" title="'+esc(x.name)+'">ข้อ '+(i+1)+'</th>'}).join("")+'</tr></thead><tbody>'+
@@ -1353,12 +1414,14 @@ function xBody(x){
  * ============================================================ */
 function render(){
   var m=G.me;
-  $("who").innerHTML=themeBtn()+'<span>'+esc(m.name)+'</span><span class="chip na" title="บทบาทบัญชี (ผู้ดูแลระบบกำหนด)">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+
+  var nTask=(G.me.assigned||[]).length;
+  $("who").innerHTML=themeBtn()+(nTask?'<button class="btn sm'+(G.view==="mytasks"?" primary":"")+'" data-act="mytasks">งานประเมินของฉัน ('+nTask+')</button>':"")+'<span>'+esc(m.name)+'</span><span class="chip na" title="บทบาทบัญชี (ผู้ดูแลระบบกำหนด)">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+
     (canScore()?'<label class="acting"><span>บทบาทในการสอบ</span><select data-f="acting" aria-label="บทบาทในการสอบ">'+EXAM.map(function(r){return '<option value="'+r[0]+'"'+(G.acting===r[0]?" selected":"")+' title="'+esc(r[2])+'">'+r[1]+'</option>'}).join("")+'</select></label>':"")+(canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
   var c='<a data-act="home">หน้าหลัก</a>';
   if(G.view==="faculty"){var f=facOf(G.facId);c+=' › <b>'+esc(f?f.name:"")+'</b>'}
   if(G.view==="program"){var f2=facOf(G.facId);c+=' › <a data-act="fac" data-id="'+esc(G.facId)+'">'+esc(f2?f2.name:G.P.facultyName)+'</a> › <b>'+esc(G.P.name)+'</b>'}
   if(G.view==="cross")c+=' › <b>เทียบข้ามหลักสูตร</b>';
+  if(G.view==="mytasks")c+=' › <b>งานประเมินของฉัน</b>';
   if(G.view==="overview")c+=' › <b>ภาพรวมความคืบหน้า</b>';
   if(G.view==="admin")c+=' › <b>จัดการระบบ</b>';
   $("crumbs").innerHTML=c;
@@ -1372,6 +1435,7 @@ function render(){
   else if(G.view==="faculty")html=viewFaculty();
   else if(G.view==="cross")html=viewCross();
   else if(G.view==="overview")html=viewOverview();
+  else if(G.view==="mytasks")html=viewMyTasks();
   else if(G.view==="admin")html=viewAdmin();
   else html=G.tab==="exec"?viewExec():(G.tab==="eval"?viewEval():(G.tab==="ind"?viewIndicators():viewExport()));
   $("app").innerHTML=html;
@@ -1379,10 +1443,10 @@ function render(){
 function renderKeep(){var y=window.scrollY;render();window.scrollTo(0,y)}
 
 /* ---------- navigation ---------- */
-async function goProgram(id,tab){
+async function goProgram(id,tab,sid){
   $("app").innerHTML='<div class="loading">กำลังโหลดหลักสูตร…</div>';
   try{
-    G.P=await call("getProgram",id);G.view="program";G.dirty=false;G.preview=null;G.impText="";G.stuId=null;G.lq="";G.showAdd=false;
+    G.P=await call("getProgram",id);G.view="program";G.dirty=false;G.preview=null;G.impText="";G.stuId=sid||null;G.lq="";G.showAdd=false;
     G.tab=tab||(canScore()&&G.me.role!=="admin"?"eval":"exec");
     G.exp={kind:"people",stu:null};
     var meta=progMeta(id);
@@ -1507,7 +1571,9 @@ document.addEventListener("change",async function(ev){
     return;
   }
   try{
+    if(f==="ov:pilot"){G.ov.pilot=t.checked;render();return}
     if(f.indexOf("ov:")===0){G.ov[f.slice(3)]=t.value;render();return}
+    if(f==="onlymine"){G.onlyMine=t.checked;render();return}
     if(f==="acting"){G.acting=t.value;try{localStorage.setItem("plo-acting",G.acting)}catch(e){}renderKeep();toast("บทบาทในการสอบ: "+examTh(G.acting)+(G.acting==="view"?"":" (ใช้กับนักศึกษาที่คุณยังไม่ได้ประเมิน)"));return}
     if(f==="myrole"){var st0=stu();if(st0){var me0=myEval(st0.id);me0.role=t.value;me0.roleSet=true;queueSave(st0.id);renderKeep()}return}
     if(f==="decsel"||f==="decnote"){var st7=stu();if(st7){var dm=G.decDraft=G.decDraft||{},d7=decOf(st7.id),cur7=dm[st7.id]||(dm[st7.id]={decision:d7?d7.decision:"",note:d7?d7.note:""});cur7[f==="decsel"?"decision":"note"]=t.value}return}
@@ -1562,6 +1628,7 @@ document.addEventListener("change",async function(ev){
       else if(q2[0]==="itplo"){var code=f.slice(f.indexOf(":",6)+1),k2=it.plos.indexOf(code);if(t.checked&&k2<0)it.plos.push(code);if(!t.checked&&k2>=0)it.plos.splice(k2,1);var order=G.P.plos.map(function(p){return p.code});it.plos.sort(function(a,b){return order.indexOf(a)-order.indexOf(b)})}
       S.dirty=true;render();return;
     }
+    if(f==="s:pilot"&&G.P){G.P.set.pilot=t.checked;G.dirty=true;render();return}
     if(canCurr()&&G.view==="admin"&&G.admin.tab==="plo"){applyField(f,t.value);render()}
   }catch(err){fail(err);if(G.view==="admin")render()}
 });
@@ -1573,6 +1640,8 @@ async function act(el){
     else if(a==="fac"){G.facId=el.getAttribute("data-id");G.view="faculty";render();window.scrollTo(0,0)}
     else if(a==="prog"){await goProgram(el.getAttribute("data-id"))}
     else if(a==="cross"){await openCross()}
+    else if(a==="mytasks"){await openMyTasks()}
+    else if(a==="opentask"){G.onlyMine=true;await goProgram(el.getAttribute("data-p"),"eval",el.getAttribute("data-s"))}
     else if(a==="overview"||a==="ovreload"){await openOverview()}
     else if(a==="ovsheet"){
       if(G.busy.ovsheet||!G.cross)return;G.busy.ovsheet=true;render();
@@ -1798,6 +1867,7 @@ $("brand").addEventListener("click",function(){G.view="home";render();window.scr
   try{
     await refreshBoot();
     var fs=G.boot.faculties;
+    if((G.me.assigned||[]).length&&G.me.role!=="admin"){await openMyTasks();return}
     if(G.me.role==="executive"){await openOverview();return}
     if(fs.length===1){G.facId=fs[0].id;G.view="faculty"}
     render();
