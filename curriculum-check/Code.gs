@@ -77,9 +77,12 @@ function getCurriculum(id) {
   var courses = m < 1 ? [] : cs.getRange(2, 1, m, 6).getValues()
     .filter(function (r) { return String(r[0]) === String(id); })
     .map(function (r) { return { code: String(r[1]), nameEn: String(r[2]), credits: r[3] === '' ? null : Number(r[3]), group: String(r[4]), cat: String(r[5]) }; });
-  var groups = [];
-  try { groups = JSON.parse(row[4] || '[]'); } catch (e) {}
-  return { id: String(row[0]), key: String(row[1]), name: String(row[2]), totalRequired: row[3] === '' ? null : Number(row[3]), groups: groups, courses: courses };
+  // หมวดวิชา (JSON): รุ่นเก่าเป็น array ของหมวด รุ่นใหม่เป็น { groups, plans, totalByPlan } (เกณฑ์แยกตามแผน)
+  var info = {};
+  try { info = JSON.parse(row[4] || '[]'); } catch (e) {}
+  if (Array.isArray(info)) info = { groups: info };
+  return { id: String(row[0]), key: String(row[1]), name: String(row[2]), totalRequired: row[3] === '' ? null : Number(row[3]),
+    groups: info.groups || [], plans: info.plans || [], totalByPlan: info.totalByPlan || {}, courses: courses };
 }
 
 function saveCurriculum(c) {
@@ -90,7 +93,7 @@ function saveCurriculum(c) {
   try {
     var id = c.id || Utilities.getUuid().slice(0, 8);
     if (c.id) removeCurriculumRows_(c.id);
-    currSheet_().appendRow([id, c.key || '', c.name, c.totalRequired || '', JSON.stringify(c.groups || []), new Date(), Session.getActiveUser().getEmail() || '']);
+    currSheet_().appendRow([id, c.key || '', c.name, c.totalRequired || '', JSON.stringify({ groups: c.groups || [], plans: c.plans || [], totalByPlan: c.totalByPlan || {} }), new Date(), Session.getActiveUser().getEmail() || '']);
     var rows = c.courses.map(function (x) { return [id, x.code, x.nameEn || '', x.credits == null ? '' : x.credits, x.group || '', x.cat || '']; });
     var cs = courseSheet_();
     cs.getRange(cs.getLastRow() + 1, 1, rows.length, 6).setValues(rows);

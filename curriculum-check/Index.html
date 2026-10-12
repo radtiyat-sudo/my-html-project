@@ -153,6 +153,7 @@ var GROUP_KEYS = [
   { key: 'เลอก', label: 'หมวดวิชาเลือก', cat: 'เลือก' },
   { key: 'วทยานพนธ', label: 'วิทยานิพนธ์', cat: 'วิทยานิพนธ์/สารนิพนธ์' },
   { key: 'สารนพนธ', label: 'สารนิพนธ์', cat: 'วิทยานิพนธ์/สารนิพนธ์' },
+  { key: 'ดษฎนพนธ', label: 'ดุษฎีนิพนธ์', cat: 'วิทยานิพนธ์/สารนิพนธ์' },
   { key: 'การศกษาอสระ', label: 'การศึกษาอิสระ', cat: 'วิทยานิพนธ์/สารนิพนธ์' }
 ];
 var HEAD_RE = new RegExp('^(?:\\(?\\d{1,2}[\\).]|[กขคง][\\).])?(?:หมวด)?(?:วชา)?(' +
@@ -166,6 +167,31 @@ function groupFromLine(line) {
 }
 
 var CODE_RE = /\b([A-Z]{4})\s?(\d{3})\b/g;
+
+// รหัสแผนในบรรทัด เช่น "แผน ก แบบ ก2" → ก2, "แผน ข" → ข, "แบบ 1.1" → 1.1
+function planIds(line) {
+  var re = /(?:แผน\s*ก\s*)?แบบ\s*(ก\s*[12]|[12]\s*\.\s*[12])|แผน\s*(ข|ก\s*[12])/g, out = [], m;
+  line = thaiDigits(line);
+  while ((m = re.exec(line))) { var id = (m[1] || m[2]).replace(/\s+/g, ''); if (out.indexOf(id) < 0) out.push(id); }
+  return out;
+}
+function normPlan(p) { return thaiDigits(p || '').replace(/แผน|แบบ|\s+/g, ''); }
+
+/**
+ * เลือกเกณฑ์ของแผนการศึกษาที่นักศึกษาเรียน (เล่มที่มีหลายแผน)
+ * คืนค่า { curr: เล่มที่ใช้ตรวจ, plan: แผนที่ใช้, missing: true ถ้าในเล่มไม่มีแผนนี้ }
+ */
+function currForPlan(curr, plan) {
+  var plans = curr.plans || [], p = normPlan(plan);
+  if (!plans.length) return { curr: curr, plan: '' };
+  if (plans.indexOf(p) < 0) return { curr: curr, plan: '', missing: true };
+  var groups = curr.groups.filter(function (g) { return !g.byPlan || !(p in g.byPlan) || g.byPlan[p]; })
+    .map(function (g) { var x = {}; for (var k in g) x[k] = g[k]; if (g.byPlan && p in g.byPlan) x.required = g.byPlan[p]; return x; });
+  var c = {}; for (var k in curr) c[k] = curr[k];
+  c.groups = groups;
+  if (curr.totalByPlan && curr.totalByPlan[p]) c.totalRequired = curr.totalByPlan[p];
+  return { curr: c, plan: p };
+}
 
 /**
  * อ่านเล่มหลักสูตร (มคอ.2) จากข้อความ
@@ -194,13 +220,33 @@ function parseCurriculum(text) {
   if (iStruct < 0) iStruct = 0;
   if (iCourses < 0) iCourses = iStruct;
 
-  // 1) หน่วยกิตที่กำหนดของแต่ละหมวด (ส่วนโครงสร้างหลักสูตร)
+  // 1) หน่วยกิตที่กำหนดของแต่ละหมวด แยกตามแผน (ก1 / ก2 / ข / 1.1 / 2.1 …)
+  //    รองรับทั้งแบบตาราง (หัวคอลัมน์มีหลายแผน ตัวเลขเรียงกันในบรรทัดเดียว) และแบบเขียนทีละแผน
+  res.plans = []; res.totalByPlan = {};
+  var cols = null, curPlan = '';
+  function addPlan(p) { if (res.plans.indexOf(p) < 0) res.plans.push(p); }
+  function toks(line) {
+    var b = thaiDigits(line).replace(/^\s*\(?\d{1,2}[\).]\s*/, '').replace(/\([^)]*\)/g, ' ').replace(/(\d+)/g, ' $1 ');
+    return b.split(/\s+/).filter(function (t) { return /^(\d+|-|–)$/.test(t); }).map(function (t) { return /\d/.test(t) ? +t : 0; });
+  }
+  function addReq(g, plan, val) {
+    var x = res.groups.filter(function (y) { return y.label === g.label; })[0];
+    if (!x) { x = { label: g.label, cat: g.cat, required: null, byPlan: {} }; res.groups.push(x); }
+    if (plan && !(plan in x.byPlan)) x.byPlan[plan] = val;
+    if (x.required == null && val) x.required = val;
+  }
   for (i = iStruct; i < iCourses; i++) {
-    var g = groupFromLine(lines[i]);
-    if (!g) continue;
-    var cm = normTh(lines[i]).match(/(\d+)หนวยกต/);
-    if (cm && !res.groups.some(function (x) { return x.label === g.label; }))
-      res.groups.push({ label: g.label, cat: g.cat, required: +cm[1] });
+    var ps = planIds(lines[i]), g = groupFromLine(lines[i]), nn = normTh(lines[i]).replace(/^\(?\d{1,2}[\).]/, '');
+    if (!g && ps.length >= 2) { cols = ps; curPlan = ''; ps.forEach(addPlan); continue; }
+    if (!g && ps.length === 1 && !/^รวม/.test(nn)) { curPlan = ps[0]; cols = null; addPlan(curPlan); continue; }
+    var tk = toks(lines[i]), cm = normTh(lines[i]).match(/(\d+)หนวยกต/);
+    if (g) {
+      if (cols && tk.length >= cols.length) cols.forEach(function (p, j) { addReq(g, p, tk[j]); });
+      else if (cm) addReq(g, curPlan, +cm[1]);
+    } else if (/^รวม/.test(nn)) {
+      if (cols && tk.length >= cols.length) cols.forEach(function (p, j) { if (!(p in res.totalByPlan)) res.totalByPlan[p] = tk[j]; });
+      else if (cm && curPlan && !(curPlan in res.totalByPlan)) res.totalByPlan[curPlan] = +cm[1];
+    }
   }
 
   // 2) รายวิชาในแต่ละหมวด
@@ -260,6 +306,12 @@ var FAIL_GRADES = ['F', 'U', 'W', 'AU'];
 var PENDING_GRADES = ['', 'X', 'IP', 'I']; // ยังไม่ได้ประเมิน / ยังไม่มีผล
 var ENGLISH_CAT = 'ภาษาอังกฤษ';           // วิชาภาษาอังกฤษของบัณฑิตวิทยาลัย (GRID...) ไม่นับหน่วยกิต
 var ENGLISH_PREFIX = /^GRID/;
+// ชนิดวิทยานิพนธ์ตามหน่วยกิตที่นักศึกษาลงทะเบียน: 6 = สารนิพนธ์, 12 = วิทยานิพนธ์, 36 = วิทยานิพนธ์ ปริญญาเอก
+function thesisKind(credits) {
+  if (credits === 6) return 'สารนิพนธ์';
+  if (credits >= 24) return 'วิทยานิพนธ์ ปริญญาเอก';
+  return 'วิทยานิพนธ์';
+}
 function isPass(g) { return FAIL_GRADES.indexOf(g) < 0 && PENDING_GRADES.indexOf(g) < 0; }
 function isPending(g) { return PENDING_GRADES.indexOf(g) >= 0; }
 var TRANSFER_GRADES = ['T', 'TR', 'TC'];
@@ -302,7 +354,7 @@ function evaluate(curr, tr, opts) {
 
   var courses = order.map(function (code) {
     var e = byCode[code], c = map[code];
-    var cat = code in overrides ? overrides[code] : (c ? c.cat : unknownCat(e.row.grade, code, e.row.title));
+    var cat = code in overrides ? overrides[code] : ENGLISH_PREFIX.test(code) ? ENGLISH_CAT : (c ? c.cat : unknownCat(e.row.grade, code, e.row.title));
     var isTransfer = !!transfer[code] || TRANSFER_GRADES.indexOf(e.row.grade) >= 0;
     // วิทยานิพนธ์/สารนิพนธ์: ใช้หน่วยกิตที่นักศึกษาลงทะเบียน (12/36 = วิทยานิพนธ์, 6 = สารนิพนธ์) นับครั้งเดียว
     var cr = cat === THESIS_CAT ? e.maxCr : e.row.credits;
@@ -319,7 +371,7 @@ function evaluate(curr, tr, opts) {
   var stuThesis = 0;
   courses.forEach(function (x) { if (x.cat === THESIS_CAT) stuThesis = Math.max(stuThesis, x.credits); });
   var bookThesis = sum[THESIS_CAT].required;
-  var thesis = stuThesis ? { credits: stuThesis, kind: stuThesis === 6 ? 'สารนิพนธ์' : 'วิทยานิพนธ์', book: bookThesis } : null;
+  var thesis = stuThesis ? { credits: stuThesis, kind: thesisKind(stuThesis), book: bookThesis } : null;
   if (thesis) sum[THESIS_CAT].required = stuThesis;
 
   // วิชาในเล่ม (ปรับพื้นฐาน/แกน/บังคับ/วิทยานิพนธ์) ที่ยังไม่มีในผลการเรียน
@@ -384,9 +436,9 @@ function evaluate(curr, tr, opts) {
     var c = map[r.code], e = byCode[r.code];
     return {
       term: r.term, code: r.code, title: r.title, credits: r.credits, grade: r.grade, nameTh: r.nameTh || '', filled: r.filled || '',
-      cat: (r.code in overrides ? overrides[r.code] : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) || '', group: c ? c.group : '',
+      cat: (r.code in overrides ? overrides[r.code] : ENGLISH_PREFIX.test(r.code) ? ENGLISH_CAT : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) || '', group: c ? c.group : '',
       inCurriculum: !!c, overridden: !!overrides[r.code], times: e.times,
-      pass: isPass(r.grade), pending: isPending(r.grade), thesisCredits: (r.code in overrides ? overrides[r.code] : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) === THESIS_CAT ? e.maxCr : null, counted: e.row === r && courses.some(function (q) { return q.code === r.code && q.counted; })
+      pass: isPass(r.grade), pending: isPending(r.grade), thesisCredits: (r.code in overrides ? overrides[r.code] : ENGLISH_PREFIX.test(r.code) ? ENGLISH_CAT : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) === THESIS_CAT ? e.maxCr : null, counted: e.row === r && courses.some(function (q) { return q.code === r.code && q.counted; })
     };
   });
   return { sum: sum, total: total, courses: courses, missing: missing, rows: rows, groups: groups, pass: allOk, thesis: thesis };
@@ -409,13 +461,18 @@ function call(fn) {
 }
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 1800); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function sameCat(filled, x) {
+  if (x.cat === ENGLISH_CAT) return true;
+  var a = normTh(filled), b = normTh(catText(x.cat, x.group, x.thesisCredits));
+  return a === b || (a && b.indexOf(a) === 0);
+}
 function chip(code, extra) { return '<span class="code">' + esc(code) + (extra ? ' ' + extra : '') + '</span>'; }
 function stCls(s) { return s === 'ครบ' ? 'ok' : (s === '—' || s === 'รอผลประเมิน') ? 'warn' : 'bad'; }
 // ชื่อหมวดแบบเดียวกับในระบบ
 function catText(cat, group, credits) {
-  if (cat === THESIS && credits) return credits === 6 ? 'สารนิพนธ์' : 'วิทยานิพนธ์';
+  if (cat === THESIS && credits) return thesisKind(credits);
   if (cat === THESIS) return /สารนิพนธ์/.test(group || '') ? 'สารนิพนธ์' : /อิสระ/.test(group || '') ? 'การศึกษาอิสระ' : 'วิทยานิพนธ์';
-  if (cat === ENGLISH_CAT) return '';
+  if (cat === ENGLISH_CAT) return 'ภาษาอังกฤษ';
   return cat;
 }
 
@@ -544,7 +601,8 @@ function addStudent(t) {
 
 /* ---------- ตรวจ + สรุปสิ่งที่ต้องดู ---------- */
 function check(s) {
-  var c = state.cache[s.bookId] || null;
+  var book = state.cache[s.bookId] || null, fp = book ? currForPlan(book, s.t.plan) : null;
+  var c = fp ? fp.curr : null;
   var r = evaluate(c || { courses: [], groups: [], totalRequired: null }, s.t, { overrides: s.overrides, transfer: s.transfer });
   var got = r.total.study + r.total.transfer, req = r.total.required, todo = [], why = [];
   var v;
@@ -570,12 +628,14 @@ function check(s) {
     var outs = r.courses.filter(function (x) { return !x.inCurriculum && x.cat !== ENGLISH_CAT && x.pass; });
     if (outs.length) todo.push({ cls: 'warn', html: 'ไม่พบรหัสวิชานี้ในเล่ม ระบบนับเป็น “' + esc(catText(outs[0].cat, '', outs[0].credits) || 'ไม่นับ') + '” ให้ก่อน — ตรวจอีกครั้ง: ' +
       outs.map(function (x) { return chip(x.code, '→ ' + esc(catText(x.cat, '', x.cat === THESIS ? x.credits : null) || 'ไม่นับ')); }).join('') });
-    var diff = r.rows.filter(function (x) { return x.filled && normTh(x.filled) !== normTh(catText(x.cat, x.group, x.thesisCredits)); });
+    var diff = r.rows.filter(function (x) { return x.filled && !sameCat(x.filled, x); });
     if (diff.length) todo.push({ cls: 'warn', html: 'หมวดที่กรอกไว้ในระบบไม่ตรงกับเล่ม: ' + diff.map(function (x) { return chip(x.code, esc(x.filled) + ' → ' + esc(catText(x.cat, x.group, x.thesisCredits) || 'ว่าง')); }).join('') });
+    if (fp.missing) todo.unshift({ cls: 'warn', html: 'ในเล่มไม่พบแผน “' + esc(s.t.plan) + '” (เล่มมีแผน ' + esc(book.plans.join(', ')) + ') — ใช้เกณฑ์ที่อ่านได้แรกสุด ตรวจหน่วยกิตแต่ละหมวดอีกครั้ง' });
     var onlyWait = !r.pass && !shortG.length && waitG.length && got + r.total.pending >= req;
     v = r.pass ? { cls: 'ok', title: '✓ เรียนครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' หน่วยกิต จากเกณฑ์ ' + req + ' หน่วยกิต — นำหมวดและตัวเลขด้านล่างไปกรอกในระบบได้เลย' }
       : onlyWait ? { cls: 'warn', title: '⏳ ลงทะเบียนครบแล้ว รอผลการประเมิน', sub: waitG.map(function (g) { return g.label + ' รอผล ' + g.pending + ' หน่วยกิต'; }).join(' · ') }
       : { cls: 'bad', title: '✗ ยังเรียนไม่ครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' จากเกณฑ์ ' + req + ' หน่วยกิต · ' + why.join(' · ') };
+    if (fp.plan) v.sub += ' (เกณฑ์แผน ' + fp.plan + ')';
   }
   return { c: c, r: r, v: v, todo: todo, key: !c ? 'nobook' : v.cls };
 }
@@ -609,10 +669,10 @@ function render() {
 
   function catSelect(x) {
     var label = catText(x.cat, x.group, x.thesisCredits);
-    return '<select class="ovr catsel' + (label ? '' : ' none') + '" data-code="' + esc(x.code) + '">' +
+    return '<select class="ovr catsel' + (label && x.cat !== ENGLISH_CAT ? '' : ' none') + '" data-code="' + esc(x.code) + '">' +
       '<option value=""' + (x.cat ? '' : ' selected') + '>(ว่าง)</option>' +
       CATS.map(function (c) { return '<option value="' + c + '"' + (c === x.cat ? ' selected' : '') + '>' + catText(c, x.group, x.thesisCredits) + '</option>'; }).join('') +
-      (x.cat === ENGLISH_CAT ? '<option value="' + ENGLISH_CAT + '" selected>(ว่าง)</option>' : '') + '</select>';
+      '<option value="' + ENGLISH_CAT + '"' + (x.cat === ENGLISH_CAT ? ' selected' : '') + '>ภาษาอังกฤษ (ไม่ต้องเลือกหมวด · ไม่นับหน่วยกิต)</option></select>';
   }
   $('reg').innerHTML = '<tr><th>ปีการศึกษา</th><th>รหัสวิชา</th><th>ชื่อวิชา</th><th class="num">หน่วยกิต</th><th class="num">เกรด</th><th>หมวด</th></tr>' +
     r.rows.map(function (x) {
@@ -620,9 +680,9 @@ function render() {
       if (k.c && !x.inCurriculum && x.cat !== ENGLISH_CAT) note.push('<span class="tag warn">ไม่พบในเล่ม</span>');
       if (!x.pass && !x.pending) note.push('<span class="tag bad">ไม่ผ่าน</span>');
       if (x.pending) note.push('<span class="tag warn">รอผล</span>');
-      if (x.filled && normTh(x.filled) !== normTh(catText(x.cat, x.group, x.thesisCredits))) note.push('<span class="tag warn">ในระบบกรอก: ' + esc(x.filled) + '</span>');
+      if (k.c && x.filled && !sameCat(x.filled, x)) note.push('<span class="tag warn">ในระบบกรอก: ' + esc(x.filled) + '</span>');
       return '<tr class="r1"><td>' + esc(x.term) + '</td><td>' + esc(x.code) + '</td><td>' + esc(x.title) + '</td><td class="num">' + x.credits + '</td><td class="num">' + esc(x.grade) + '</td>' +
-        '<td>' + (k.c ? catSelect(x) : '') + ' ' + note.join(' ') + '</td></tr>' +
+        '<td>' + (k.c || x.cat === ENGLISH_CAT || x.cat === THESIS ? catSelect(x) : '') + ' ' + note.join(' ') + '</td></tr>' +
         '<tr class="r2"><td></td><td colspan="5">' + (x.nameTh ? 'เลือกหมวดวิชา' + esc(x.nameTh) : '') + '</td></tr>';
     }).join('');
 
