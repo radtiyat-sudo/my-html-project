@@ -6,205 +6,122 @@
 <title>ตรวจโครงสร้างหลักสูตร</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{--ink:#1d2433;--mute:#667085;--line:#d9dee7;--bg:#f4f6f9;--card:#fff;--pri:#1f4e9c;--pri2:#e8eef9;
-        --ok:#157347;--okbg:#e7f5ee;--bad:#b42318;--badbg:#fdecea;--warn:#8a5a00;--warnbg:#fff4d6}
+        --ok:#157347;--okbg:#e7f5ee;--bad:#b42318;--badbg:#fdecea;--warn:#8a5a00;--warnbg:#fff4d6;--red:#e0141e}
   *{box-sizing:border-box}
   body{margin:0;font-family:Sarabun,system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:15px}
   header{background:var(--pri);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
   header h1{margin:0;font-size:20px}
   header p{margin:2px 0 0;font-size:13px;color:#cfe0ff}
-  header a{color:#cfe0ff;font-size:13px}
-  main{max-width:1100px;margin:0 auto;padding:16px}
+  main{max-width:1000px;margin:0 auto;padding:16px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px}
-  .card h2{margin:0 0 6px;font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .card h3{font-size:16px;margin:18px 0 6px}
-  .step{background:var(--pri);color:#fff;border-radius:50%;width:26px;height:26px;display:inline-grid;place-items:center;font-size:14px;flex:none}
-  .step.done{background:var(--ok)}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  select,input[type=text],input[type=number],textarea{font:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;max-width:100%}
-  textarea{width:100%;min-height:90px}
   button{font:inherit;border:0;border-radius:6px;padding:7px 14px;cursor:pointer;background:var(--pri);color:#fff}
   button.ghost{background:#fff;color:var(--pri);border:1px solid var(--pri)}
-  button.danger{background:#fff;color:var(--bad);border:1px solid var(--bad)}
   button.sm{padding:3px 10px;font-size:13px}
-  button:disabled{opacity:.5;cursor:default}
-  .drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--mute);cursor:pointer;flex:1;min-width:240px}
-  .drop b{display:block;color:var(--ink);font-size:16px;margin-bottom:2px}
-  .drop.over{border-color:var(--pri);background:var(--pri2)}
+  textarea{font:inherit;width:100%;min-height:90px;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
   .muted{color:var(--mute);font-size:13px}
-  details{margin-top:8px}
-  details>summary{cursor:pointer}
-  details.sec{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:12px}
-  details.sec>summary{font-weight:600;font-size:15px}
-  table{border-collapse:collapse;width:100%}
-  th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
-  th{background:#f7f9fc;font-weight:600;font-size:14px}
-  td.num,th.num{text-align:center}
+  .hidden{display:none!important}
   .tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
   .ok{background:var(--okbg);color:var(--ok)} .bad{background:var(--badbg);color:var(--bad)} .warn{background:var(--warnbg);color:var(--warn)}
-  .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
-  .hidden{display:none!important}
-  .info{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 16px;margin-bottom:10px}
-  .info b{color:var(--mute);font-weight:400;margin-right:6px}
-  .alert{padding:8px 12px;border-radius:6px;margin:8px 0;font-size:14px}
-  .alert.ok{border:1px solid #b9e2cb}.alert.bad{border:1px solid #f3b8b2}.alert.warn{border:1px solid #f0d58a}
-  /* สรุปทุกคน */
-  .counts{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
-  .counts span{border-radius:8px;padding:6px 12px;font-weight:700}
-  #sumTbl tr.pick{cursor:pointer}
-  #sumTbl tr.pick:hover td{background:#f7f9fc}
-  #sumTbl tr.sel td{background:var(--pri2)}
-  #sumTbl td.why{font-size:13px;color:var(--mute)}
-  /* รายละเอียดรายคน */
-  .verdict{border-radius:10px;padding:12px 16px;margin:6px 0 4px;font-size:17px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .verdict small{font-weight:400;font-size:14px}
+
+  /* ช่องวางไฟล์ */
+  .drop{display:block;border:2px dashed #9fb3d9;border-radius:12px;padding:30px 16px;text-align:center;color:var(--mute);cursor:pointer;background:#fafcff}
+  .drop b{display:block;color:var(--ink);font-size:18px;margin-bottom:4px}
+  .drop.over{border-color:var(--pri);background:var(--pri2)}
+  .slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .slot{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+  .slot .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#c9d2e3;color:#fff;font-weight:700}
+  .slot.done{border-color:#b9e2cb;background:var(--okbg)} .slot.done .n{background:var(--ok)}
+  .slot h4{margin:0;font-size:15px} .slot div.s{font-size:13px;color:var(--mute);word-break:break-word}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .tabs button{background:#fff;color:var(--ink);border:1px solid var(--line);font-size:13px;padding:4px 10px}
+  .tabs button.on{border-color:var(--pri);background:var(--pri2);color:var(--pri);font-weight:600}
+  .tabs .d{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+
+  /* ผลตรวจ */
+  .verdict{border-radius:10px;padding:12px 16px;font-size:18px;font-weight:700;margin-bottom:6px}
+  .verdict small{display:block;font-weight:400;font-size:14px;margin-top:2px}
   .verdict.ok{background:var(--okbg);color:var(--ok);border:1px solid #b9e2cb}
   .verdict.bad{background:var(--badbg);color:var(--bad);border:1px solid #f3b8b2}
   .verdict.warn{background:var(--warnbg);color:var(--warn);border:1px solid #f0d58a}
-  ul.todo{list-style:none;padding:0;margin:0}
-  ul.todo li{padding:7px 10px;border-radius:6px;margin:4px 0;font-size:14px;border-left:4px solid}
-  ul.todo li.bad{border-color:var(--bad)} ul.todo li.warn{border-color:#d9a400} ul.todo li.ok{border-color:var(--ok)}
-  #checkTbl td{vertical-align:top}
-  #checkTbl td:first-child{min-width:150px}
-  #checkTbl tr.sum td{font-weight:700;background:#f7f9fc}
-  #bookCheck td:nth-child(5){white-space:nowrap}
-  #bookCheck td:first-child{width:90px}
-  #outsideWrap td:nth-child(4),#outsideWrap td:nth-child(5){white-space:nowrap}
+  ul.todo{list-style:none;padding:0;margin:6px 0 0}
+  ul.todo li{padding:6px 10px;border-radius:6px;margin:4px 0;font-size:14px;border-left:4px solid;background:#fafbfc}
+  ul.todo li.bad{border-color:var(--bad)} ul.todo li.warn{border-color:#d9a400}
   .code{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 6px;margin:2px 3px 2px 0;font-size:13px;background:#fff}
-  /* แบบฟอร์มตัวเลขสำหรับกรอกระบบทะเบียน */
-  .form{display:grid;grid-template-columns:auto 56px auto auto 56px auto auto 56px auto auto;gap:4px 6px;align-items:center;color:#1515c9;max-width:900px;margin-top:8px}
-  .form .lbl{text-align:right}
-  .form .box{border:1px solid #9aa3b2;border-radius:2px;height:26px;display:grid;place-items:center;color:var(--ink);font-weight:700;background:#fff;cursor:pointer}
-  .form .box:hover{background:var(--pri2)}
-  .catsel{color:#e0141e;font:inherit;font-weight:600;border:1px solid transparent;background:transparent;padding:2px 4px;cursor:pointer;text-align:center}
+
+  /* หน้าตาเหมือนระบบงานสารสนเทศฯ */
+  .page{margin-top:16px}
+  .info{display:grid;grid-template-columns:130px 1fr;gap:2px 10px;margin-bottom:14px}
+  .info b{font-weight:400;color:var(--mute)}
+  table.reg{border-collapse:collapse;width:100%}
+  table.reg th{font-weight:600;font-size:14px;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+  table.reg td{padding:3px 6px;vertical-align:top;font-size:14px}
+  table.reg tr.r1 td{padding-top:7px}
+  table.reg tr.r2 td{color:var(--mute);font-size:13px;padding-top:0;border-bottom:1px solid #eef1f5}
+  table.reg .num{text-align:center}
+  .catsel{color:var(--red);font:inherit;font-weight:700;border:1px solid transparent;background:transparent;padding:0 2px;cursor:pointer}
   .catsel:hover{border-color:var(--line);background:#fff}
-  .catsel.none{color:var(--mute)}
-  #stuTbl td,#stuTbl th{padding:4px 8px;font-size:14px}
+  .catsel.none{color:var(--mute);font-weight:400}
+  .form{display:grid;grid-template-columns:auto 60px auto auto 60px auto auto 60px auto;gap:5px 6px;align-items:center;margin-top:18px;max-width:640px}
+  .form .ttl{grid-column:1/-1;font-weight:600}
+  .form .lbl{text-align:right}
+  .form .box{border:1px solid #6b7280;height:28px;display:grid;place-items:center;font-weight:700;background:#fff;cursor:pointer;font-size:15px}
+  .form .box.v{background:#fffbe6;border-color:#d9a400}
+  .form .box:hover{background:var(--pri2)}
+  details.sec{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:16px}
+  details.sec>summary{cursor:pointer;font-weight:600}
+  table.chk{border-collapse:collapse;width:100%;margin-top:8px}
+  table.chk th,table.chk td{border-bottom:1px solid var(--line);padding:4px 6px;font-size:14px;text-align:left}
+  table.chk th.g{background:var(--pri2)}
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:6px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
-  @media (max-width:760px){main{padding:10px}.form{grid-template-columns:auto 44px auto auto 44px auto auto 44px auto;font-size:13px}.form .st{grid-column:1/-1;text-align:right}
-    #sumTbl .hide-sm{display:none}}
-  @media print{header,.noprint,button{display:none!important}body{background:#fff}.card{border:0;padding:0}.scroll{max-height:none;border:0}details.sec{border:0;padding:0}}
+  @media (max-width:640px){main{padding:10px}.slots{grid-template-columns:1fr}.info{grid-template-columns:100px 1fr}
+    .form{grid-template-columns:auto 46px auto auto 46px auto auto 46px auto;font-size:13px}}
+  @media print{header,.noprint{display:none!important}body{background:#fff}.card{border:0;padding:0}details.sec{border:0;padding:0}}
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>ระบบตรวจโครงสร้างหลักสูตร</h1>
-    <p>① เลือกเล่มหลักสูตร → ② ใส่ไฟล์ผลการเรียนนักศึกษา → ③ ระบบบอกว่าเรียนครบหรือขาดวิชาใด</p>
+    <p>วางไฟล์นักศึกษา + เล่มหลักสูตร → ระบบใส่หมวดวิชาและตัวเลขโครงสร้างหลักสูตรให้ แล้วนำไปกรอกในระบบจริง</p>
   </div>
-  <a href="#" id="ssLink" target="_blank" class="noprint">เปิดฐานข้อมูล (Google Sheet)</a>
 </header>
 <main>
-
-  <!-- ขั้นที่ 1 เล่มหลักสูตร -->
   <section class="card noprint">
-    <h2><span class="step" id="st1">1</span>เล่มหลักสูตร <span id="s1state"></span></h2>
-    <p class="muted" style="margin:0 0 10px">เลือกเล่มที่เคยบันทึกไว้ — หรืออัปโหลด PDF เล่มหลักสูตร (มคอ.2) ใหม่ ทำครั้งเดียวต่อหลักสูตร แล้วใช้ซ้ำได้ตลอด
-      (ถ้าใบผลการเรียนมีรหัสหลักสูตร เช่น <b>DTOP/M</b> ระบบเลือกเล่มให้นักศึกษาแต่ละคนเอง)</p>
-    <div class="row">
-      <select id="currSel" style="min-width:320px;flex:1"><option value="">— กำลังโหลด —</option></select>
-      <button class="danger sm" id="btnDelCurr" disabled>ลบเล่มนี้</button>
+    <label class="drop" id="drop"><b>วางไฟล์ PDF ที่นี่ (หรือคลิกเพื่อเลือก)</b>
+      ไฟล์นักศึกษา (หน้าโครงสร้างหลักสูตรที่ยังไม่กรอกหมวด) และเล่มหลักสูตร (มคอ.2) — วางพร้อมกันได้ ระบบแยกให้เอง
+      <input type="file" id="file" accept="application/pdf,.pdf" multiple hidden></label>
+    <div class="slots">
+      <div class="slot" id="slotStu"><span class="n">1</span><div><h4>ไฟล์นักศึกษา</h4><div class="s" id="stuState">ยังไม่มี</div></div></div>
+      <div class="slot" id="slotBook"><span class="n">2</span><div><h4>เล่มหลักสูตร</h4><div class="s" id="bookState">ยังไม่มี</div></div></div>
     </div>
-    <div class="row" style="margin-top:10px">
-      <label class="drop" id="dropCurr"><b>＋ อัปโหลดเล่มหลักสูตรใหม่ (PDF)</b>ลากไฟล์มาวาง หรือคลิกเพื่อเลือก
-        <input type="file" id="fileCurr" accept="application/pdf,.pdf" hidden></label>
-    </div>
-    <details class="muted"><summary>อ่าน PDF ไม่ได้? วางข้อความจากเล่มแทน</summary>
-      <textarea id="txtCurr" placeholder="คัดลอกข้อความตั้งแต่หัวข้อ 3.1.2 โครงสร้างหลักสูตร ถึงรายวิชาทั้งหมด"></textarea>
-      <button class="ghost" id="btnTxtCurr">อ่านข้อความ</button>
+    <div class="tabs" id="tabs"></div>
+    <details class="muted" style="margin-top:10px"><summary>อ่าน PDF ไม่ได้? วางข้อความแทน</summary>
+      <textarea id="txt" placeholder="คัดลอกข้อความทั้งหน้า (หน้านักศึกษา หรือเล่มหลักสูตร) มาวาง"></textarea>
+      <button class="ghost sm" id="btnTxt">อ่านข้อความ</button>
     </details>
-
-    <div id="currPreview" class="hidden" style="margin-top:14px">
-      <div class="alert warn">ตรวจทานก่อนบันทึก — ระบบอ่านหมวดวิชาและหน่วยกิตจากเล่มได้ดังนี้ แก้ไขได้ถ้าไม่ถูกต้อง</div>
-      <div class="row" style="margin-bottom:10px">
-        <label>ชื่อหลักสูตร <input type="text" id="currName" style="min-width:300px"></label>
-        <label>รหัสหลักสูตร <input type="text" id="currKey" placeholder="เช่น DTOP/M" style="width:110px"></label>
-        <label>หน่วยกิตรวม <input type="number" id="currTotal" style="width:80px"></label>
-      </div>
-      <table id="groupTbl"></table>
-      <details><summary id="courseCount"></summary>
-        <div class="scroll" style="margin-top:6px"><table id="courseTbl"></table></div>
-      </details>
-      <div class="row" style="margin-top:12px">
-        <button id="btnSaveCurr">✓ บันทึกเล่มหลักสูตร</button>
-        <button class="ghost" id="btnCancelCurr">ยกเลิก</button>
-      </div>
-    </div>
   </section>
 
-  <!-- ขั้นที่ 2 นักศึกษา -->
-  <section class="card noprint">
-    <h2><span class="step" id="st2">2</span>ข้อมูลผลการเรียนนักศึกษา <span id="s2state"></span></h2>
-    <p class="muted" style="margin:0 0 10px">ใส่ได้หลายไฟล์พร้อมกัน: PDF ใบผลการเรียน/หน้าโครงสร้างหลักสูตรจากระบบทะเบียน (1 ไฟล์ต่อ 1 คน)
-      หรือไฟล์ Excel / CSV ที่ export จากระบบทะเบียน (1 ไฟล์มีหลายคนได้)</p>
-    <label class="drop" id="dropStu"><b>＋ เพิ่มไฟล์นักศึกษา</b>PDF, Excel (.xlsx) หรือ CSV — ลากมาวาง หรือคลิกเพื่อเลือก
-      <input type="file" id="fileStu" accept=".pdf,.xlsx,.xls,.csv,.txt" multiple hidden></label>
-    <details class="muted"><summary>วางข้อความแทนไฟล์</summary>
-      <textarea id="txtStu" placeholder="คัดลอกทั้งหน้าจากระบบทะเบียนมาวาง"></textarea>
-      <button class="ghost" id="btnTxtStu">อ่านข้อความ</button>
-    </details>
-    <details class="muted"><summary>หัวคอลัมน์ที่ระบบอ่านได้ใน Excel / CSV</summary>
-      <p>ต้องมีอย่างน้อย <b>รหัสวิชา</b> และ <b>หน่วยกิต</b> (หรือ <b>เกรด</b>) — คอลัมน์อื่นใส่หรือไม่ก็ได้:
-        รหัสนักศึกษา · ชื่อ-สกุล · รหัสหลักสูตร · สาขาวิชา · แผนการศึกษา · ปีการศึกษา / ภาคการศึกษา · ชื่อวิชา · เกรด.
-        ถ้ามีคอลัมน์รหัสนักศึกษา ระบบแยกเป็นรายคนให้เอง</p>
-    </details>
-    <div id="loadMsg"></div>
-  </section>
-
-  <!-- ขั้นที่ 3 สรุปทุกคน -->
-  <section class="card hidden" id="sumCard">
-    <h2><span class="step" id="st3">3</span>ผลการตรวจ</h2>
-    <div class="counts" id="counts"></div>
-    <div class="scroll" style="max-height:360px"><table id="sumTbl"></table></div>
-    <div class="row noprint" style="margin-top:10px">
-      <button id="btnSaveAll">บันทึกผลทุกคนลง Sheet</button>
-      <button class="danger sm" id="btnClear">ล้างรายชื่อ</button>
-      <span class="muted">คลิกที่ชื่อเพื่อดูรายละเอียด</span>
-    </div>
-  </section>
-
-  <!-- รายละเอียดรายคน -->
-  <section class="card hidden" id="detailCard">
-    <div class="row noprint" style="justify-content:space-between;margin-bottom:8px">
-      <div class="row">
-        <button class="ghost sm" id="btnPrev">‹ ก่อนหน้า</button>
-        <span id="navPos" class="muted"></span>
-        <button class="ghost sm" id="btnNext">ถัดไป ›</button>
-      </div>
-      <label class="muted">ตรวจกับเล่ม <select id="stuCurr" style="max-width:360px"></select></label>
-    </div>
-    <div class="info" id="stuInfo"></div>
+  <section class="card hidden" id="result">
     <div id="verdict"></div>
-
-    <h3>สิ่งที่ต้องตรวจสอบ / ดำเนินการ</h3>
     <ul class="todo" id="todo"></ul>
 
-    <h3>ผลตามโครงสร้างหลักสูตร (ข้อ 3.1.2 ในเล่ม)</h3>
-    <div class="scroll" style="max-height:none"><table id="checkTbl"></table></div>
+    <div class="page">
+      <div class="info" id="info"></div>
+      <table class="reg" id="reg"></table>
+      <div class="form" id="form"></div>
+      <p class="muted noprint">หมวดสีแดง = ให้เลือกในระบบตามนี้ (คลิกเพื่อแก้ได้) · ช่องตัวเลข: คลิกเพื่อคัดลอก · ช่องว่าง = ไม่ต้องกรอก</p>
+    </div>
 
-    <details class="sec" id="secBook"><summary>ไล่ตรวจทุกรายวิชาในเล่ม (ติ๊ก “โอน” สำหรับวิชาที่เทียบโอน/ยกเว้น)</summary>
-      <div id="bookCheck" style="margin-top:8px"></div>
-      <div id="outsideWrap"></div>
-      <div id="alerts"></div>
+    <details class="sec" id="secBook"><summary>ดูการไล่ตรวจกับเล่ม (วิชาไหนเรียนแล้ว / ยังไม่เรียน)</summary>
+      <div id="bookCheck"></div>
     </details>
 
-    <details class="sec"><summary>รายวิชาในใบผลการเรียน — เปลี่ยนหมวดได้ (ใช้เลือกหมวดในระบบทะเบียน)</summary>
-      <p class="muted" style="margin:6px 0">เรียงเหมือนหน้าระบบทะเบียน — คลิกที่หมวดสีแดงเพื่อแก้</p>
-      <div class="scroll" style="max-height:none"><table id="stuTbl"></table></div>
-    </details>
-
-    <details class="sec"><summary>ตัวเลขสำหรับกรอกช่องโครงสร้างหลักสูตรในระบบทะเบียน</summary>
-      <div class="form" id="formBox"></div>
-      <p class="muted noprint">คลิกที่ช่องตัวเลขเพื่อคัดลอก</p>
-    </details>
-
-    <div class="row noprint" style="margin-top:14px">
-      <input type="text" id="note" placeholder="หมายเหตุ (ถ้ามี)" style="flex:1;min-width:220px">
-      <button id="btnSaveRes">บันทึกผลคนนี้ลง Sheet</button>
+    <div class="noprint" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="ghost" id="btnPrint">พิมพ์</button>
+      <button class="ghost" id="btnClear">เริ่มคนใหม่</button>
     </div>
   </section>
 </main>
@@ -214,9 +131,12 @@
 /* ===== ตัวอ่านเล่มหลักสูตร + ใบผลการเรียน (ใช้ทั้งในเบราว์เซอร์และทดสอบใน node) ===== */
 var CATS = ['ปรับพื้นฐาน', 'แกน', 'บังคับ', 'เลือก', 'วิทยานิพนธ์/สารนิพนธ์'];
 
-// แปลงเลขไทยเป็นอารบิก
+// อักขระไทยรหัสพิเศษ (U+F700–F71A) ที่ PDF บางไฟล์ใช้แทนสระ/วรรณยุกต์ → อักขระไทยปกติ
+var THAI_PUA = 'ฐ\u0E34\u0E35\u0E36\u0E37\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E48\u0E49\u0E4A\u0E4B\u0E4Cญ\u0E31\u0E4D\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E38\u0E39\u0E3A';
+// แปลงเลขไทยเป็นอารบิก และแก้อักขระรหัสพิเศษ
 function thaiDigits(s) {
-  return String(s || '').replace(/[๐-๙]/g, function (d) { return '๐๑๒๓๔๕๖๗๘๙'.indexOf(d); });
+  return String(s || '').replace(/[\uF700-\uF71A]/g, function (c) { return THAI_PUA.charAt(c.charCodeAt(0) - 0xF700); })
+    .replace(/[๐-๙]/g, function (d) { return '๐๑๒๓๔๕๖๗๘๙'.indexOf(d); });
 }
 // ตัดสระบน/ล่าง วรรณยุกต์ และช่องว่าง เพื่อให้จับคำได้แม้ข้อความใน PDF เพี้ยน (เช่น "บังคบั")
 function normTh(s) {
@@ -315,20 +235,23 @@ function parseCurriculum(text) {
 }
 
 /**
- * อ่านใบผลการเรียน/หน้าโครงสร้างหลักสูตรของนักศึกษา
- * คืนค่า { studentId, name, program, plan, rows:[{term,code,title,credits,grade}] }
+ * อ่านหน้าโครงสร้างหลักสูตรของนักศึกษา (ระบบงานสารสนเทศฯ บัณฑิตวิทยาลัย)
+ * คืนค่า { studentId, programKey, name, program, plan, criteria, rows:[{term,code,title,nameTh,credits,grade,filled}] }
+ * filled = หมวดที่กรอกไว้แล้วในระบบ (ถ้ามี)
  */
 function parseTranscript(text) {
   var lines = thaiDigits(text).split(/\r?\n/);
-  var out = { studentId: '', programKey: '', name: '', program: '', plan: '', rows: [] };
-  var rowRe = /(\d{4}\/\d)\s+([A-Z]{4}\s?\d{3})\s+(.+?)\s+(\d+(?:\.\d+)?)(?:\s+(A|B\+|B|C\+|C|D\+|D|F|S|U|P|W|I|IP|AU|X|T|TR|TC))?\s*$/;
+  var out = { studentId: '', programKey: '', name: '', program: '', plan: '', criteria: '', rows: [] };
+  var rowRe = /(\d{4}\/\d)\s+([A-Z]{4}\s?\d{3})\s+(.+?)\s+(\d+(?:\.\d+)?)(?:\s+(A|B\+|B|C\+|C|D\+|D|F|S|U|P|W|I|IP|AU|X|T|TR|TC))?(?:\s+([\u0E00-\u0E7F\/]+))?\s*$/;
   lines.forEach(function (l) {
     var s = l.trim(), m;
     if (!out.studentId && (m = s.match(/รหัสนักศึกษา\s+(\S+)(?:\s+(\S+))?/))) { out.studentId = m[1]; out.programKey = m[2] || ''; }
     else if (!out.name && (m = s.match(/^ชื่อ\s*-\s*สกุล\s+(.+)/))) out.name = m[1];
     else if (!out.program && (m = s.match(/^สาขาวิชา\s+(.+)/))) out.program = m[1];
     else if (!out.plan && (m = s.match(/^แผนการศึกษา\s+(.+)/))) out.plan = m[1];
-    if ((m = s.match(rowRe))) out.rows.push({ term: m[1], code: normCode(m[2]), title: m[3], credits: +m[4], grade: m[5] || '' });
+    else if (!out.criteria && (m = s.match(/^เกณฑ\S*\s+(\d{4})/))) out.criteria = m[1];
+    if ((m = s.match(rowRe))) out.rows.push({ term: m[1], code: normCode(m[2]), title: m[3], credits: +m[4], grade: m[5] || '', filled: m[6] || '', nameTh: '' });
+    else if (out.rows.length && (m = s.match(/^เลือกหมวดวิชา(.+)/))) out.rows[out.rows.length - 1].nameTh = m[1].trim();
   });
   return out;
 }
@@ -425,7 +348,7 @@ function evaluate(curr, tr, opts) {
 
   // ตรวจตามหมวดในเล่ม (ข้อ 3.1.2): แต่ละหมวดได้กี่หน่วยกิต วิชาไหนนับในหมวดใด ขาดวิชาใด
   var groups = (curr.groups || []).map(function (g) {
-    var req = g.cat === NOCREDIT ? null : g.cat === THESIS_CAT && thesis ? thesis.credits : g.required; // ปรับพื้นฐานไม่นับหน่วยกิต → ไม่ตัดสินครบ/ขาด
+    var req = g.cat === NOCREDIT ? null : g.cat === THESIS_CAT && thesis ? thesis.credits : g.required; // ปรับพื้นฐานไม่นับหน่วยกิต
     return { label: g.cat === THESIS_CAT && thesis ? thesis.kind : g.label, bookLabel: g.label, cat: g.cat, required: req, bookRequired: g.required, study: 0, transfer: 0, pending: 0, codes: [], missing: [] };
   });
   function findGroup(label, cat) {
@@ -460,7 +383,7 @@ function evaluate(curr, tr, opts) {
   var rows = tr.rows.map(function (r) {
     var c = map[r.code], e = byCode[r.code];
     return {
-      term: r.term, code: r.code, title: r.title, credits: r.credits, grade: r.grade,
+      term: r.term, code: r.code, title: r.title, credits: r.credits, grade: r.grade, nameTh: r.nameTh || '', filled: r.filled || '',
       cat: (r.code in overrides ? overrides[r.code] : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) || '', group: c ? c.group : '',
       inCurriculum: !!c, overridden: !!overrides[r.code], times: e.times,
       pass: isPass(r.grade), pending: isPending(r.grade), thesisCredits: (r.code in overrides ? overrides[r.code] : (c ? c.cat : unknownCat(r.grade, r.code, r.title))) === THESIS_CAT ? e.maxCr : null, counted: e.row === r && courses.some(function (q) { return q.code === r.code && q.counted; })
@@ -468,98 +391,11 @@ function evaluate(curr, tr, opts) {
   });
   return { sum: sum, total: total, courses: courses, missing: missing, rows: rows, groups: groups, pass: allOk, thesis: thesis };
 }
-
-/* ===== อ่านไฟล์ Excel/CSV ที่ export จากระบบทะเบียน (1 ไฟล์มีหลายคนได้) ===== */
-// [ชื่อช่อง, คำในหัวคอลัมน์] — ไล่ตามลำดับ คอลัมน์หนึ่งใช้ได้ช่องเดียว
-var TABLE_COLS = [
-  ['code', ['รหัสวิชา', 'coursecode', 'courseno', 'courseid', 'subjectcode', 'subjectid']],
-  ['title', ['ชื่อวิชา', 'รายวิชา', 'coursename', 'coursetitle', 'subjectname', 'title']],
-  ['studentId', ['รหัสนักศึกษา', 'รหัสประจำตัว', 'studentid', 'studentcode', 'studentno']],
-  ['credits', ['หน่วยกิต', 'credit']],
-  ['grade', ['เกรด', 'ผลการเรียน', 'ระดับคะแนน', 'grade']],
-  ['term', ['ภาค/ปี', 'ปี/ภาค', 'term']],
-  ['year', ['ปีการศึกษา', 'academicyear', 'year']],
-  ['sem', ['ภาคการศึกษา', 'ภาคเรียน', 'ภาค', 'semester']],
-  ['programKey', ['รหัสหลักสูตร', 'programcode', 'curriculumcode']],
-  ['plan', ['แผนการศึกษา', 'แผน', 'plan']],
-  ['program', ['สาขาวิชา', 'หลักสูตร', 'program', 'major']],
-  ['name', ['ชื่อ-สกุล', 'ชื่อ-นามสกุล', 'ชื่อนักศึกษา', 'ชื่อ', 'name']]
-];
-function normHead(s) { return String(s || '').toLowerCase().replace(/[\s._\-()]/g, ''); }
-function findCols(row) {
-  var heads = row.map(normHead), used = {}, cols = {};
-  TABLE_COLS.forEach(function (spec) {
-    for (var k = 0; k < spec[1].length; k++) {
-      var kw = normHead(spec[1][k]);
-      for (var j = 0; j < heads.length; j++) {
-        if (!used[j] && heads[j] && heads[j].indexOf(kw) >= 0) { cols[spec[0]] = j; used[j] = 1; return; }
-      }
-    }
-  });
-  return cols;
-}
-// "1/2567" หรือ "2567/1" → "2567/1" (รูปแบบเดียวกับใบผลการเรียน)
-function normTerm(s) {
-  s = thaiDigits(s).trim();
-  var m = s.match(/^(\d)\s*\/\s*(\d{4})$/); if (m) return m[2] + '/' + m[1];
-  m = s.match(/^(\d{4})\s*\/\s*(\d)$/); if (m) return m[1] + '/' + m[2];
-  return s;
-}
-
-/**
- * rows = ตาราง 2 มิติ (แถว × คอลัมน์) จาก Excel/CSV
- * คืนค่า [{ studentId, programKey, name, program, plan, rows:[...], fileName }] — แยกตามรหัสนักศึกษา
- */
-function parseTable(rows, fileName) {
-  rows = rows.map(function (r) { return (r || []).map(function (c) { return thaiDigits(c == null ? '' : String(c)).trim(); }); });
-  var hi = -1, cols = null;
-  for (var i = 0; i < Math.min(rows.length, 40); i++) {
-    var c = findCols(rows[i]);
-    if (c.code != null && (c.credits != null || c.grade != null)) { hi = i; cols = c; break; }
-  }
-  // ไม่พบหัวตาราง → อ่านแบบข้อความเหมือนใบผลการเรียน
-  if (hi < 0) {
-    var t0 = parseTranscript(rows.map(function (r) { return r.filter(Boolean).join(' '); }).join('\n'));
-    if (!t0.rows.length) return [];
-    t0.fileName = fileName;
-    return [t0];
-  }
-  // ข้อมูลนักศึกษาที่อยู่เหนือหัวตาราง (เช่น "รหัสนักศึกษา 6736065 DTOP/M")
-  var pre = parseTranscript(rows.slice(0, hi).map(function (r) { return r.filter(Boolean).join(' '); }).join('\n'));
-  var by = {}, order = [];
-  rows.slice(hi + 1).forEach(function (r) {
-    function get(k) { return cols[k] != null ? (r[cols[k]] || '') : ''; }
-    var code = normCode(get('code'));
-    if (!/^[A-Z]{2,6}\d{3,4}$/.test(code)) return;
-    var sid = get('studentId'), pk = get('programKey');
-    var sp = sid.split(/\s+/);
-    if (sp.length > 1) { sid = sp[0]; pk = pk || sp[1]; }
-    var key = sid || '_';
-    var st = by[key];
-    if (!st) {
-      st = by[key] = { studentId: sid || pre.studentId, programKey: pk || pre.programKey, name: '', program: '', plan: '', rows: [], fileName: fileName };
-      order.push(key);
-    }
-    st.name = st.name || get('name') || pre.name;
-    st.program = st.program || get('program') || pre.program;
-    st.plan = st.plan || get('plan') || pre.plan;
-    st.programKey = st.programKey || pk;
-    var term;
-    if (cols.term != null) term = normTerm(get('term'));
-    else if (cols.year != null && cols.sem != null) {
-      var y = (get('year').match(/\d{4}/) || [''])[0], s = normTerm(get('sem'));
-      term = /\//.test(s) ? s : (y && s ? y + '/' + s : y || s);
-    } else term = normTerm(get('year') || get('sem'));
-    var g = get('grade').toUpperCase();
-    st.rows.push({ term: term, code: code, title: get('title'), credits: parseFloat(get('credits')) || 0, grade: g === '-' ? '' : g });
-  });
-  return order.map(function (k) { return by[k]; });
-}
 </script>
 <script>
 var hasGAS = typeof google !== 'undefined' && google.script && google.script.run;
-// students: [{ t, currId, currAuto, currManual, overrides, transfer, note, saved, curr, result, sum }]
-var state = { list: [], cache: {}, defaultId: '', draft: null, students: [], sel: -1 };
+// students: [{ t, bookId, overrides, transfer }]
+var state = { list: [], cache: {}, students: [], sel: -1, pendingBook: null };
 var THESIS = 'วิทยานิพนธ์/สารนิพนธ์';
 var $ = function (id) { return document.getElementById(id); };
 
@@ -573,23 +409,15 @@ function call(fn) {
 }
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 1800); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function chip(code, extra) { return '<span class="code">' + esc(code) + (extra ? ' ' + extra : '') + '</span>'; }
 function stCls(s) { return s === 'ครบ' ? 'ok' : (s === '—' || s === 'รอผลประเมิน') ? 'warn' : 'bad'; }
-function extOf(name) { var m = /\.([a-z0-9]+)$/i.exec(name || ''); return m ? m[1].toLowerCase() : ''; }
-function gradeHtml(x) {
-  if (x.pending) return '<span class="tag warn">ยังไม่ได้ประเมิน' + (x.grade ? ' (' + esc(x.grade) + ')' : '') + '</span>';
-  if (!x.pass) return '<span class="tag bad">' + esc(x.grade) + '</span>';
-  return esc(x.grade);
-}
-function catOptions(sel) {
-  return CATS.map(function (c) { return '<option' + (c === sel ? ' selected' : '') + '>' + c + '</option>'; }).join('');
-}
-// ชื่อหมวดแบบสั้นเหมือนในระบบทะเบียน
+// ชื่อหมวดแบบเดียวกับในระบบ
 function catText(cat, group, credits) {
   if (cat === THESIS && credits) return credits === 6 ? 'สารนิพนธ์' : 'วิทยานิพนธ์';
   if (cat === THESIS) return /สารนิพนธ์/.test(group || '') ? 'สารนิพนธ์' : /อิสระ/.test(group || '') ? 'การศึกษาอิสระ' : 'วิทยานิพนธ์';
+  if (cat === ENGLISH_CAT) return '';
   return cat;
 }
-function chip(code, extra) { return '<span class="code">' + esc(code) + (extra ? ' ' + extra : '') + '</span>'; }
 
 /* ---------- PDF → ข้อความ (จัดบรรทัดตามแกน y) ---------- */
 var workerReady = (function () {
@@ -632,498 +460,235 @@ function pdfToText(file) {
     });
 }
 
-/* ---------- อ่านไฟล์นักศึกษา (PDF / Excel / CSV / ข้อความ) ---------- */
-function decodeText(buf) {
-  var t = new TextDecoder('utf-8').decode(buf);
-  if (t.indexOf('�') >= 0) { try { t = new TextDecoder('windows-874').decode(buf); } catch (e) {} }
-  return t.replace(/^﻿/, '');
-}
-function textStudents(text, name) {
+/* ---------- แยกไฟล์: หน้านักศึกษา หรือ เล่มหลักสูตร ---------- */
+function classify(text, fileName) {
   var t = parseTranscript(text);
-  if (!t.rows.length) return [];
-  t.fileName = name;
-  return [t];
+  if (t.studentId && t.rows.length) { t.fileName = fileName; return { stu: t }; }
+  var c = parseCurriculum(text);
+  if (c.courses.length) { c.fileName = fileName; return { book: c }; }
+  if (t.rows.length) { t.fileName = fileName; return { stu: t }; }
+  return { err: fileName + ': ไม่ใช่หน้านักศึกษาหรือเล่มหลักสูตร (ไม่พบรหัสวิชา)' };
 }
-function workbookStudents(wb, name) {
-  var out = [];
-  wb.SheetNames.forEach(function (sn) {
-    var rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '' });
-    out = out.concat(parseTable(rows, name + (wb.SheetNames.length > 1 ? ' [' + sn + ']' : '')));
+
+function handleTexts(items) {
+  var stus = [], books = [], errs = [];
+  items.forEach(function (x) {
+    var r = classify(x.text, x.name);
+    if (r.stu) stus.push(r.stu); else if (r.book) books.push(r.book); else errs.push(r.err);
   });
-  return out;
+  if (errs.length) alert(errs.join('\n'));
+  var added = stus.map(addStudent);
+  // เล่มที่วางมาพร้อมกัน → ใช้กับนักศึกษาที่วางมาด้วย ถ้าไม่มี → ใช้กับคนที่เปิดอยู่
+  var targets = added.length ? added : (state.students[state.sel] ? [state.students[state.sel]] : []);
+  books.forEach(function (c) { applyBook(c, targets); });
+  var ids = {};
+  state.students.forEach(function (s) { if (s.bookId) ids[s.bookId] = 1; });
+  return Promise.all(Object.keys(ids).map(getBook)).catch(function (e) { alert(e.message); }).then(render);
 }
-function readStudentFile(f) {
-  var ext = extOf(f.name);
-  if (ext === 'pdf') return pdfToText(f).then(function (t) { return textStudents(t, f.name); });
-  if (ext === 'txt') return f.text().then(function (t) { return textStudents(t, f.name); });
-  if (typeof XLSX === 'undefined') return Promise.reject(new Error('โหลดตัวอ่าน Excel ไม่สำเร็จ ลองรีเฟรชหน้า'));
-  return f.arrayBuffer().then(function (buf) {
-    var wb = ext === 'csv' ? XLSX.read(decodeText(buf), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array' });
-    return workbookStudents(wb, f.name);
-  });
-}
-function processFiles(files) {
-  var all = [], errs = [], i = 0, msg = $('loadMsg');
-  function next() {
-    if (i >= files.length) return Promise.resolve();
-    var f = files[i++];
-    msg.innerHTML = '<div class="alert">กำลังอ่าน ' + i + '/' + files.length + ': ' + esc(f.name) + ' …</div>';
-    return readStudentFile(f).then(function (list) {
-      if (!list.length) errs.push(f.name + ': ไม่พบรายวิชา (รูปแบบที่อ่านได้: ปีการศึกษา รหัสวิชา ชื่อวิชา หน่วยกิต เกรด)');
-      all = all.concat(list);
-    }, function (e) { errs.push(f.name + ': ' + e.message); }).then(next);
-  }
-  return next().then(function () {
-    msg.innerHTML = (all.length ? '<div class="alert ok">✓ อ่านข้อมูลได้ ' + all.length + ' คน</div>' : '') +
-      (errs.length ? '<div class="alert bad">อ่านไม่ได้:<br>' + errs.map(esc).join('<br>') + '</div>' : '');
-    if (all.length) return addStudents(all);
+
+function handleFiles(files) {
+  $('stuState').textContent = $('stuState').textContent; // คงข้อความเดิมระหว่างอ่าน
+  toast('กำลังอ่าน ' + files.length + ' ไฟล์…');
+  return Promise.all(files.map(function (f) {
+    return pdfToText(f).then(function (text) { return { name: f.name, text: text }; },
+      function (e) { return { name: f.name, text: '', err: e.message }; });
+  })).then(function (items) {
+    var bad = items.filter(function (x) { return x.err; });
+    if (bad.length) alert('อ่าน PDF ไม่ได้:\n' + bad.map(function (x) { return x.name + ': ' + x.err; }).join('\n'));
+    return handleTexts(items.filter(function (x) { return !x.err; }));
   });
 }
 
-function setupDrop(dropId, inputId, exts, handler) {
-  var d = $(dropId), inp = $(inputId);
-  inp.addEventListener('change', function () { if (inp.files.length) handler([].slice.call(inp.files)); inp.value = ''; });
-  ['dragover', 'dragenter'].forEach(function (e) { d.addEventListener(e, function (ev) { ev.preventDefault(); d.classList.add('over'); }); });
-  ['dragleave', 'drop'].forEach(function (e) { d.addEventListener(e, function (ev) { ev.preventDefault(); d.classList.remove('over'); }); });
-  d.addEventListener('drop', function (ev) {
-    var fs = [].slice.call(ev.dataTransfer.files).filter(function (f) { return exts.indexOf(extOf(f.name)) >= 0; });
-    if (fs.length) handler(fs); else toast('ไฟล์ที่รองรับ: ' + exts.join(', '));
-  });
+/* ---------- เล่มหลักสูตร (บันทึกไว้ใช้ซ้ำตามรหัสหลักสูตร) ---------- */
+function loadList() {
+  return call('listCurricula').then(function (list) { state.list = list; }).catch(function () {});
 }
-
-/* ---------- ขั้นที่ 1: เล่มหลักสูตร ---------- */
-function currOptionsHtml(sel, blank) {
-  return '<option value="">' + esc(blank) + '</option>' + state.list.map(function (c) {
-    return '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.name) + (c.key ? ' [' + esc(c.key) + ']' : '') + '</option>';
-  }).join('');
-}
-function fillCurrSelect() {
-  $('currSel').innerHTML = currOptionsHtml(state.defaultId, '— เลือกหลักสูตร (' + state.list.length + ' เล่มที่บันทึกไว้) —');
-  $('btnDelCurr').disabled = !state.defaultId;
-  var c = state.cache[state.defaultId];
-  $('st1').classList.toggle('done', !!c);
-  $('st1').textContent = c ? '✓' : '1';
-  $('s1state').innerHTML = c ? '<span class="tag ok">' + esc(c.name) + ' · ' + c.courses.length + ' วิชา</span>'
-    : state.list.length ? '<span class="tag warn">ยังไม่ได้เลือก</span>' : '<span class="tag warn">ยังไม่มีเล่ม — อัปโหลดเล่มแรก</span>';
-}
-function loadList(selectId) {
-  return call('listCurricula').then(function (list) {
-    state.list = list;
-    fillCurrSelect();
-    if (selectId) return setDefault(selectId);
-  }).catch(function (e) { $('currSel').innerHTML = '<option value="">— ' + esc(e.message) + ' —</option>'; });
-}
-function getCurr(id) {
+function getBook(id) {
   if (!id) return Promise.resolve(null);
   if (state.cache[id]) return Promise.resolve(state.cache[id]);
   return call('getCurriculum', id).then(function (c) { state.cache[id] = c; return c; });
 }
-function setDefault(id) {
-  state.defaultId = id || '';
-  return getCurr(state.defaultId).then(function (c) {
-    // นักศึกษาที่ระบบหาเล่มให้ไม่ได้ และยังไม่ได้เลือกเอง → ใช้เล่มนี้
-    state.students.forEach(function (s) { if (!s.currAuto && !s.currManual) s.currId = state.defaultId; });
-    fillCurrSelect(); refresh();
-    if (c) toast('ใช้เล่ม: ' + c.name);
-  }).catch(function (e) { alert(e.message); });
+function findByKey(key) {
+  key = (key || '').toUpperCase();
+  if (!key) return null;
+  var local = Object.keys(state.cache).map(function (k) { return state.cache[k]; }).filter(function (c) { return (c.key || '').toUpperCase() === key; })[0];
+  return local || state.list.filter(function (c) { return (c.key || '').toUpperCase() === key; })[0] || null;
 }
-// หาเล่มให้นักศึกษาจากรหัสหลักสูตร (เช่น DTOP/M) หรือชื่อสาขาวิชา
-function matchCurr(t) {
-  var key = (t.programKey || '').toUpperCase();
-  var hit = key && state.list.filter(function (c) { return c.key && c.key.toUpperCase() === key; })[0];
-  if (!hit && t.program) {
-    var p = normTh(t.program);
-    if (p.length > 3) hit = state.list.filter(function (c) { return normTh(c.name).indexOf(p) >= 0; })[0];
+function applyBook(c, targets) {
+  if (!targets.length) { state.pendingBook = c; return; }
+  var t0 = targets[0].t;
+  c.key = t0.programKey || '';
+  c.name = c.name || t0.program || (c.fileName || '').replace(/\.pdf$/i, '');
+  var old = findByKey(c.key);
+  c.id = old ? old.id : 'b' + Date.now().toString(36);
+  state.cache[c.id] = c;
+  state.students.forEach(function (s) {
+    if (targets.indexOf(s) >= 0 || !s.bookId || (c.key && (s.t.programKey || '').toUpperCase() === c.key.toUpperCase())) s.bookId = c.id;
+  });
+  // บันทึกลงฐานข้อมูล ครั้งหน้านักศึกษาหลักสูตรเดียวกันไม่ต้องวางเล่มอีก
+  call('saveCurriculum', c).then(function () { c.saved = true; loadList().then(render); }).catch(function () {});
+}
+
+/* ---------- นักศึกษา ---------- */
+function addStudent(t) {
+  var s = { t: t, bookId: '', overrides: {}, transfer: {} };
+  var hit = findByKey(t.programKey);
+  if (hit) s.bookId = hit.id;
+  var i = -1;
+  state.students.forEach(function (x, k) { if (x.t.studentId === t.studentId) i = k; });
+  if (i >= 0) state.students[i] = s; else { state.students.push(s); i = state.students.length - 1; }
+  state.sel = i;
+  if (!s.bookId && state.pendingBook) { var c = state.pendingBook; state.pendingBook = null; applyBook(c, [s]); }
+  return s;
+}
+
+/* ---------- ตรวจ + สรุปสิ่งที่ต้องดู ---------- */
+function check(s) {
+  var c = state.cache[s.bookId] || null;
+  var r = evaluate(c || { courses: [], groups: [], totalRequired: null }, s.t, { overrides: s.overrides, transfer: s.transfer });
+  var got = r.total.study + r.total.transfer, req = r.total.required, todo = [], why = [];
+  var v;
+  if (!c) v = { cls: 'warn', title: 'วางเล่มหลักสูตรเพื่อตรวจ', sub: 'รหัสหลักสูตร ' + (s.t.programKey || '-') + ' ยังไม่มีเล่มในระบบ — วางไฟล์เล่มหลักสูตร (มคอ.2) ในช่องด้านบน' };
+  else {
+    var shortG = r.groups.filter(function (g) { return /^ขาด/.test(g.status); });
+    var waitG = r.groups.filter(function (g) { return g.status === 'รอผลประเมิน'; });
+    shortG.forEach(function (g) {
+      var lack = g.required - g.got - g.pending;
+      why.push(g.label + ' ขาด ' + lack + ' หน่วยกิต');
+      todo.push({ cls: 'bad', html: '<b>' + esc(g.label) + '</b> ขาด ' + lack + ' หน่วยกิต (ได้ ' + g.got + ' จาก ' + g.required + ')' +
+        (g.missing.length ? ' — ยังไม่เรียน: ' + g.missing.map(function (m) { return chip(m.code, m.credits != null ? '(' + m.credits + ')' : ''); }).join('') : g.cat === 'เลือก' ? ' — ต้องเรียนวิชาเลือกเพิ่ม' : '') });
+    });
+    r.groups.forEach(function (g) {
+      if (shortG.indexOf(g) >= 0 || !g.missing.length || g.cat === 'เลือก') return;
+      todo.push({ cls: 'warn', html: '<b>' + esc(g.label) + '</b> หน่วยกิตครบ แต่ยังไม่พบวิชาในเล่ม: ' + g.missing.map(function (m) { return chip(m.code); }).join('') });
+    });
+    if (got < req && !shortG.length && !waitG.length) { why.push('หน่วยกิตรวมขาด ' + (req - got)); todo.push({ cls: 'bad', html: 'หน่วยกิตรวมขาด ' + (req - got) + ' หน่วยกิต' }); }
+    var failed = r.courses.filter(function (x) { return !x.pass && !x.pending && x.cat !== ENGLISH_CAT; });
+    if (failed.length) todo.push({ cls: 'bad', html: 'ไม่ผ่าน (ไม่นับหน่วยกิต): ' + failed.map(function (x) { return chip(x.code, esc(x.grade)); }).join('') });
+    var pend = r.courses.filter(function (x) { return x.pending && x.cat !== ENGLISH_CAT; });
+    if (pend.length) todo.push({ cls: 'warn', html: 'ยังไม่มีผลการประเมิน: ' + pend.map(function (x) { return chip(x.code); }).join('') });
+    var outs = r.courses.filter(function (x) { return !x.inCurriculum && x.cat !== ENGLISH_CAT && x.pass; });
+    if (outs.length) todo.push({ cls: 'warn', html: 'ไม่พบรหัสวิชานี้ในเล่ม ระบบนับเป็น “' + esc(catText(outs[0].cat, '', outs[0].credits) || 'ไม่นับ') + '” ให้ก่อน — ตรวจอีกครั้ง: ' +
+      outs.map(function (x) { return chip(x.code, '→ ' + esc(catText(x.cat, '', x.cat === THESIS ? x.credits : null) || 'ไม่นับ')); }).join('') });
+    var diff = r.rows.filter(function (x) { return x.filled && normTh(x.filled) !== normTh(catText(x.cat, x.group, x.thesisCredits)); });
+    if (diff.length) todo.push({ cls: 'warn', html: 'หมวดที่กรอกไว้ในระบบไม่ตรงกับเล่ม: ' + diff.map(function (x) { return chip(x.code, esc(x.filled) + ' → ' + esc(catText(x.cat, x.group, x.thesisCredits) || 'ว่าง')); }).join('') });
+    var onlyWait = !r.pass && !shortG.length && waitG.length && got + r.total.pending >= req;
+    v = r.pass ? { cls: 'ok', title: '✓ เรียนครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' หน่วยกิต จากเกณฑ์ ' + req + ' หน่วยกิต — นำหมวดและตัวเลขด้านล่างไปกรอกในระบบได้เลย' }
+      : onlyWait ? { cls: 'warn', title: '⏳ ลงทะเบียนครบแล้ว รอผลการประเมิน', sub: waitG.map(function (g) { return g.label + ' รอผล ' + g.pending + ' หน่วยกิต'; }).join(' · ') }
+      : { cls: 'bad', title: '✗ ยังเรียนไม่ครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' จากเกณฑ์ ' + req + ' หน่วยกิต · ' + why.join(' · ') };
   }
-  return hit ? hit.id : '';
-}
-
-function onCurrText(text, fileName) {
-  var c = parseCurriculum(text);
-  if (!c.courses.length) { alert('ไม่พบรายวิชาในไฟล์นี้ — ตรวจว่าไฟล์มีหัวข้อ "รายวิชาในหลักสูตร" และรหัสวิชาภาษาอังกฤษ (เช่น DTOP 531)'); return; }
-  var s = state.students[state.sel];
-  c.name = c.name || (s && s.t.program) || (fileName || '').replace(/\.pdf$/i, '');
-  c.key = (s && s.t.programKey) || '';
-  state.draft = c;
-  showDraft();
-}
-function showDraft() {
-  var c = state.draft;
-  $('currPreview').classList.remove('hidden');
-  $('currName').value = c.name || '';
-  $('currKey').value = c.key || '';
-  $('currTotal').value = c.totalRequired || '';
-  $('groupTbl').innerHTML = '<tr><th>หมวดในเล่ม</th><th>หน่วยกิตที่กำหนด</th><th>นับเป็นช่องในแบบฟอร์ม</th><th class="num">จำนวนวิชา</th></tr>' +
-    c.groups.map(function (g, i) {
-      var n = c.courses.filter(function (x) { return x.group === g.label; }).length;
-      return '<tr><td>' + esc(g.label) + '</td><td><input type="number" data-g="' + i + '" class="greq" value="' + (g.required == null ? '' : g.required) + '" style="width:80px"></td>' +
-        '<td><select data-g="' + i + '" class="gcat">' + catOptions(g.cat) + '</select></td><td class="num">' + n + '</td></tr>';
-    }).join('');
-  $('courseCount').textContent = 'อ่านได้ ' + c.courses.length + ' รายวิชา — คลิกเพื่อตรวจ/แก้หน่วยกิตรายวิชา';
-  $('courseTbl').innerHTML = '<tr><th>รหัสวิชา</th><th>ชื่อวิชา</th><th class="num">หน่วยกิต</th><th>หมวดในเล่ม</th><th>ช่องในแบบฟอร์ม</th></tr>' +
-    c.courses.map(function (x, i) {
-      return '<tr><td>' + esc(x.code) + '</td><td>' + esc(x.nameEn) + '</td><td class="num"><input type="number" class="ccr" data-c="' + i + '" value="' + (x.credits == null ? '' : x.credits) + '" style="width:60px"></td>' +
-        '<td>' + esc(x.group) + '</td><td><select class="ccat" data-c="' + i + '">' + catOptions(x.cat) + '</select></td></tr>';
-    }).join('');
-  $('currPreview').scrollIntoView({ behavior: 'smooth' });
-}
-
-/* ---------- ขั้นที่ 2: นักศึกษา ---------- */
-function addStudents(arr) {
-  var firstNew = -1;
-  arr.forEach(function (t) {
-    var m = matchCurr(t);
-    var s = { t: t, currId: m || state.defaultId, currAuto: !!m, currManual: false, overrides: {}, transfer: {}, note: '', saved: false };
-    var i = -1;
-    if (t.studentId) state.students.forEach(function (x, k) { if (x.t.studentId === t.studentId) i = k; });
-    if (i >= 0) state.students[i] = s; else { state.students.push(s); i = state.students.length - 1; }
-    if (firstNew < 0) firstNew = i;
-  });
-  var ids = {};
-  state.students.forEach(function (s) { if (s.currId) ids[s.currId] = 1; });
-  return Promise.all(Object.keys(ids).map(getCurr)).catch(function (e) { alert(e.message); }).then(function () {
-    state.sel = firstNew;
-    refresh();
-    $('sumCard').scrollIntoView({ behavior: 'smooth' });
-  });
-}
-
-/* ---------- ประเมิน + สรุปสิ่งที่ต้องดำเนินการ ---------- */
-function evalStudent(s) {
-  s.curr = state.cache[s.currId] || null;
-  s.result = evaluate(s.curr || { courses: [], groups: [], totalRequired: null }, s.t, { overrides: s.overrides, transfer: s.transfer });
-  s.sum = summarize(s);
-}
-function summarize(s) {
-  var r = s.result, c = s.curr;
-  var got = r.total.study + r.total.transfer, req = r.total.required, todo = [];
-  if (!c) return { key: 'nocurr', label: 'ยังไม่ได้เลือกเล่ม', cls: 'bad', got: got, req: null, why: 'เลือกเล่มหลักสูตรในขั้นที่ 1',
-    todo: [{ cls: 'bad', html: 'ยังไม่ได้เลือกเล่มหลักสูตรสำหรับนักศึกษาคนนี้ — เลือกในขั้นที่ 1 หรือช่อง “ตรวจกับเล่ม” ด้านบน' }] };
-
-  var shortG = r.groups.filter(function (g) { return /^ขาด/.test(g.status); });
-  var waitG = r.groups.filter(function (g) { return g.status === 'รอผลประเมิน'; });
-  var why = [];
-  shortG.forEach(function (g) {
-    var lack = g.required - g.got - g.pending;
-    why.push(g.label + ' ขาด ' + lack);
-    var html = '<b>' + esc(g.label) + '</b> ขาด ' + lack + ' หน่วยกิต (ได้ ' + g.got + ' จาก ' + g.required + ')';
-    if (g.missing.length) html += '<br>ยังไม่เรียน: ' + g.missing.map(function (m) { return chip(m.code, m.credits != null ? '(' + m.credits + ')' : ''); }).join('');
-    else if (g.cat === 'เลือก') html += ' — ต้องเรียนวิชาเลือกเพิ่ม';
-    todo.push({ cls: 'bad', html: html });
-  });
-  // หมวดที่หน่วยกิตครบแล้ว แต่ยังขาดวิชาบังคับบางตัวในเล่ม
-  r.groups.forEach(function (g) {
-    if (shortG.indexOf(g) >= 0 || !g.missing.length || g.cat === 'เลือก') return;
-    todo.push({ cls: 'warn', html: '<b>' + esc(g.label) + '</b> หน่วยกิตครบ แต่ยังไม่พบวิชาในเล่ม: ' +
-      g.missing.map(function (m) { return chip(m.code); }).join('') + ' — ถ้าเทียบโอน/ยกเว้นแล้ว ให้ติ๊ก “โอน” ในตารางไล่ตรวจ' });
-  });
-  if (got < req && !shortG.length && !waitG.length) {
-    why.push('หน่วยกิตรวมขาด ' + (req - got));
-    todo.push({ cls: 'bad', html: 'หน่วยกิตรวมขาด ' + (req - got) + ' หน่วยกิต (ได้ ' + got + ' จาก ' + req + ')' });
-  }
-  var failed = r.courses.filter(function (x) { return !x.pass && !x.pending && x.cat !== ENGLISH_CAT; });
-  if (failed.length) todo.push({ cls: 'bad', html: 'ไม่ผ่าน (ไม่นับหน่วยกิต): ' + failed.map(function (x) { return chip(x.code, esc(x.grade)); }).join('') });
-  var pend = r.courses.filter(function (x) { return x.pending && x.cat !== ENGLISH_CAT; });
-  if (pend.length) todo.push({ cls: 'warn', html: 'รอผลการประเมิน: ' + pend.map(function (x) { return chip(x.code, '(' + x.credits + ')'); }).join('') });
-  var outs = r.courses.filter(function (x) { return !x.inCurriculum && x.cat !== ENGLISH_CAT && x.pass; });
-  if (outs.length) todo.push({ cls: 'warn', html: 'รหัสวิชาไม่มีในเล่ม (ตรวจว่าเป็นวิชาเลือกนอกหลักสูตร หรือใช้เล่มผิดฉบับ): ' +
-    outs.map(function (x) { return chip(x.code, '→ ' + esc(x.cat ? catText(x.cat, '', x.cat === THESIS ? x.credits : null) : 'ไม่นับ')); }).join('') });
-  var book = {}; c.courses.forEach(function (b) { book[b.code] = b; });
-  var crDiff = r.courses.filter(function (x) { var b = book[x.code]; return x.pass && b && b.credits != null && x.cat !== THESIS && x.credits !== b.credits; });
-  if (crDiff.length) todo.push({ cls: 'warn', html: 'หน่วยกิตในใบผลการเรียนไม่ตรงกับเล่ม: ' +
-    crDiff.map(function (x) { return chip(x.code, x.credits + ' ≠ ' + book[x.code].credits); }).join('') });
-  if (r.thesis && r.thesis.book && r.thesis.book !== r.thesis.credits)
-    todo.push({ cls: 'warn', html: 'ลง' + r.thesis.kind + ' ' + r.thesis.credits + ' หน่วยกิต (ในเล่ม ' + r.thesis.book + ') — ใช้เกณฑ์ตามที่นักศึกษาลงทะเบียน' });
-
-  var onlyWaiting = !r.pass && !shortG.length && waitG.length && got + r.total.pending >= req;
-  if (onlyWaiting) why = waitG.map(function (g) { return g.label + ' รอผล ' + g.pending; });
-  if (!todo.length) todo.push({ cls: 'ok', html: 'ไม่พบปัญหา — เรียนครบทุกหมวดตามเล่ม' });
-  return r.pass ? { key: 'ok', label: 'ครบตามหลักสูตร', cls: 'ok', got: got, req: req, why: '', todo: todo }
-    : onlyWaiting ? { key: 'wait', label: 'รอผลประเมิน', cls: 'warn', got: got, req: req, why: why.join(', '), todo: todo }
-    : { key: 'bad', label: 'ยังไม่ครบ', cls: 'bad', got: got, req: req, why: why.join(', '), todo: todo };
+  return { c: c, r: r, v: v, todo: todo, key: !c ? 'nobook' : v.cls };
 }
 
 /* ---------- แสดงผล ---------- */
-function refresh() {
-  state.students.forEach(evalStudent);
-  if (state.sel >= state.students.length) state.sel = state.students.length - 1;
-  renderSummary();
-  renderDetail();
-}
-
-function renderSummary() {
-  var L = state.students;
-  $('sumCard').classList.toggle('hidden', !L.length);
-  $('st2').classList.toggle('done', !!L.length);
-  $('st2').textContent = L.length ? '✓' : '2';
-  $('s2state').innerHTML = L.length ? '<span class="tag ok">' + L.length + ' คน</span>' : '';
-  if (!L.length) return;
-  var n = { ok: 0, wait: 0, bad: 0, nocurr: 0 };
-  L.forEach(function (s) { n[s.sum.key]++; });
-  $('counts').innerHTML = '<span class="ok">✓ ครบ ' + n.ok + '</span>' + (n.wait ? '<span class="warn">⏳ รอผล ' + n.wait + '</span>' : '') +
-    '<span class="bad">✗ ยังไม่ครบ ' + n.bad + '</span>' + (n.nocurr ? '<span class="bad">ไม่มีเล่ม ' + n.nocurr + '</span>' : '') +
-    '<span style="background:#f7f9fc">ทั้งหมด ' + L.length + ' คน</span>';
-  $('sumTbl').innerHTML = '<tr><th class="num">#</th><th>รหัสนักศึกษา</th><th>ชื่อ-สกุล</th><th class="hide-sm">หลักสูตรที่ใช้ตรวจ</th><th class="num">หน่วยกิต</th><th class="num">ผล</th><th class="hide-sm">สิ่งที่ขาด</th><th class="num hide-sm">บันทึก</th></tr>' +
-    L.map(function (s, i) {
-      var c = s.curr;
-      return '<tr class="pick' + (i === state.sel ? ' sel' : '') + '" data-pick="' + i + '"><td class="num">' + (i + 1) + '</td><td>' + esc(s.t.studentId || '-') + '</td><td>' + esc(s.t.name || s.t.fileName) + '</td>' +
-        '<td class="hide-sm">' + (c ? esc(c.name) : '<span class="tag bad">ยังไม่ได้เลือก</span>') + '</td>' +
-        '<td class="num">' + s.sum.got + (s.sum.req ? ' / ' + s.sum.req : '') + '</td>' +
-        '<td class="num"><span class="tag ' + s.sum.cls + '">' + s.sum.label + '</span></td>' +
-        '<td class="why hide-sm">' + esc(s.sum.why || '—') + '</td><td class="num hide-sm">' + (s.saved ? '✓' : '') + '</td></tr>';
-    }).join('');
-}
-
-function renderDetail() {
+function render() {
   var s = state.students[state.sel];
-  $('detailCard').classList.toggle('hidden', !s);
-  $('st3').classList.toggle('done', state.students.length > 0 && state.students.every(function (x) { return x.saved; }));
+  // ช่องสถานะ
+  $('slotStu').classList.toggle('done', !!s);
+  $('stuState').innerHTML = s ? esc(s.t.studentId + ' ' + s.t.programKey) + '<br>' + esc(s.t.name) + ' · ' + s.t.rows.length + ' รายการ' : 'ยังไม่มี — หน้าโครงสร้างหลักสูตรของนักศึกษาจากระบบ';
+  var c = s ? state.cache[s.bookId] : state.pendingBook;
+  $('slotBook').classList.toggle('done', !!c);
+  $('bookState').innerHTML = c ? esc(c.name) + (c.key ? ' [' + esc(c.key) + ']' : '') + '<br>' + c.courses.length + ' รายวิชา' +
+      (s && !c.fileName ? ' · <span style="color:var(--ok)">ใช้เล่มที่บันทึกไว้</span>' : c.saved ? ' · บันทึกแล้ว ครั้งหน้าไม่ต้องวางอีก' : '')
+    : s ? 'ยังไม่มีเล่มของ ' + esc(s.t.programKey || 'หลักสูตรนี้') + ' — วางไฟล์เล่มหลักสูตร' : 'ยังไม่มี — เล่ม มคอ.2 (วางครั้งเดียว ระบบจำไว้ให้)';
+
+  // แท็บเมื่อมีหลายคน
+  $('tabs').innerHTML = state.students.length > 1 ? state.students.map(function (x, i) {
+    var k = check(x).key, col = k === 'ok' ? 'var(--ok)' : k === 'bad' ? 'var(--bad)' : '#d9a400';
+    return '<button data-tab="' + i + '" class="' + (i === state.sel ? 'on' : '') + '"><span class="d" style="background:' + col + '"></span>' + esc(x.t.studentId) + ' ' + esc((x.t.name || '').split(' ').slice(0, 2).join(' ')) + '</button>';
+  }).join('') : '';
+
+  $('result').classList.toggle('hidden', !s);
   if (!s) return;
-  var t = s.t, c = s.curr, r = s.result;
-  $('navPos').textContent = 'คนที่ ' + (state.sel + 1) + ' / ' + state.students.length;
-  $('btnPrev').disabled = state.sel <= 0;
-  $('btnNext').disabled = state.sel >= state.students.length - 1;
-  $('stuCurr').innerHTML = currOptionsHtml(s.currId, '— ยังไม่ได้เลือก —');
-  $('note').value = s.note || '';
-  $('stuInfo').innerHTML = [['รหัสนักศึกษา', t.studentId], ['ชื่อ-สกุล', t.name], ['สาขาวิชา', t.program], ['แผน', t.plan],
-    ['หลักสูตรที่ใช้ตรวจ', c ? c.name : ''], ['ไฟล์', t.fileName]]
-    .map(function (x) { return '<div><b>' + x[0] + '</b>' + (x[1] ? esc(x[1]) : x[0] === 'หลักสูตรที่ใช้ตรวจ' ? '<span class="tag bad">ยังไม่ได้เลือก</span>' : '-') + '</div>'; }).join('');
+  var k = check(s), r = k.r, t = s.t;
+  $('verdict').innerHTML = '<div class="verdict ' + k.v.cls + '">' + k.v.title + '<small>' + esc(k.v.sub) + '</small></div>';
+  $('todo').innerHTML = k.todo.map(function (x) { return '<li class="' + x.cls + '">' + x.html + '</li>'; }).join('');
 
-  var sm = s.sum;
-  $('verdict').innerHTML = !c ? '' : '<div class="verdict ' + sm.cls + '">' +
-    (sm.key === 'ok' ? '✓ เรียนครบตามโครงสร้างหลักสูตร' : sm.key === 'wait' ? '⏳ ลงทะเบียนครบแล้ว รอผลการประเมิน' : '✗ ยังเรียนไม่ครบตามโครงสร้างหลักสูตร') +
-    ' <small>หน่วยกิตรวม ' + sm.got + ' จากเกณฑ์ ' + sm.req + (sm.why ? ' · ' + esc(sm.why) : '') + '</small></div>';
-  $('todo').innerHTML = sm.todo.map(function (x) { return '<li class="' + x.cls + '">' + x.html + '</li>'; }).join('');
+  $('info').innerHTML = [['รหัสนักศึกษา', t.studentId + ' ' + t.programKey], ['ชื่อ - สกุล', t.name], ['สาขาวิชา', t.program], ['แผนการศึกษา', t.plan], ['เกณฑ์', t.criteria]]
+    .map(function (x) { return '<b>' + x[0] + '</b><div>' + esc(x[1] || '-') + '</div>'; }).join('');
 
-  if (c && r.groups.length) {
-    var tot = r.total.study + r.total.transfer;
-    $('checkTbl').innerHTML = '<tr><th>หมวดตามเล่ม</th><th class="num">เกณฑ์</th><th class="num">เรียน</th><th class="num">โอน</th><th class="num">รวม</th><th class="num">ผล</th></tr>' +
-      r.groups.map(function (g) {
-        var tnote = g.cat === THESIS && r.thesis ? '<div class="muted">เกณฑ์ตามที่นักศึกษาลงทะเบียน ' + r.thesis.credits + ' หน่วยกิต' + (r.thesis.book && r.thesis.book !== r.thesis.credits ? ' <span class="tag warn">ในเล่ม ' + r.thesis.book + '</span>' : '') + '</div>' : '';
-        return '<tr><td><b>' + esc(g.label) + '</b><div class="muted">ช่อง “' + esc(g.cat) + '”</div>' + tnote + '</td>' +
-          '<td class="num">' + (g.required == null ? '-' : (g.cat === 'เลือก' ? '≥ ' : '') + g.required) + '</td><td class="num">' + g.study + '</td><td class="num">' + (g.transfer || '') + '</td><td class="num"><b>' + g.got + '</b></td>' +
-          '<td class="num"><span class="tag ' + stCls(g.status) + '">' + g.status + '</span>' + (g.pending ? '<div class="muted">รอผล ' + g.pending + '</div>' : '') + '</td></tr>';
-      }).join('') +
-      '<tr class="sum"><td>รวมทั้งหลักสูตร</td><td class="num">≥ ' + r.total.required + '</td><td class="num">' + r.total.study + '</td><td class="num">' + (r.total.transfer || '') + '</td><td class="num">' + tot + '</td>' +
-      '<td class="num"><span class="tag ' + (tot >= r.total.required ? 'ok' : 'bad') + '">' + (tot >= r.total.required ? 'ครบ' : 'ขาด ' + (r.total.required - tot)) + '</span></td></tr>';
-    renderBookCheck(s);
-  } else {
-    $('checkTbl').innerHTML = '<tr><td class="muted">เลือกเล่มหลักสูตรเพื่อตรวจตามเกณฑ์</td></tr>';
-    $('bookCheck').innerHTML = ''; $('outsideWrap').innerHTML = '';
-  }
-
-  var rep = r.courses.filter(function (x) { return x.times > 1; });
-  $('alerts').innerHTML = rep.length ? '<div class="alert warn">วิชาที่ลงซ้ำหลายภาค นับหน่วยกิตครั้งเดียว: ' + rep.map(function (x) { return esc(x.code) + ' (' + x.times + ' ครั้ง)'; }).join(', ') + '</div>' : '';
-
-  renderStuTable(s);
-  renderForm(r);
-}
-
-// ไล่ตรวจทุกรหัสวิชาในเล่ม
-function renderBookCheck(s) {
-  var c = s.curr, r = s.result, took = {};
-  r.courses.forEach(function (x) { took[x.code] = x; });
-  $('bookCheck').innerHTML = r.groups.map(function (g) {
-    var list = c.courses.filter(function (x) { return x.group === g.bookLabel; });
-    var isElective = g.cat === 'เลือก';
-    var rows = list.map(function (b) {
-      var x = took[b.code], st, info = '', trf = '';
-      if (x && x.pass) {
-        st = '<span class="tag ok">✓ เรียนแล้ว</span>';
-        info = esc(x.term) + ' · เกรด ' + esc(x.grade) + (x.times > 1 ? ' · ลง ' + x.times + ' ครั้ง' : '');
-        if (b.credits != null && x.credits !== b.credits) info += ' <span class="tag warn">หน่วยกิตในใบ ' + x.credits + ' ไม่ตรงเล่ม</span>';
-        if (x.cat !== b.cat) info += ' <span class="tag warn">ถูกเปลี่ยนไปนับเป็น “' + esc(x.cat || 'ไม่นับ') + '”</span>';
-      } else if (s.transfer[b.code]) {
-        st = '<span class="tag ok">✓ โอน/ยกเว้น</span>';
-      } else if (x && x.pending) {
-        st = '<span class="tag warn">⏳ ยังไม่ได้ประเมิน</span>'; info = esc(x.term) + ' · ลงทะเบียนแล้ว รอผล';
-      } else if (x && !x.pass) {
-        st = '<span class="tag bad">✗ ไม่ผ่าน (' + esc(x.grade) + ')</span>'; info = esc(x.term);
-      } else {
-        st = isElective ? '<span class="tag" style="color:var(--mute)">ไม่ได้เลือก</span>' : '<span class="tag bad">✗ ยังไม่เรียน</span>';
-      }
-      if (!(x && x.pass) && !isElective) trf = '<input type="checkbox" class="trf" data-code="' + esc(b.code) + '"' + (s.transfer[b.code] ? ' checked' : '') + '>';
-      return '<tr><td><b>' + esc(b.code) + '</b></td><td>' + esc(b.nameEn) + '</td><td class="num">' + (b.credits == null ? '-' : b.credits) + '</td><td class="num">' + st + '</td><td>' + info + '</td><td class="num noprint">' + trf + '</td></tr>';
-    });
-    // วิชานอกเล่มที่นับเข้าหมวดนี้ (เช่น วิชาเลือกอื่น)
-    var firstOfCat = r.groups.filter(function (gg) { return gg.cat === g.cat; })[0] === g;
-    r.courses.filter(function (x) { return firstOfCat && x.counted && x.cat === g.cat && (!x.inCurriculum || x.overridden) && !list.some(function (b) { return b.code === x.code; }); })
-      .forEach(function (x) {
-        rows.push('<tr style="background:var(--warnbg)"><td><b>' + esc(x.code) + '</b></td><td>' + esc(x.title) + '</td><td class="num">' + x.credits + '</td><td class="num"><span class="tag warn">นอกเล่ม · นับในหมวดนี้</span></td><td>' + esc(x.term) + ' · เกรด ' + esc(x.grade) + '</td><td class="noprint"></td></tr>');
-      });
-    var head = '<tr><th colspan="6" style="background:var(--pri2)">' + esc(g.label) + ' — เกณฑ์ ' + (isElective ? 'ไม่น้อยกว่า ' : '') + (g.required == null ? '-' : g.required) + ' หน่วยกิต · ได้ ' + g.got +
-      ' &nbsp;<span class="tag ' + stCls(g.status) + '">' + g.status + '</span></th></tr>' +
-      '<tr><th>รหัสวิชา</th><th>ชื่อวิชา (ตามเล่ม)</th><th class="num">หน่วยกิต</th><th class="num">สถานะ</th><th>ในใบผลการเรียน</th><th class="num noprint">โอน</th></tr>';
-    return '<div class="scroll" style="max-height:none;margin-bottom:10px"><table>' + head + rows.join('') + '</table></div>';
-  }).join('');
-
-  var outs = r.courses.filter(function (x) { return !x.inCurriculum && x.cat !== ENGLISH_CAT; });
-  var eng = r.courses.filter(function (x) { return x.cat === ENGLISH_CAT; });
-  var h = !outs.length ? '<div class="alert ok">✓ รหัสวิชาทุกตัวในใบผลการเรียนตรงกับเล่มหลักสูตร</div>'
-    : '<div class="alert warn"><b>รหัสวิชาในใบผลการเรียนที่ไม่มีในเล่มหลักสูตร ' + outs.length + ' วิชา</b> — ตรวจว่าเป็นวิชาเลือกนอกหลักสูตร หรือนักศึกษาใช้เล่มหลักสูตรคนละฉบับ' +
-      '<table style="margin-top:6px;background:#fff">' + outs.map(function (x) {
-        return '<tr><td><b>' + esc(x.code) + '</b></td><td>' + esc(x.title) + '</td><td class="num">' + x.credits + '</td><td>' + esc(x.term) + ' · ' + gradeHtml(x) + '</td><td>นับเป็น <b style="color:#e0141e">' + esc(x.cat ? catText(x.cat, x.group, x.cat === THESIS ? x.credits : null) : 'ไม่นับ') + '</b> (แก้ได้ในตารางรายวิชาด้านล่าง)</td></tr>';
-      }).join('') + '</table></div>';
-  if (eng.length) h += '<div class="alert" style="background:var(--pri2);border:1px solid #bcd0f5"><b>วิชาภาษาอังกฤษ (บัณฑิตวิทยาลัย) ' + eng.length + ' วิชา</b> — ไม่นับหน่วยกิตในโครงสร้างหลักสูตร' +
-    '<table style="margin-top:6px;background:#fff">' + eng.map(function (x) {
-      return '<tr><td><b>' + esc(x.code) + '</b></td><td>' + esc(x.title) + '</td><td class="num">' + x.credits + '</td><td>' + esc(x.term) + '</td><td class="num">' + gradeHtml(x) + '</td></tr>';
-    }).join('') + '</table></div>';
-  $('outsideWrap').innerHTML = h;
-}
-
-// ตารางรายวิชา (หน้าตาเหมือนระบบทะเบียน) — เปลี่ยนหมวด / ติ๊กโอน
-function renderStuTable(s) {
   function catSelect(x) {
-    return '<select class="ovr catsel' + (x.cat ? '' : ' none') + '" data-code="' + esc(x.code) + '">' +
-      '<option value=""' + (x.cat ? '' : ' selected') + '>— ไม่ระบุ —</option>' +
-      CATS.concat([ENGLISH_CAT]).map(function (c) { return '<option value="' + c + '"' + (c === x.cat ? ' selected' : '') + '>' + catText(c, x.group, x.thesisCredits) + '</option>'; }).join('') + '</select>';
+    var label = catText(x.cat, x.group, x.thesisCredits);
+    return '<select class="ovr catsel' + (label ? '' : ' none') + '" data-code="' + esc(x.code) + '">' +
+      '<option value=""' + (x.cat ? '' : ' selected') + '>(ว่าง)</option>' +
+      CATS.map(function (c) { return '<option value="' + c + '"' + (c === x.cat ? ' selected' : '') + '>' + catText(c, x.group, x.thesisCredits) + '</option>'; }).join('') +
+      (x.cat === ENGLISH_CAT ? '<option value="' + ENGLISH_CAT + '" selected>(ว่าง)</option>' : '') + '</select>';
   }
-  $('stuTbl').innerHTML = '<tr><th>ปีการศึกษา</th><th>รหัสวิชา</th><th>ชื่อวิชา</th><th class="num">หน่วยกิต</th><th class="num">เกรด</th><th class="num">หมวด</th><th class="num noprint">โอน</th></tr>' +
-    s.result.rows.map(function (x) {
-      var notes = [];
-      if (!x.inCurriculum && x.cat !== ENGLISH_CAT) notes.push('<span class="tag warn">ไม่พบในเล่ม</span>');
-      if (x.times > 1 && !x.counted && x.cat) notes.push('<span class="muted">ลงซ้ำ — นับหน่วยกิตครั้งเดียว</span>');
-      if (x.cat === 'ปรับพื้นฐาน' || x.cat === ENGLISH_CAT) notes.push('<span class="muted">ไม่นับหน่วยกิต</span>');
-      if (!x.pass && !x.pending) notes.push('<span class="tag bad">ไม่ผ่าน ไม่นับ</span>');
-      if (x.pending) notes.push('<span class="muted">ยังไม่นับหน่วยกิตจนกว่าจะมีผล</span>');
-      return '<tr><td>' + esc(x.term) + '</td><td>' + esc(x.code) + '</td><td>' + esc(x.title) +
-        (notes.length ? '<div>' + notes.join(' ') + '</div>' : '') + '</td><td class="num">' + x.credits + '</td><td class="num">' + gradeHtml(x) + '</td>' +
-        '<td class="num">' + catSelect(x) + '</td>' +
-        '<td class="num noprint"><input type="checkbox" class="trf" data-code="' + esc(x.code) + '"' + (s.transfer[x.code] ? ' checked' : '') + '></td></tr>';
+  $('reg').innerHTML = '<tr><th>ปีการศึกษา</th><th>รหัสวิชา</th><th>ชื่อวิชา</th><th class="num">หน่วยกิต</th><th class="num">เกรด</th><th>หมวด</th></tr>' +
+    r.rows.map(function (x) {
+      var note = [];
+      if (k.c && !x.inCurriculum && x.cat !== ENGLISH_CAT) note.push('<span class="tag warn">ไม่พบในเล่ม</span>');
+      if (!x.pass && !x.pending) note.push('<span class="tag bad">ไม่ผ่าน</span>');
+      if (x.pending) note.push('<span class="tag warn">รอผล</span>');
+      if (x.filled && normTh(x.filled) !== normTh(catText(x.cat, x.group, x.thesisCredits))) note.push('<span class="tag warn">ในระบบกรอก: ' + esc(x.filled) + '</span>');
+      return '<tr class="r1"><td>' + esc(x.term) + '</td><td>' + esc(x.code) + '</td><td>' + esc(x.title) + '</td><td class="num">' + x.credits + '</td><td class="num">' + esc(x.grade) + '</td>' +
+        '<td>' + (k.c ? catSelect(x) : '') + ' ' + note.join(' ') + '</td></tr>' +
+        '<tr class="r2"><td></td><td colspan="5">' + (x.nameTh ? 'เลือกหมวดวิชา' + esc(x.nameTh) : '') + '</td></tr>';
     }).join('');
+
+  // ช่องโครงสร้างหลักสูตร เหมือนในระบบ (0 = เว้นว่าง)
+  function box(v) { return '<div class="box' + (v ? ' v" data-copy="' + v + '" title="คลิกเพื่อคัดลอก' : '') + '">' + (v || '') + '</div>'; }
+  var h = '<div class="ttl">โครงสร้างหลักสูตร</div>';
+  if (k.c) {
+    CATS.forEach(function (cat) {
+      var v = r.sum[cat];
+      h += '<div class="lbl">' + cat + '</div>' + box(v.study + v.transfer) + '<div>หน่วยกิต</div><div class="lbl">เรียน</div>' + box(v.study) + '<div>หน่วยกิต</div><div class="lbl">โอน</div>' + box(v.transfer) + '<div>หน่วยกิต</div>';
+    });
+    var T = r.total;
+    h += '<div class="lbl">รวม</div>' + box(T.study + T.transfer) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.study) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.transfer) + '<div>หน่วยกิต</div>';
+  } else h += '<div class="muted" style="grid-column:1/-1">— รอเล่มหลักสูตร —</div>';
+  $('form').innerHTML = h;
+
+  $('secBook').classList.toggle('hidden', !k.c);
+  if (k.c) renderBookCheck(s, k);
 }
 
-// แบบฟอร์มโครงสร้างหลักสูตร: ช่องแรก = เรียน + โอน, ค่า 0 เว้นว่างเหมือนระบบ
-function renderForm(r) {
-  function box(v) { return '<div class="box"' + (v ? ' data-copy="' + v + '" title="คลิกเพื่อคัดลอก"' : '') + '>' + (v || '') + '</div>'; }
-  function chk(st) {
-    if (st.status === undefined || st.status === '' || st.status === '—') return '<div class="st"></div>';
-    return '<div class="st"><span class="tag ' + (st.status === 'ครบ' ? 'ok' : 'bad') + '">' + (st.required ? 'เกณฑ์ ' + st.required + ' · ' : '') + st.status + '</span></div>';
-  }
-  var h = '';
-  CATS.forEach(function (k) {
-    var v = r.sum[k];
-    h += '<div class="lbl">' + catText(k, '') + (k === THESIS ? '/สารนิพนธ์' : '') + '</div>' +
-      box(v.study + v.transfer) + '<div>หน่วยกิต</div><div class="lbl">เรียน</div>' + box(v.study) + '<div>หน่วยกิต</div><div class="lbl">โอน</div>' + box(v.transfer) + '<div>หน่วยกิต</div>' + chk(v);
-  });
-  var T = r.total;
-  h += '<div class="lbl">รวม</div>' + box(T.study + T.transfer) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.study) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.transfer) + '<div>หน่วยกิต</div>' +
-    chk({ required: T.required, status: T.status });
-  $('formBox').innerHTML = h;
-}
-
-function pick(i) {
-  if (i < 0 || i >= state.students.length) return;
-  state.sel = i;
-  renderSummary(); renderDetail();
-}
-
-/* ---------- บันทึกผล ---------- */
-function payload(s) {
-  var r = s.result, t = s.t;
-  return { studentId: t.studentId, name: t.name, curriculumName: s.curr ? s.curr.name : '', sum: r.sum, total: r.total,
-    status: s.sum.label + (s.sum.why ? ' (' + s.sum.why + ')' : ''), courses: r.courses, missing: r.missing, note: s.note || '' };
-}
-function saveStudents(list, btn) {
-  if (!list.length) { toast('บันทึกครบทุกคนแล้ว'); return; }
-  btn.disabled = true;
-  call('saveResults', list.map(payload))
-    .then(function () { list.forEach(function (s) { s.saved = true; }); renderSummary(); renderDetail(); toast('บันทึกผลแล้ว ' + list.length + ' คน'); })
-    .catch(function (e) { alert(e.message); })
-    .then(function () { btn.disabled = false; });
+function renderBookCheck(s, k) {
+  var c = k.c, r = k.r, took = {};
+  r.courses.forEach(function (x) { took[x.code] = x; });
+  $('bookCheck').innerHTML = '<p class="muted" style="margin:6px 0">ถ้าวิชาที่ยังไม่เรียนได้รับการเทียบโอน/ยกเว้นแล้ว ให้ติ๊ก “โอน” ระบบจะนับให้</p><table class="chk">' + r.groups.map(function (g) {
+    var isEl = g.cat === 'เลือก';
+    var rows = c.courses.filter(function (b) { return b.group === g.bookLabel; }).map(function (b) {
+      var x = took[b.code], st;
+      if (x && x.pass) st = '<span class="tag ok">✓ เรียนแล้ว</span> <span class="muted">' + esc(x.term) + ' · ' + esc(x.grade) + '</span>';
+      else if (s.transfer[b.code]) st = '<span class="tag ok">✓ โอน/ยกเว้น</span>';
+      else if (x && x.pending) st = '<span class="tag warn">รอผล</span>';
+      else if (x) st = '<span class="tag bad">ไม่ผ่าน (' + esc(x.grade) + ')</span>';
+      else st = isEl ? '<span class="muted">ไม่ได้เลือก</span>' : '<span class="tag bad">✗ ยังไม่เรียน</span>';
+      var trf = !(x && x.pass) && !isEl ? '<label class="noprint"><input type="checkbox" class="trf" data-code="' + esc(b.code) + '"' + (s.transfer[b.code] ? ' checked' : '') + '> โอน</label>' : '';
+      return '<tr><td>' + esc(b.code) + '</td><td>' + esc(b.nameEn) + '</td><td>' + (b.credits == null ? '-' : b.credits) + '</td><td>' + st + '</td><td>' + trf + '</td></tr>';
+    }).join('');
+    return '<tr><th class="g" colspan="5">' + esc(g.label) + ' — เกณฑ์ ' + (g.required == null ? '-' : (isEl ? '≥ ' : '') + g.required) + ' · ได้ ' + g.got +
+      ' <span class="tag ' + stCls(g.status) + '">' + g.status + '</span></th></tr>' + rows;
+  }).join('') + '</table>';
 }
 
 /* ---------- events ---------- */
+var drop = $('drop'), inp = $('file');
+inp.addEventListener('change', function () { var fs = [].slice.call(inp.files); inp.value = ''; if (fs.length) handleFiles(fs); });
+['dragover', 'dragenter'].forEach(function (e) { drop.addEventListener(e, function (ev) { ev.preventDefault(); drop.classList.add('over'); }); });
+['dragleave', 'drop'].forEach(function (e) { drop.addEventListener(e, function (ev) { ev.preventDefault(); drop.classList.remove('over'); }); });
+drop.addEventListener('drop', function (ev) {
+  var fs = [].slice.call(ev.dataTransfer.files).filter(function (f) { return /\.pdf$/i.test(f.name) || /pdf$/i.test(f.type); });
+  if (fs.length) handleFiles(fs); else toast('รองรับเฉพาะไฟล์ PDF');
+});
+$('btnTxt').addEventListener('click', function () { handleTexts([{ name: 'ข้อความที่วาง', text: $('txt').value }]); });
 document.addEventListener('change', function (e) {
-  var el = e.target, d = state.draft, s = state.students[state.sel];
-  if (el.classList.contains('greq')) d.groups[+el.dataset.g].required = el.value === '' ? null : +el.value;
-  if (el.classList.contains('gcat')) {
-    var g = d.groups[+el.dataset.g]; g.cat = el.value;
-    d.courses.forEach(function (x) { if (x.group === g.label) x.cat = el.value; });
-    showDraft();
-  }
-  if (el.classList.contains('ccat')) d.courses[+el.dataset.c].cat = el.value;
-  if (el.classList.contains('ccr')) d.courses[+el.dataset.c].credits = el.value === '' ? null : +el.value;
-  if (!s) return;
-  if (el.classList.contains('ovr')) { s.overrides[el.dataset.code] = el.value; s.saved = false; refresh(); }
-  if (el.classList.contains('trf')) { if (el.checked) s.transfer[el.dataset.code] = true; else delete s.transfer[el.dataset.code]; s.saved = false; refresh(); }
+  var el = e.target, s = state.students[state.sel]; if (!s) return;
+  if (el.classList.contains('ovr')) { s.overrides[el.dataset.code] = el.value; render(); }
+  if (el.classList.contains('trf')) { if (el.checked) s.transfer[el.dataset.code] = true; else delete s.transfer[el.dataset.code]; render(); }
 });
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-copy]');
   if (b) navigator.clipboard.writeText(b.dataset.copy).then(function () { toast('คัดลอก ' + b.dataset.copy); }, function () { toast(b.dataset.copy); });
-  var p = e.target.closest('[data-pick]');
-  if (p) { pick(+p.dataset.pick); $('detailCard').scrollIntoView({ behavior: 'smooth' }); }
+  var tb = e.target.closest('[data-tab]');
+  if (tb) { state.sel = +tb.dataset.tab; render(); }
 });
+$('btnPrint').addEventListener('click', function () { $('secBook').open = true; window.print(); });
+$('btnClear').addEventListener('click', function () { state.students = []; state.sel = -1; state.pendingBook = null; render(); window.scrollTo(0, 0); });
 
-$('currSel').addEventListener('change', function () { setDefault(this.value); });
-$('btnDelCurr').addEventListener('click', function () {
-  var id = state.defaultId; if (!id || !confirm('ลบเล่มหลักสูตรนี้ออกจากฐานข้อมูล?')) return;
-  call('deleteCurriculum', id).then(function () {
-    delete state.cache[id];
-    state.students.forEach(function (s) { if (s.currId === id) { s.currId = ''; s.currAuto = s.currManual = false; } });
-    state.defaultId = ''; toast('ลบแล้ว'); return loadList();
-  }).then(refresh).catch(function (e) { alert(e.message); });
-});
-setupDrop('dropCurr', 'fileCurr', ['pdf'], function (fs) {
-  pdfToText(fs[0]).then(function (t) { onCurrText(t, fs[0].name); }).catch(function (e) { alert('อ่าน PDF ไม่ได้: ' + e.message); });
-});
-$('btnTxtCurr').addEventListener('click', function () { onCurrText($('txtCurr').value); });
-$('btnCancelCurr').addEventListener('click', function () { state.draft = null; $('currPreview').classList.add('hidden'); });
-$('btnSaveCurr').addEventListener('click', function () {
-  var d = state.draft;
-  d.name = $('currName').value.trim(); d.key = $('currKey').value.trim();
-  d.totalRequired = $('currTotal').value === '' ? null : +$('currTotal').value;
-  if (!d.name) { alert('กรุณาระบุชื่อหลักสูตร'); return; }
-  var btn = this; btn.disabled = true;
-  function done(id) {
-    state.draft = null; $('currPreview').classList.add('hidden');
-    // นักศึกษาที่รหัสหลักสูตรตรงกับเล่มใหม่ → ใช้เล่มใหม่
-    state.students.forEach(function (s) { if (!s.currManual && !s.currAuto && matchCurr(s.t) === id) { s.currId = id; s.currAuto = true; } });
-  }
-  call('saveCurriculum', d).then(function (id) {
-    toast('บันทึกเล่มหลักสูตรแล้ว');
-    delete state.cache[id];
-    return call('listCurricula').then(function (list) { state.list = list; done(id); return setDefault(id); });
-  }).catch(function (e) {
-    if (hasGAS) { alert(e.message); return; }
-    // เปิดนอก Apps Script: ใช้เล่มนี้ชั่วคราว (ไม่บันทึกลงฐานข้อมูล)
-    var id = d.id || 'local-' + Date.now(); d.id = id;
-    state.cache[id] = d;
-    state.list = state.list.filter(function (c) { return c.id !== id; }).concat([{ id: id, key: d.key, name: d.name + ' (ยังไม่บันทึก)' }]);
-    done(id); return setDefault(id);
-  }).then(function () { btn.disabled = false; });
-});
-setupDrop('dropStu', 'fileStu', ['pdf', 'xlsx', 'xls', 'csv', 'txt'], processFiles);
-$('btnTxtStu').addEventListener('click', function () {
-  var list = textStudents($('txtStu').value, 'ข้อความที่วาง');
-  if (!list.length) { alert('ไม่พบรายวิชาในข้อความ (รูปแบบที่อ่านได้: ปีการศึกษา รหัสวิชา ชื่อวิชา หน่วยกิต เกรด)'); return; }
-  addStudents(list);
-});
-$('stuCurr').addEventListener('change', function () {
-  var s = state.students[state.sel]; if (!s) return;
-  s.currId = this.value; s.currManual = true; s.currAuto = false; s.saved = false;
-  getCurr(s.currId).then(refresh).catch(function (e) { alert(e.message); });
-});
-$('note').addEventListener('input', function () { var s = state.students[state.sel]; if (s) { s.note = this.value; s.saved = false; } });
-$('btnPrev').addEventListener('click', function () { pick(state.sel - 1); });
-$('btnNext').addEventListener('click', function () { pick(state.sel + 1); });
-$('btnSaveRes').addEventListener('click', function () { var s = state.students[state.sel]; if (s) saveStudents([s], this); });
-$('btnSaveAll').addEventListener('click', function () {
-  saveStudents(state.students.filter(function (s) { return !s.saved; }), this);
-});
-$('btnClear').addEventListener('click', function () {
-  var unsaved = state.students.filter(function (s) { return !s.saved; }).length;
-  if (unsaved && !confirm('มี ' + unsaved + ' คนที่ยังไม่ได้บันทึกผล — ล้างรายชื่อทั้งหมด?')) return;
-  state.students = []; state.sel = -1; $('loadMsg').innerHTML = ''; refresh();
-});
-$('btnPrint').addEventListener('click', function () {
-  [].forEach.call(document.querySelectorAll('#detailCard details'), function (d) { d.open = true; });
-  window.print();
-});
-
-fillCurrSelect();
-loadList();
-if (hasGAS) call('getSpreadsheetUrl').then(function (u) { $('ssLink').href = u; }); else $('ssLink').style.display = 'none';
+loadList().then(render);
+render();
 </script>
 </body>
 </html>
