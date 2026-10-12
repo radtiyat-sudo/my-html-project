@@ -63,8 +63,9 @@
   .catsel{color:var(--red);font:inherit;font-weight:700;border:1px solid transparent;background:transparent;padding:0 2px;cursor:pointer}
   .catsel:hover{border-color:var(--line);background:#fff}
   .catsel.none{color:var(--mute);font-weight:400}
-  .form{display:grid;grid-template-columns:auto 60px auto auto 60px auto auto 60px auto;gap:5px 6px;align-items:center;margin-top:18px;max-width:640px}
+  .form{display:grid;grid-template-columns:auto 60px auto auto 60px auto auto 60px auto auto;gap:5px 6px;align-items:center;margin-top:18px;max-width:640px}
   .form .ttl{grid-column:1/-1;font-weight:600}
+  .form .tag{margin-left:4px}
   .form .lbl{text-align:right}
   .form .box{border:1px solid #6b7280;height:28px;display:grid;place-items:center;font-weight:700;background:#fff;cursor:pointer;font-size:15px}
   .form .box.v{background:#fffbe6;border-color:#d9a400}
@@ -77,7 +78,7 @@
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:6px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
   @media (max-width:640px){main{padding:10px}.slots{grid-template-columns:1fr}.info{grid-template-columns:100px 1fr}
-    .form{grid-template-columns:auto 46px auto auto 46px auto auto 46px auto;font-size:13px}}
+    .form{grid-template-columns:auto 40px auto auto 40px auto auto 40px auto auto;font-size:12px}}
   @media print{header,.noprint{display:none!important}body{background:#fff}.card{border:0;padding:0}details.sec{border:0;padding:0}}
 </style>
 </head>
@@ -637,7 +638,7 @@ function check(s) {
       : { cls: 'bad', title: '✗ ยังเรียนไม่ครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' จากเกณฑ์ ' + req + ' หน่วยกิต · ' + why.join(' · ') };
     if (fp.plan) v.sub += ' (เกณฑ์แผน ' + fp.plan + ')';
   }
-  return { c: c, r: r, v: v, todo: todo, key: !c ? 'nobook' : v.cls };
+  return { c: c, fp: fp, r: r, v: v, todo: todo, key: !c ? 'nobook' : v.cls };
 }
 
 /* ---------- แสดงผล ---------- */
@@ -686,16 +687,25 @@ function render() {
         '<tr class="r2"><td></td><td colspan="5">' + (x.nameTh ? 'เลือกหมวดวิชา' + esc(x.nameTh) : '') + '</td></tr>';
     }).join('');
 
-  // ช่องโครงสร้างหลักสูตร เหมือนในระบบ (0 = เว้นว่าง)
+  // ช่องโครงสร้างหลักสูตร เหมือนในระบบ: ช่องแรก = เกณฑ์ตามเล่ม (แผนของนักศึกษา) · เรียน = ที่นักศึกษาเรียน · โอน (0 = เว้นว่าง)
   function box(v) { return '<div class="box' + (v ? ' v" data-copy="' + v + '" title="คลิกเพื่อคัดลอก' : '') + '">' + (v || '') + '</div>'; }
-  var h = '<div class="ttl">โครงสร้างหลักสูตร</div>';
+  function st(req, got) {
+    if (!req) return '<div></div>';
+    return '<div><span class="tag ' + (got >= req ? 'ok">✓' : 'bad">ขาด ' + (req - got)) + '</span></div>';
+  }
+  var h = '<div class="ttl">โครงสร้างหลักสูตร <span class="muted" style="font-weight:400">— ช่องแรก = ตามเล่มหลักสูตร' + (k.fp && k.fp.plan ? ' (แผน ' + esc(k.fp.plan) + ')' : '') + ' · เรียน = ที่นักศึกษาเรียน</span></div>';
   if (k.c) {
+    var bookReq = {}, reqSum = 0;
+    CATS.forEach(function (cat) { bookReq[cat] = 0; });
+    k.c.groups.forEach(function (g) { if (g.required && bookReq[g.cat] != null) bookReq[g.cat] += g.required; });
+    bookReq['ปรับพื้นฐาน'] = 0; // ไม่นับหน่วยกิต
     CATS.forEach(function (cat) {
-      var v = r.sum[cat];
-      h += '<div class="lbl">' + cat + '</div>' + box(v.study + v.transfer) + '<div>หน่วยกิต</div><div class="lbl">เรียน</div>' + box(v.study) + '<div>หน่วยกิต</div><div class="lbl">โอน</div>' + box(v.transfer) + '<div>หน่วยกิต</div>';
+      var v = r.sum[cat], got = v.study + v.transfer;
+      reqSum += bookReq[cat];
+      h += '<div class="lbl">' + cat + '</div>' + box(bookReq[cat]) + '<div>หน่วยกิต</div><div class="lbl">เรียน</div>' + box(v.study) + '<div>หน่วยกิต</div><div class="lbl">โอน</div>' + box(v.transfer) + '<div>หน่วยกิต</div>' + st(bookReq[cat], got);
     });
-    var T = r.total;
-    h += '<div class="lbl">รวม</div>' + box(T.study + T.transfer) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.study) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.transfer) + '<div>หน่วยกิต</div>';
+    var T = r.total, bookTotal = k.c.totalRequired || reqSum;
+    h += '<div class="lbl">รวม</div>' + box(bookTotal) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.study) + '<div>หน่วยกิต</div><div class="lbl">รวม</div>' + box(T.transfer) + '<div>หน่วยกิต</div>' + st(bookTotal, T.study + T.transfer);
   } else h += '<div class="muted" style="grid-column:1/-1">— รอเล่มหลักสูตร —</div>';
   $('form').innerHTML = h;
 
