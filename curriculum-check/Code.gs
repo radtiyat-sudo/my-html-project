@@ -55,6 +55,23 @@ function resultSheet_() {
 
 function getSpreadsheetUrl() { return getSS_().getUrl(); }
 
+/* ---------- อ่านตัวอักษรจากรูปภาพ (OCR) ---------- */
+// ใช้ OCR ของ Google Drive (อ่านภาษาไทยได้ดี) — ต้องเปิดบริการ Drive API ใน Apps Script: บริการ ＋ → Drive API → เพิ่ม
+function ocrImage(b64, mime, name) {
+  if (typeof Drive === 'undefined') {
+    throw new Error('ยังไม่ได้เปิดบริการ Drive API — ใน Apps Script กด "บริการ ＋" เลือก Drive API กด "เพิ่ม" แล้ว Deploy เวอร์ชันใหม่');
+  }
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'image/png', name || 'image.png');
+  var file = typeof Drive.Files.create === 'function'
+    ? Drive.Files.create({ name: 'ocr-tmp', mimeType: MimeType.GOOGLE_DOCS }, blob, { ocrLanguage: 'th' })   // Drive API v3
+    : Drive.Files.insert({ title: 'ocr-tmp', mimeType: blob.getContentType() }, blob, { ocr: true, ocrLanguage: 'th' }); // Drive API v2
+  try {
+    return DocumentApp.openById(file.id).getBody().getText();
+  } finally {
+    try { DriveApp.getFileById(file.id).setTrashed(true); } catch (e) {}
+  }
+}
+
 /* ---------- หลักสูตร ---------- */
 function listCurricula() {
   var sh = currSheet_();

@@ -34,6 +34,8 @@
   .slot .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#c9d2e3;color:#fff;font-weight:700}
   .slot.done{border-color:#b9e2cb;background:var(--okbg)} .slot.done .n{background:var(--ok)}
   .slot h4{margin:0;font-size:15px} .slot div.s{font-size:13px;color:var(--mute);word-break:break-word}
+  .reqbox details{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+  .reqbox summary{cursor:pointer}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
   .tabs button{background:#fff;color:var(--ink);border:1px solid var(--line);font-size:13px;padding:4px 10px}
   .tabs button.on{border-color:var(--pri);background:var(--pri2);color:var(--pri);font-weight:600}
@@ -91,13 +93,15 @@
 </header>
 <main>
   <section class="card noprint">
-    <label class="drop" id="drop"><b>วางไฟล์ PDF ที่นี่ (หรือคลิกเพื่อเลือก)</b>
-      ไฟล์นักศึกษา (หน้าโครงสร้างหลักสูตรที่ยังไม่กรอกหมวด) และเล่มหลักสูตร (มคอ.2) — วางพร้อมกันได้ ระบบแยกให้เอง
-      <input type="file" id="file" accept="application/pdf,.pdf" multiple hidden></label>
+    <label class="drop" id="drop"><b>วางไฟล์ PDF หรือรูปภาพที่นี่ (หรือคลิกเพื่อเลือก)</b>
+      ไฟล์นักศึกษา (หน้าโครงสร้างหลักสูตรที่ยังไม่กรอกหมวด) และเล่มหลักสูตร (มคอ.2) — วางพร้อมกันได้ ระบบแยกให้เอง<br>
+      แคปหน้าเล่มเป็นรูปก็ได้ กด <b style="display:inline;font-size:inherit">Ctrl+V</b> วางทีละรูป (หน้าโครงสร้างหลักสูตร + หน้ารายวิชา)
+      <input type="file" id="file" accept="application/pdf,.pdf,image/*" multiple hidden></label>
     <div class="slots">
       <div class="slot" id="slotStu"><span class="n">1</span><div><h4>ไฟล์นักศึกษา</h4><div class="s" id="stuState">ยังไม่มี</div></div></div>
       <div class="slot" id="slotBook"><span class="n">2</span><div><h4>เล่มหลักสูตร</h4><div class="s" id="bookState">ยังไม่มี</div></div></div>
     </div>
+    <div id="reqBox" class="reqbox"></div>
     <div class="tabs" id="tabs"></div>
     <details class="muted" style="margin-top:10px"><summary>อ่าน PDF ไม่ได้? วางข้อความแทน</summary>
       <textarea id="txt" placeholder="คัดลอกข้อความทั้งหน้า (หน้านักศึกษา หรือเล่มหลักสูตร) มาวาง"></textarea>
@@ -219,7 +223,19 @@ function parseCurriculum(text) {
     if (t && res.totalRequired == null) res.totalRequired = +t[1];
   }
   if (iStruct < 0) iStruct = 0;
-  if (iCourses < 0) iCourses = iStruct;
+  // ไม่มีหัวข้อ "รายวิชาในหลักสูตร" (เช่น ข้อความจากรูปที่แคปมา) → เริ่มส่วนรายวิชาที่หัวหมวดก่อนรหัสวิชาตัวแรก
+  if (iCourses < 0) {
+    var firstCode = -1;
+    for (i = iStruct; i < lines.length && firstCode < 0; i++) if (/\b[A-Z]{4}\s?\d{3}\b/.test(lines[i])) firstCode = i;
+    if (firstCode < 0) iCourses = lines.length;
+    else {
+      iCourses = firstCode;
+      for (i = firstCode - 1; i >= iStruct; i--) if (groupFromLine(lines[i])) { iCourses = i; break; }
+      for (i = iCourses + 1; i < lines.length; i++) {
+        if (/^(3\.1\.4|3\.1\.5|3\.1\.6)|โครงการวจยของหลกสตร|ความหมายของรหสวชา/.test(normTh(lines[i]))) { iEnd = i; break; }
+      }
+    }
+  }
 
   // 1) หน่วยกิตที่กำหนดของแต่ละหมวด แยกตามแผน (ก1 / ก2 / ข / 1.1 / 2.1 …)
   //    รองรับทั้งแบบตาราง (หัวคอลัมน์มีหลายแผน ตัวเลขเรียงกันในบรรทัดเดียว) และแบบเขียนทีละแผน
@@ -243,10 +259,13 @@ function parseCurriculum(text) {
     var tk = toks(lines[i]), cm = normTh(lines[i]).match(/(\d+)หนวยกต/);
     if (g) {
       if (cols && tk.length >= cols.length) cols.forEach(function (p, j) { addReq(g, p, tk[j]); });
-      else if (cm) addReq(g, curPlan, +cm[1]);
+      else if (cm || tk.length) addReq(g, curPlan, cm ? +cm[1] : tk[0]);
+      else if (i + 1 < iCourses && !groupFromLine(lines[i + 1]) && !planIds(lines[i + 1]).length && toks(lines[i + 1]).length && !/[ก-๙]{4}/.test(normTh(lines[i + 1]).replace(/หนวยกต|ไมนบ/g, '')))
+        addReq(g, curPlan, toks(lines[i + 1])[0]); // ตัวเลขอยู่บรรทัดถัดไป
     } else if (/^รวม/.test(nn)) {
       if (cols && tk.length >= cols.length) cols.forEach(function (p, j) { if (!(p in res.totalByPlan)) res.totalByPlan[p] = tk[j]; });
-      else if (cm && curPlan && !(curPlan in res.totalByPlan)) res.totalByPlan[curPlan] = +cm[1];
+      else if ((cm || tk.length) && curPlan && !(curPlan in res.totalByPlan)) res.totalByPlan[curPlan] = cm ? +cm[1] : tk[0];
+      else if ((cm || tk.length) && !curPlan && res.totalRequired == null) res.totalRequired = cm ? +cm[1] : tk[0];
     }
   }
 
@@ -448,7 +467,7 @@ function evaluate(curr, tr, opts) {
 <script>
 var hasGAS = typeof google !== 'undefined' && google.script && google.script.run;
 // students: [{ t, bookId, overrides, transfer }]
-var state = { list: [], cache: {}, students: [], sel: -1, pendingBook: null };
+var state = { list: [], cache: {}, students: [], sel: -1, pendingBook: null, imgBook: { texts: [] }, reqOpen: false };
 var THESIS = 'วิทยานิพนธ์/สารนิพนธ์';
 var $ = function (id) { return document.getElementById(id); };
 
@@ -528,7 +547,7 @@ function classify(text, fileName) {
   return { err: fileName + ': ไม่ใช่หน้านักศึกษาหรือเล่มหลักสูตร (ไม่พบรหัสวิชา)' };
 }
 
-function handleTexts(items) {
+function handleTexts(items, imgChanged) {
   var stus = [], books = [], errs = [];
   items.forEach(function (x) {
     var r = classify(x.text, x.name);
@@ -539,21 +558,75 @@ function handleTexts(items) {
   // เล่มที่วางมาพร้อมกัน → ใช้กับนักศึกษาที่วางมาด้วย ถ้าไม่มี → ใช้กับคนที่เปิดอยู่
   var targets = added.length ? added : (state.students[state.sel] ? [state.students[state.sel]] : []);
   books.forEach(function (c) { applyBook(c, targets); });
+  if (imgChanged) {
+    var ib = imageBook();
+    if (ib.courses.length) applyBook(ib, targets);
+  }
   var ids = {};
   state.students.forEach(function (s) { if (s.bookId) ids[s.bookId] = 1; });
   return Promise.all(Object.keys(ids).map(getBook)).catch(function (e) { alert(e.message); }).then(render);
 }
 
+var IMG_RE = /\.(png|jpe?g|gif|bmp|webp)$/i;
+function isImg(f) { return IMG_RE.test(f.name || '') || /^image\//.test(f.type || ''); }
+function isPdf(f) { return /\.pdf$/i.test(f.name || '') || /pdf$/i.test(f.type || ''); }
+
+// รูปภาพ → ย่อ/ขยายให้อ่านง่าย → ส่งให้ Google Drive อ่านตัวอักษร (OCR) ฝั่งเซิร์ฟเวอร์
+function imageToB64(file) {
+  return new Promise(function (ok, no) {
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function () {
+      var k = Math.min(3, Math.max(1, 1600 / im.width)), cv = document.createElement('canvas');
+      cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      var g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+      g.imageSmoothingQuality = 'high'; g.drawImage(im, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      ok(cv.toDataURL('image/png').split(',')[1]);
+    };
+    im.onerror = function () { URL.revokeObjectURL(url); no(new Error('เปิดรูปไม่ได้')); };
+    im.src = url;
+  });
+}
+function ocrImages(imgs) {
+  var out = [], i = 0;
+  function next() {
+    if (i >= imgs.length) return Promise.resolve(out);
+    var f = imgs[i++];
+    toast('กำลังอ่านรูปภาพ ' + i + '/' + imgs.length + '…');
+    return imageToB64(f).then(function (b64) { return call('ocrImage', b64, 'image/png', f.name || 'image.png'); })
+      .then(function (text) { out.push({ name: f.name || 'รูปภาพ', text: text }); }, function (e) { out.push({ name: f.name || 'รูปภาพ', text: '', err: e.message }); })
+      .then(next);
+  }
+  return next();
+}
+// รวมข้อความจากรูปเล่มทุกรูป (หน้าโครงสร้างไว้ก่อน หน้ารายวิชาไว้หลัง) แล้วอ่านเป็นเล่มเดียว
+function hasCode(t) { return /\b[A-Z]{4}\s?\d{3}\b/.test(t) ? 1 : 0; }
+function imageBook() {
+  var tx = state.imgBook.texts.slice().sort(function (a, b) { return hasCode(a) - hasCode(b); });
+  var c = parseCurriculum(tx.join('\n'));
+  c.fileName = 'รูปภาพ ' + tx.length + ' รูป'; c.fromImages = tx.length;
+  return c;
+}
+
 function handleFiles(files) {
-  $('stuState').textContent = $('stuState').textContent; // คงข้อความเดิมระหว่างอ่าน
-  toast('กำลังอ่าน ' + files.length + ' ไฟล์…');
-  return Promise.all(files.map(function (f) {
+  var imgs = files.filter(isImg), pdfs = files.filter(function (f) { return !isImg(f); });
+  if (pdfs.length) toast('กำลังอ่าน ' + pdfs.length + ' ไฟล์…');
+  return Promise.all(pdfs.map(function (f) {
     return pdfToText(f).then(function (text) { return { name: f.name, text: text }; },
       function (e) { return { name: f.name, text: '', err: e.message }; });
   })).then(function (items) {
-    var bad = items.filter(function (x) { return x.err; });
-    if (bad.length) alert('อ่าน PDF ไม่ได้:\n' + bad.map(function (x) { return x.name + ': ' + x.err; }).join('\n'));
-    return handleTexts(items.filter(function (x) { return !x.err; }));
+    return ocrImages(imgs).then(function (ocr) {
+      var bad = items.concat(ocr).filter(function (x) { return x.err; });
+      if (bad.length) alert('อ่านไฟล์ไม่ได้:\n' + bad.map(function (x) { return x.name + ': ' + x.err; }).join('\n'));
+      var good = items.filter(function (x) { return !x.err; }), imgChanged = false;
+      ocr.filter(function (x) { return !x.err; }).forEach(function (x) {
+        var t = parseTranscript(x.text);
+        if (t.studentId && t.rows.length) good.push(x); // รูปหน้านักศึกษา
+        else { state.imgBook.texts.push(x.text); imgChanged = true; } // รูปหน้าเล่ม
+      });
+      return handleTexts(good, imgChanged);
+    });
   });
 }
 
@@ -583,13 +656,19 @@ function applyBook(c, targets) {
   state.students.forEach(function (s) {
     if (targets.indexOf(s) >= 0 || !s.bookId || (c.key && (s.t.programKey || '').toUpperCase() === c.key.toUpperCase())) s.bookId = c.id;
   });
-  // บันทึกลงฐานข้อมูล ครั้งหน้านักศึกษาหลักสูตรเดียวกันไม่ต้องวางเล่มอีก
+  if (c.fromImages) state.imgBook.appliedKey = c.key;
+  saveBook(c);
+}
+// บันทึกลงฐานข้อมูล ครั้งหน้านักศึกษาหลักสูตรเดียวกันไม่ต้องวางเล่มอีก
+function saveBook(c) {
   call('saveCurriculum', c).then(function () { c.saved = true; loadList().then(render); }).catch(function () {});
 }
 
 /* ---------- นักศึกษา ---------- */
 function addStudent(t) {
   var s = { t: t, bookId: '', overrides: {}, transfer: {} };
+  // รูปเล่มที่วางไว้เป็นของหลักสูตรอื่น → เริ่มเก็บรูปเล่มใหม่
+  if (state.imgBook.appliedKey != null && state.imgBook.appliedKey !== (t.programKey || '')) state.imgBook = { texts: [] };
   var hit = findByKey(t.programKey);
   if (hit) s.bookId = hit.id;
   var i = -1;
@@ -608,6 +687,8 @@ function check(s) {
   var got = r.total.study + r.total.transfer, req = r.total.required, todo = [], why = [];
   var v;
   if (!c) v = { cls: 'warn', title: 'วางเล่มหลักสูตรเพื่อตรวจ', sub: 'รหัสหลักสูตร ' + (s.t.programKey || '-') + ' ยังไม่มีเล่มในระบบ — วางไฟล์เล่มหลักสูตร (มคอ.2) ในช่องด้านบน' };
+  else if (!c.groups.some(function (g) { return g.required; }) && !c.totalRequired)
+    v = { cls: 'warn', title: 'ยังไม่พบโครงสร้างหลักสูตร (หน่วยกิตแต่ละหมวด)', sub: 'หมวดของรายวิชาด้านล่างใช้ได้แล้ว — แคปหน้า “โครงสร้างหลักสูตร” ของเล่มแล้ววางเพิ่ม หรือกรอกตัวเลขในช่อง “เกณฑ์ตามเล่ม” ด้านบน' };
   else {
     var shortG = r.groups.filter(function (g) { return /^ขาด/.test(g.status); });
     var waitG = r.groups.filter(function (g) { return g.status === 'รอผลประเมิน'; });
@@ -638,7 +719,7 @@ function check(s) {
       : { cls: 'bad', title: '✗ ยังเรียนไม่ครบตามโครงสร้างหลักสูตร', sub: 'รวม ' + got + ' จากเกณฑ์ ' + req + ' หน่วยกิต · ' + why.join(' · ') };
     if (fp.plan) v.sub += ' (เกณฑ์แผน ' + fp.plan + ')';
   }
-  return { c: c, fp: fp, r: r, v: v, todo: todo, key: !c ? 'nobook' : v.cls };
+  return { c: c, fp: fp, r: r, v: v, todo: v.title.indexOf('ยังไม่พบโครงสร้าง') === 0 ? [] : todo, key: !c ? 'nobook' : v.cls };
 }
 
 /* ---------- แสดงผล ---------- */
@@ -651,7 +732,10 @@ function render() {
   $('slotBook').classList.toggle('done', !!c);
   $('bookState').innerHTML = c ? esc(c.name) + (c.key ? ' [' + esc(c.key) + ']' : '') + '<br>' + c.courses.length + ' รายวิชา' +
       (s && !c.fileName ? ' · <span style="color:var(--ok)">ใช้เล่มที่บันทึกไว้</span>' : c.saved ? ' · บันทึกแล้ว ครั้งหน้าไม่ต้องวางอีก' : '')
-    : s ? 'ยังไม่มีเล่มของ ' + esc(s.t.programKey || 'หลักสูตรนี้') + ' — วางไฟล์เล่มหลักสูตร' : 'ยังไม่มี — เล่ม มคอ.2 (วางครั้งเดียว ระบบจำไว้ให้)';
+    : state.imgBook.texts.length ? 'อ่านจากรูปแล้ว ' + state.imgBook.texts.length + ' รูป แต่ยังไม่พบรหัสวิชา — แคปหน้า “รายวิชาในหลักสูตร” แล้ววางเพิ่ม'
+    : s ? 'ยังไม่มีเล่มของ ' + esc(s.t.programKey || 'หลักสูตรนี้') + ' — วางไฟล์หรือรูปเล่มหลักสูตร' : 'ยังไม่มี — เล่ม มคอ.2 เป็น PDF หรือรูปที่แคปมา (วางครั้งเดียว ระบบจำไว้ให้)';
+  if (c && c.fromImages) $('bookState').innerHTML += '<br><span style="color:var(--warn)">อ่านจากรูป ' + c.fromImages + ' รูป — ตรวจตัวเลขเกณฑ์ด้านล่าง</span>';
+  renderReq(s);
 
   // แท็บเมื่อมีหลายคน
   $('tabs').innerHTML = state.students.length > 1 ? state.students.map(function (x, i) {
@@ -733,18 +817,55 @@ function renderBookCheck(s, k) {
   }).join('') + '</table>';
 }
 
+// เกณฑ์ที่อ่านจากเล่ม (ตามแผนของนักศึกษา) — ตรวจและแก้ได้ โดยเฉพาะเล่มที่อ่านจากรูป
+function renderReq(s) {
+  var book = s && state.cache[s.bookId];
+  if (!book) { $('reqBox').innerHTML = ''; return; }
+  var fp = currForPlan(book, s.t.plan), c = fp.curr;
+  var total = c.totalRequired || c.groups.reduce(function (a, g) { return a + (g.cat !== 'ปรับพื้นฐาน' && g.required ? g.required : 0); }, 0);
+  var sum = c.groups.map(function (g) { return g.label.replace(/^หมวดวิชา/, '') + ' ' + (g.required == null ? '-' : g.required); }).join(' · ') + ' · รวม ' + total;
+  var open = state.reqOpen || (book.fromImages && !book.reviewed);
+  $('reqBox').innerHTML = '<details id="reqDet"' + (open ? ' open' : '') + '><summary><b>เกณฑ์ตามเล่ม' + (fp.plan ? ' (แผน ' + esc(fp.plan) + ')' : '') + ':</b> ' + esc(sum) + ' <span class="muted">— ตรวจ/แก้ไข</span></summary>' +
+    '<table class="chk" style="max-width:420px">' + c.groups.map(function (g) {
+      return '<tr><td>' + esc(g.label) + '</td><td>' + (g.cat === 'ปรับพื้นฐาน' ? '<span class="muted">ไม่นับหน่วยกิต</span>' :
+        '<input type="number" class="req" data-label="' + esc(g.label) + '" value="' + (g.required == null ? '' : g.required) + '" style="width:70px"> หน่วยกิต') + '</td></tr>';
+    }).join('') + '<tr><td><b>รวมไม่น้อยกว่า</b></td><td><input type="number" class="reqTot" value="' + (total || '') + '" style="width:70px"> หน่วยกิต</td></tr></table>' +
+    (fp.missing ? '<div class="muted">ในเล่มไม่พบแผน “' + esc(s.t.plan) + '”</div>' : '') + '</details>';
+}
+function editReq(el, s) {
+  var book = state.cache[s.bookId]; if (!book) return;
+  var p = currForPlan(book, s.t.plan).plan, v = el.value === '' ? null : +el.value;
+  if (el.classList.contains('req')) {
+    var g = book.groups.filter(function (x) { return x.label === el.dataset.label; })[0]; if (!g) return;
+    if (p && g.byPlan && p in g.byPlan) g.byPlan[p] = v; else g.required = v;
+  } else {
+    if (p && book.totalByPlan && p in book.totalByPlan) book.totalByPlan[p] = v; else book.totalRequired = v;
+  }
+  book.reviewed = true;
+  saveBook(book); render();
+}
+
 /* ---------- events ---------- */
 var drop = $('drop'), inp = $('file');
 inp.addEventListener('change', function () { var fs = [].slice.call(inp.files); inp.value = ''; if (fs.length) handleFiles(fs); });
 ['dragover', 'dragenter'].forEach(function (e) { drop.addEventListener(e, function (ev) { ev.preventDefault(); drop.classList.add('over'); }); });
 ['dragleave', 'drop'].forEach(function (e) { drop.addEventListener(e, function (ev) { ev.preventDefault(); drop.classList.remove('over'); }); });
 drop.addEventListener('drop', function (ev) {
-  var fs = [].slice.call(ev.dataTransfer.files).filter(function (f) { return /\.pdf$/i.test(f.name) || /pdf$/i.test(f.type); });
-  if (fs.length) handleFiles(fs); else toast('รองรับเฉพาะไฟล์ PDF');
+  var fs = [].slice.call(ev.dataTransfer.files).filter(function (f) { return isPdf(f) || isImg(f); });
+  if (fs.length) handleFiles(fs); else toast('รองรับไฟล์ PDF และรูปภาพ');
 });
+// วางรูปที่แคปหน้าจอได้เลยด้วย Ctrl+V
+document.addEventListener('paste', function (ev) {
+  var fs = [].slice.call((ev.clipboardData && ev.clipboardData.files) || []).filter(function (f) { return isImg(f) || isPdf(f); });
+  if (!fs.length) return;
+  ev.preventDefault();
+  handleFiles(fs);
+});
+document.addEventListener('toggle', function (e) { if (e.target.id === 'reqDet') state.reqOpen = e.target.open; }, true);
 $('btnTxt').addEventListener('click', function () { handleTexts([{ name: 'ข้อความที่วาง', text: $('txt').value }]); });
 document.addEventListener('change', function (e) {
   var el = e.target, s = state.students[state.sel]; if (!s) return;
+  if (el.classList.contains('req') || el.classList.contains('reqTot')) { editReq(el, s); return; }
   if (el.classList.contains('ovr')) { s.overrides[el.dataset.code] = el.value; render(); }
   if (el.classList.contains('trf')) { if (el.checked) s.transfer[el.dataset.code] = true; else delete s.transfer[el.dataset.code]; render(); }
 });
@@ -755,7 +876,7 @@ document.addEventListener('click', function (e) {
   if (tb) { state.sel = +tb.dataset.tab; render(); }
 });
 $('btnPrint').addEventListener('click', function () { $('secBook').open = true; window.print(); });
-$('btnClear').addEventListener('click', function () { state.students = []; state.sel = -1; state.pendingBook = null; render(); window.scrollTo(0, 0); });
+$('btnClear').addEventListener('click', function () { state.students = []; state.sel = -1; state.pendingBook = null; state.imgBook = { texts: [] }; render(); window.scrollTo(0, 0); });
 
 loadList().then(render);
 render();
