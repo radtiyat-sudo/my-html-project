@@ -4,6 +4,8 @@ Google Apps Script Web App สำหรับ **GRAS.02 การแต่งต
 ใช้ Google Sheets ตัวเดียวกับที่เป็นแหล่งข้อมูลของ
 [รายงาน Looker Studio](https://lookerstudio.google.com/u/0/reporting/901e903e-65f2-49c3-9654-55b731796e26)
 
+> 📋 โปรเจกต์ **แบบประเมิน IOC สำหรับผู้เชี่ยวชาญ** (MU Sport Complex) อยู่ในโฟลเดอร์ [`ioc-evaluation/`](ioc-evaluation/README.md)
+
 ## ความสามารถ
 
 | แท็บ | ทำอะไร |
