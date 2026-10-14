@@ -56,12 +56,11 @@ function resultSheet_() {
 function getSpreadsheetUrl() { return getSS_().getUrl(); }
 
 /* ---------- อ่านตัวอักษรจากรูปภาพ (OCR) ---------- */
-// ใช้ OCR ของ Google Drive (อ่านภาษาไทยได้ดี) — ต้องเปิดบริการ Drive API ใน Apps Script: บริการ ＋ → Drive API → เพิ่ม
+// ใช้ OCR ของ Google Drive (อ่านภาษาไทยได้ดี) — ใช้เฉพาะเล่มที่เป็นไฟล์สแกนหรือรูปที่แคปมา
+// ถ้าเปิดบริการ Drive API ไว้จะใช้บริการนั้น ถ้าไม่ได้เปิดจะเรียก Drive โดยตรง (ไม่ต้องตั้งค่าเพิ่ม)
 function ocrImage(b64, mime, name) {
-  if (typeof Drive === 'undefined') {
-    throw new Error('ยังไม่ได้เปิดบริการ Drive API — ใน Apps Script กด "บริการ ＋" เลือก Drive API กด "เพิ่ม" แล้ว Deploy เวอร์ชันใหม่');
-  }
   var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime || 'image/png', name || 'image.png');
+  if (typeof Drive === 'undefined') return ocrViaRest_(blob);
   var file = typeof Drive.Files.create === 'function'
     ? Drive.Files.create({ name: 'ocr-tmp', mimeType: MimeType.GOOGLE_DOCS }, blob, { ocrLanguage: 'th' })   // Drive API v3
     : Drive.Files.insert({ title: 'ocr-tmp', mimeType: blob.getContentType() }, blob, { ocr: true, ocrLanguage: 'th' }); // Drive API v2
@@ -69,6 +68,30 @@ function ocrImage(b64, mime, name) {
     return DocumentApp.openById(file.id).getBody().getText();
   } finally {
     try { DriveApp.getFileById(file.id).setTrashed(true); } catch (e) {}
+  }
+}
+
+// อัปโหลดรูปเป็น Google Docs พร้อม OCR → ดึงข้อความ → ลบไฟล์ชั่วคราว
+function ocrViaRest_(blob) {
+  var auth = { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, b = 'ocr' + Date.now();
+  var head = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify({ name: 'ocr-tmp', mimeType: 'application/vnd.google-apps.document' }) +
+    '\r\n--' + b + '\r\nContent-Type: ' + blob.getContentType() + '\r\n\r\n';
+  var body = Utilities.newBlob(head).getBytes().concat(blob.getBytes()).concat(Utilities.newBlob('\r\n--' + b + '--').getBytes());
+  var res = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=th&fields=id', {
+    method: 'post', contentType: 'multipart/related; boundary=' + b, payload: body, headers: auth, muteHttpExceptions: true
+  });
+  if (res.getResponseCode() >= 300) {
+    var msg = res.getContentText();
+    if (/has not been used|is disabled|accessNotConfigured/i.test(msg))
+      throw new Error('อ่านไฟล์สแกน/รูปภาพไม่ได้ เพราะยังไม่ได้เปิด Drive API — ใน Apps Script กด "บริการ ＋" เลือก Drive API กด "เพิ่ม" แล้ว Deploy เวอร์ชันใหม่ (ไฟล์ PDF ปกติไม่ต้องใช้)');
+    throw new Error('อ่านด้วย OCR ไม่สำเร็จ (' + res.getResponseCode() + ')');
+  }
+  var id = JSON.parse(res.getContentText()).id;
+  try {
+    return UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '/export?mimeType=text%2Fplain', { headers: auth }).getContentText('UTF-8');
+  } finally {
+    try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {}
   }
 }
 
