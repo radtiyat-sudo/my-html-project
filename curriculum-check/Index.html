@@ -104,7 +104,7 @@
   <section class="card noprint">
     <label class="drop" id="drop"><b>วางไฟล์ PDF หรือรูปภาพที่นี่ (หรือคลิกเพื่อเลือก)</b>
       ไฟล์นักศึกษา (หน้าโครงสร้างหลักสูตรที่ยังไม่กรอกหมวด) และเล่มหลักสูตร (มคอ.2) — วางพร้อมกันได้ ระบบแยกให้เอง<br>
-      แคปหน้าเล่มเป็นรูปก็ได้ กด <b style="display:inline;font-size:inherit">Ctrl+V</b> วางทีละรูป (หน้าโครงสร้างหลักสูตร + หน้ารายวิชา)
+      ไม่ต้องเซฟไฟล์ก็ได้: <b style="display:inline;font-size:inherit">คัดลอกข้อความ</b> (หรือแคปรูป) หน้าโครงสร้างหลักสูตร + หน้ารายวิชาจากเล่ม แล้วกด <b style="display:inline;font-size:inherit">Ctrl+V</b> ในหน้านี้ — วางทีละส่วนได้
       <input type="file" id="file" accept="application/pdf,.pdf,image/*" multiple hidden></label>
     <div id="msg"></div>
     <div class="slots">
@@ -113,7 +113,7 @@
     </div>
     <div id="reqBox" class="reqbox"></div>
     <div id="summary"></div>
-    <details class="muted" style="margin-top:10px"><summary>อ่าน PDF ไม่ได้? วางข้อความแทน</summary>
+    <details class="muted" style="margin-top:10px"><summary>หรือวางข้อความในช่องนี้</summary>
       <textarea id="txt" placeholder="คัดลอกข้อความทั้งหน้า (หน้านักศึกษา หรือเล่มหลักสูตร) มาวาง"></textarea>
       <button class="ghost sm" id="btnTxt">อ่านข้อความ</button>
     </details>
@@ -296,7 +296,15 @@ function parseCurriculum(text) {
     var cr = line.match(/(\d+(?:\.\d)?)\s*\(\s*\d+\s*-\s*\d+\s*-\s*\d+\s*\)/);
     var codes = [], m; CODE_RE.lastIndex = 0;
     while ((m = CODE_RE.exec(line))) codes.push(m);
-    if (cr && !codes.length) lastCredit = +cr[1];
+    var last = res.courses[res.courses.length - 1];
+    if (cr && !codes.length) {
+      // ข้อความที่คัดลอกจากตาราง: หน่วยกิตอยู่บรรทัดหลังรหัสวิชา → ให้วิชาก่อนหน้า (ถ้ายังไม่มีหน่วยกิต)
+      if (last && last.credits == null && last.group === (cur && cur.label)) last.credits = +cr[1];
+      else lastCredit = +cr[1];
+    }
+    // ชื่อวิชาภาษาอังกฤษอยู่บรรทัดถัดจากรหัสวิชา
+    if (!codes.length && !g2 && last && !last.nameEn && /[A-Za-z]{3}/.test(line) && !/[ก-๙]/.test(line))
+      last.nameEn = line.replace(/\d+(\.\d)?\s*\(.*$/, '').trim();
     codes.forEach(function (mm) {
       var code = mm[1] + mm[2];
       if (!cur || seen[code]) return;
@@ -621,8 +629,8 @@ function ocrImages(imgs) {
 function hasCode(t) { return /\b[A-Z]{4}\s?\d{3}\b/.test(t) ? 1 : 0; }
 function imageBook() {
   var tx = state.imgBook.texts.slice().sort(function (a, b) { return hasCode(a) - hasCode(b); });
-  var c = parseCurriculum(tx.join('\n'));
-  c.fileName = 'รูปภาพ ' + tx.length + ' รูป'; c.fromImages = tx.length;
+  var c = parseCurriculum(fixSpacedCodes(tx.join('\n')));
+  c.fileName = 'ข้อความ/รูปที่วาง ' + tx.length + ' ส่วน'; c.fromImages = tx.length;
   return c;
 }
 
@@ -694,6 +702,22 @@ function handleFiles(files, forceOcr) {
       });
     });
   });
+}
+
+// ข้อความที่คัดลอกมาวาง (Ctrl+V) — หน้านักศึกษา หรือข้อความจากเล่ม (วางทีละช่วงได้ ระบบรวมให้)
+function handlePastedText(text, name) {
+  showMsg('', '');
+  if (!String(text || '').trim()) return Promise.resolve();
+  var t = parseTranscript(fixSpacedCodes(text));
+  if (t.studentId && t.rows.length) return handleTexts([{ name: name, text: text }]);
+  var c = parseCurriculum(fixSpacedCodes(text));
+  if (!c.courses.length && !c.groups.length && !planIds(text).length) {
+    showMsg('bad', 'ข้อความที่วางไม่ใช่หน้านักศึกษาหรือเล่มหลักสูตร (ไม่พบรหัสวิชาหรือหมวดวิชา) — คัดลอกหน้า “โครงสร้างหลักสูตร” หรือหน้า “รายวิชาในหลักสูตร” ของเล่มมาวาง');
+    return Promise.resolve();
+  }
+  state.imgBook.texts.push(text);
+  toast(c.courses.length ? 'อ่านรายวิชาจากเล่มแล้ว ' + c.courses.length + ' วิชา' : 'อ่านโครงสร้างหลักสูตรแล้ว');
+  return handleTexts([], true);
 }
 
 /* ---------- เล่มหลักสูตร (บันทึกไว้ใช้ซ้ำตามรหัสหลักสูตร) ---------- */
@@ -848,9 +872,9 @@ function render() {
   $('slotBook').classList.toggle('done', !!c);
   $('bookState').innerHTML = c ? esc(c.name) + (c.key ? ' [' + esc(c.key) + ']' : '') + '<br>' + c.courses.length + ' รายวิชา' +
       (s && !c.fileName ? ' · <span style="color:var(--ok)">ใช้เล่มที่บันทึกไว้</span>' : c.saved ? ' · บันทึกแล้ว ครั้งหน้าไม่ต้องวางอีก' : '')
-    : state.imgBook.texts.length ? 'อ่านจากรูปแล้ว ' + state.imgBook.texts.length + ' รูป แต่ยังไม่พบรหัสวิชา — แคปหน้า “รายวิชาในหลักสูตร” แล้ววางเพิ่ม'
+    : state.imgBook.texts.length ? 'อ่านโครงสร้างจากที่วางแล้ว ' + state.imgBook.texts.length + ' ส่วน แต่ยังไม่พบรหัสวิชา — คัดลอก (หรือแคป) หน้า “รายวิชาในหลักสูตร” แล้วกด Ctrl+V เพิ่ม'
     : s ? 'ยังไม่มีเล่มของ ' + esc(s.t.programKey || 'หลักสูตรนี้') + ' — วางไฟล์หรือรูปเล่มหลักสูตร' : 'ยังไม่มี — เล่ม มคอ.2 เป็น PDF หรือรูปที่แคปมา (วางครั้งเดียว ระบบจำไว้ให้)';
-  if (c && c.fromImages) $('bookState').innerHTML += '<br><span style="color:var(--warn)">อ่านจากรูป ' + c.fromImages + ' รูป — ตรวจตัวเลขเกณฑ์ด้านล่าง</span>';
+  if (c && c.fromImages) $('bookState').innerHTML += '<br><span style="color:var(--warn)">อ่านจากที่วาง ' + c.fromImages + ' ส่วน — ตรวจตัวเลขเกณฑ์ด้านล่าง (วางส่วนอื่นเพิ่มได้)</span>';
   renderReq(s);
 
   // แท็บเมื่อมีหลายคน
@@ -996,13 +1020,16 @@ drop.addEventListener('drop', function (ev) {
 });
 // วางรูปที่แคปหน้าจอได้เลยด้วย Ctrl+V
 document.addEventListener('paste', function (ev) {
-  var fs = [].slice.call((ev.clipboardData && ev.clipboardData.files) || []).filter(function (f) { return isImg(f) || isPdf(f); });
-  if (!fs.length) return;
-  ev.preventDefault();
-  handleFiles(fs);
+  var cd = ev.clipboardData; if (!cd) return;
+  var fs = [].slice.call(cd.files || []).filter(function (f) { return isImg(f) || isPdf(f); });
+  if (fs.length) { ev.preventDefault(); handleFiles(fs); return; }
+  // ข้อความ: วางตรงไหนของหน้าก็ได้ (ยกเว้นในช่องกรอก)
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || '')) return;
+  var text = cd.getData('text/plain');
+  if (text && text.trim().length > 10) { ev.preventDefault(); handlePastedText(text, 'ข้อความที่วาง'); }
 });
 document.addEventListener('toggle', function (e) { if (e.target.id === 'reqDet') state.reqOpen = e.target.open; }, true);
-$('btnTxt').addEventListener('click', function () { handleTexts([{ name: 'ข้อความที่วาง', text: $('txt').value }]); });
+$('btnTxt').addEventListener('click', function () { handlePastedText($('txt').value, 'ข้อความที่วาง').then(function () { $('txt').value = ''; }); });
 document.addEventListener('change', function (e) {
   var el = e.target, s = state.students[state.sel]; if (!s) return;
   if (el.classList.contains('ovr') || el.classList.contains('trf')) s.saved = false;
