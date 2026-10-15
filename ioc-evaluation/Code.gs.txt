@@ -34,6 +34,16 @@ const CONFIG = {
 };
 
 // =====================================================================
+// รายชื่อผู้เชี่ยวชาญ (แสดงในช่องเลือกชื่อ และเพิ่มลงแท็บ "ผู้เชี่ยวชาญ" เมื่อรัน setupSheets)
+// เพิ่มอีเมลในแท็บ "ผู้เชี่ยวชาญ" ภายหลังได้ ถ้าจะส่งลิงก์ทางอีเมล
+// =====================================================================
+const EXPERTS = [
+  { name: 'อาจารย์ ดร. เอกรัตน์ อ่อนน้อม', workplace: 'วิทยาลัยวิทยาศาสตร์และเทคโนโลยีการกีฬา' },
+  { name: 'อาจารย์ ดร. สัจจวัฒน์ จารึกศิลป์', workplace: 'มหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก วิทยาเขตจักรพงษภูวนารถ คณะศิลปศาสตร์' },
+  { name: 'อาจารย์ ดร. อนุชิต กุลวานิช', workplace: 'วิทยาลัยนวัตกรรมและการจัดการ มหาวิทยาลัยราชภัฏสวนสุนันทา' }
+];
+
+// =====================================================================
 // ข้อคำถาม (จากไฟล์แบบประเมิน) — code ต้องไม่ซ้ำกัน
 // =====================================================================
 const SECTIONS = [
@@ -98,7 +108,7 @@ const SECTIONS = [
   }
 ];
 
-const EXPERT_HEADERS = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง/สังกัด', 'อีเมล', 'รหัส', 'ลิงก์ส่วนตัว', 'สถานะ', 'ส่งอีเมลเมื่อ', 'ตอบเมื่อ'];
+const EXPERT_HEADERS = ['ลำดับ', 'ชื่อ-นามสกุล', 'สถานที่ทำงาน', 'อีเมล', 'รหัส', 'ลิงก์ส่วนตัว', 'สถานะ', 'ส่งอีเมลเมื่อ', 'ตอบเมื่อ'];
 const STATUS = { NEW: 'ยังไม่ส่ง', SENT: 'ส่งลิงก์แล้ว', DONE: 'ตอบแล้ว' };
 
 function allItems_() {
@@ -151,12 +161,12 @@ function sheet_(name, headers) {
 /** สร้างแท็บ ผู้เชี่ยวชาญ / คำตอบ / สรุป IOC (รันซ้ำได้ ไม่ลบข้อมูลเดิม) */
 function setupSheets() {
   const ex = sheet_(CONFIG.SHEETS.EXPERTS, EXPERT_HEADERS);
-  if (ex.getLastRow() === 1) {
-    ex.getRange(2, 1, 3, 4).setValues([
-      [1, 'ตัวอย่าง: รศ.ดร. ก. ใจดี', 'อาจารย์ คณะ...', 'expert1@example.com'],
-      [2, '', '', ''],
-      [3, '', '', '']
-    ]);
+  // เพิ่มผู้เชี่ยวชาญจาก EXPERTS ที่ยังไม่มีในแท็บ
+  const have0 = readExperts_().rows.map(r => normName_(r.name));
+  const add = EXPERTS.filter(e => have0.indexOf(normName_(e.name)) === -1);
+  if (add.length) {
+    const start = ex.getLastRow() + 1;
+    ex.getRange(start, 1, add.length, 3).setValues(add.map((e, i) => [start - 1 + i, e.name, e.workplace]));
   }
   ex.setColumnWidth(2, 220); ex.setColumnWidth(3, 220); ex.setColumnWidth(4, 220); ex.setColumnWidth(6, 320);
 
@@ -285,11 +295,26 @@ function getFormData(token) {
     sections: SECTIONS,
     total: allItems_().length,
     expert: expert ? { name: expert.name, position: expert.position } : null,
+    experts: expertChoices_(),
     tokenValid: !!expert,
     tokenGiven: !!token,
     requireToken: CONFIG.REQUIRE_TOKEN,
     previous: previous
   };
+}
+
+/** รายชื่อสำหรับช่องเลือกชื่อ: จากแท็บ "ผู้เชี่ยวชาญ" รวมกับ EXPERTS (ไม่ซ้ำกัน) */
+function expertChoices_() {
+  const out = [], seen = {};
+  readExperts_().rows.map(r => ({ name: r.name, workplace: r.position }))
+    .concat(EXPERTS)
+    .forEach(e => {
+      const k = normName_(e.name);
+      if (!k || seen[k]) return;
+      seen[k] = true;
+      out.push({ name: e.name, workplace: e.workplace || '' });
+    });
+  return out;
 }
 
 /** รับคำตอบจากหน้าเว็บ: { token, name, position, scores:{code:-1|0|1}, comments:{code:text}, overall } */
@@ -333,6 +358,8 @@ function submitEvaluation(data) {
 
     if (expert) experts.sh.getRange(expert.row, 7).setValue(STATUS.DONE);
     if (expert) experts.sh.getRange(expert.row, 9).setValue(new Date());
+    // ผู้เชี่ยวชาญแก้สถานที่ทำงานในแบบประเมิน → อัปเดตในแท็บ "ผู้เชี่ยวชาญ" ด้วย
+    if (expert && position && position !== expert.position) experts.sh.getRange(expert.row, 3).setValue(position);
     SpreadsheetApp.flush();
     summary = computeIOC();
   } finally {

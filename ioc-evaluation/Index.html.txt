@@ -26,6 +26,12 @@
     .legend b { display: block; font-size: 18px; }
     .l-pos { background: var(--pos-soft); color: var(--pos); } .l-mid { background: var(--mid-soft); color: var(--mid); } .l-neg { background: var(--neg-soft); color: var(--neg); }
     label.f { display: block; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+    select { width: 100%; font: inherit; padding: 10px 40px 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; color: var(--ink); cursor: pointer;
+      appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
+    select:focus { outline: 2px solid var(--brand); border-color: transparent; }
+    .sub { font-size: 13px; color: var(--muted); font-weight: 400; }
+    #nameOther { margin-top: 8px; }
+    #position { min-height: 52px; }
     input[type=text], textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: var(--ink); }
     input[type=text]:focus, textarea:focus { outline: 2px solid var(--brand); border-color: transparent; }
     textarea { min-height: 72px; resize: vertical; }
@@ -157,8 +163,13 @@
       'โดยเลือกระดับความคิดเห็นของท่าน พร้อมระบุข้อเสนอแนะ (ถ้ามี)</p>' +
       '<div class="legend"><div class="l-pos"><b>+1</b>สอดคล้อง</div><div class="l-mid"><b>0</b>ไม่แน่ใจ</div><div class="l-neg"><b>−1</b>ไม่สอดคล้อง</div></div>' +
       (data.deadline ? '<p class="hint" style="color:var(--muted)">กำหนดส่ง: ' + esc(data.deadline) + '</p>' : '') +
-      '<label class="f" for="name">ชื่อ-นามสกุล ผู้ประเมิน *</label><input type="text" id="name" autocomplete="name" value="' + esc(ex.name) + '">' +
-      '<label class="f" for="position">ตำแหน่ง/สังกัด</label><input type="text" id="position" autocomplete="organization-title" value="' + esc(ex.position) + '">' +
+      '<label class="f" for="nameSelect">ชื่อ-นามสกุล ผู้ประเมิน *</label>' +
+      '<select id="nameSelect"><option value="">— เลือกชื่อผู้ประเมิน —</option>' +
+      (data.experts || []).map((e, i) => '<option value="' + i + '">' + esc(e.name) + '</option>').join('') +
+      '<option value="other">อื่นๆ (ระบุ)</option></select>' +
+      '<input type="text" id="nameOther" autocomplete="name" placeholder="พิมพ์ชื่อ-นามสกุล พร้อมคำนำหน้า" hidden>' +
+      '<label class="f" for="position">สถานที่ทำงาน <span class="sub">— แก้ไขหรือเพิ่มเติมได้</span></label>' +
+      '<textarea id="position" rows="2" autocomplete="organization" placeholder="เช่น คณะ/วิทยาลัย มหาวิทยาลัย"></textarea>' +
       '</div>';
 
     data.sections.forEach(sec => {
@@ -197,15 +208,31 @@
     // คำตอบเดิม (จากชีต) หรือฉบับร่างในเครื่อง
     const draft = readDraft();
     const prev = draft || data.previous;
+    if (ex.name) setName(ex.name, ex.position);
     if (prev) fill(prev);
     if (draft) $('#saved').textContent = 'กู้คืนฉบับร่างที่ยังไม่ได้ส่งแล้ว';
     bind();
     update();
   }
 
+  /** เลือกชื่อในรายการ (ถ้าไม่มีในรายการ → อื่นๆ แล้วใส่ชื่อในช่องพิมพ์) */
+  function setName(name, workplace) {
+    const key = n => String(n || '').replace(/\s+/g, '');
+    const i = (FORM.experts || []).findIndex(e => key(e.name) === key(name));
+    $('#nameSelect').value = i >= 0 ? String(i) : 'other';
+    $('#nameOther').hidden = i >= 0;
+    if (i < 0) $('#nameOther').value = name;
+    $('#position').value = workplace || (i >= 0 ? FORM.experts[i].workplace : '');
+  }
+
+  function currentName() {
+    const v = $('#nameSelect').value;
+    if (v === 'other') return $('#nameOther').value.trim();
+    return v === '' ? '' : FORM.experts[Number(v)].name;
+  }
+
   function fill(a) {
-    if (a.name && !$('#name').value) $('#name').value = a.name;
-    if (a.position && !$('#position').value) $('#position').value = a.position;
+    if (a.name) setName(a.name, a.position);
     Object.keys(a.scores || {}).forEach(code => {
       const el = document.querySelector('input[name="s_' + CSS.escape(code) + '"][value="' + a.scores[code] + '"]');
       if (el) el.checked = true;
@@ -218,6 +245,13 @@
   }
 
   function bind() {
+    $('#nameSelect').addEventListener('change', e => {
+      const v = e.target.value, other = $('#nameOther');
+      other.hidden = v !== 'other';
+      if (v === 'other') { other.focus(); $('#position').value = ''; }
+      else $('#position').value = v === '' ? '' : FORM.experts[Number(v)].workplace;
+      saveDraft();
+    });
     $('#app').addEventListener('change', e => {
       if (e.target.type === 'radio') {
         const item = e.target.closest('.item');
@@ -262,7 +296,7 @@
       const note = $('textarea', item).value.trim();
       if (note) comments[code] = note;
     });
-    return { token: TOKEN, name: $('#name').value.trim(), position: $('#position').value.trim(), scores, comments, overall: $('#overall').value.trim() };
+    return { token: TOKEN, name: currentName(), position: $('#position').value.trim(), scores, comments, overall: $('#overall').value.trim() };
   }
 
   function update() {
@@ -290,7 +324,11 @@
   function submit() {
     const a = answers(), err = $('#err');
     err.textContent = '';
-    if (!a.name) { err.textContent = 'กรุณากรอกชื่อ-นามสกุล ผู้ประเมิน'; $('#name').focus(); $('#name').scrollIntoView({ block: 'center' }); return; }
+    if (!a.name) {
+      const el = $('#nameSelect').value === 'other' ? $('#nameOther') : $('#nameSelect');
+      err.textContent = $('#nameSelect').value === 'other' ? 'กรุณาพิมพ์ชื่อ-นามสกุล ผู้ประเมิน' : 'กรุณาเลือกชื่อผู้ประเมิน';
+      el.focus(); el.scrollIntoView({ block: 'center' }); return;
+    }
     const missing = $$('.item').filter(item => !$('input:checked', item));
     if (missing.length) {
       missing.forEach(m => m.classList.add('missing'));
