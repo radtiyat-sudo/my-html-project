@@ -27,20 +27,27 @@ code{background:#eef3f7;border-radius:4px;padding:1px 6px;font-size:.92em}
 :focus-visible{outline:3px solid #3aa9ad;outline-offset:2px}
 
 /* Header */
-.top{background:linear-gradient(135deg,#123a54,#0f4f62);color:#fff;padding:30px 0 70px}
-.eyebrow{font-size:13px;letter-spacing:.08em;color:#9fe3dc;font-weight:600}
-.top h1{font-size:clamp(24px,4vw,32px);margin:6px 0 6px}
-.top p{color:#d4e3ec;max-width:640px}
-.privacy{display:inline-flex;gap:8px;align-items:center;margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:999px;font-size:14px}
-main{margin-top:-46px;padding-bottom:48px}
+.hero{position:relative;overflow:hidden;margin-top:24px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px 40px;padding:30px 32px;border-radius:20px;color:#fff;background:linear-gradient(135deg,#123a54 0%,#0f4a5e 55%,#0b6266 100%);box-shadow:0 8px 30px rgba(18,58,84,.18)}
+.hero::before{content:"";position:absolute;right:-120px;top:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(95,214,200,.18),transparent 70%);pointer-events:none}
+.hero>*{position:relative}
+.eyebrow{font-size:12px;letter-spacing:.12em;color:#9fe3dc;font-weight:600}
+.hero h1{font-size:clamp(24px,3.4vw,32px);margin:4px 0 6px}
+.hero p{color:#d4e3ec;max-width:520px;margin:0}
+.privacy{display:inline-flex;gap:8px;align-items:center;margin-top:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:13px;color:#e6f0f5}
+main{padding-bottom:48px}
 
 /* Steps */
-.steps{display:flex;gap:8px;list-style:none;margin:0 0 16px;padding:0;flex-wrap:wrap}
-.steps li{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;font-size:14px;color:var(--muted);box-shadow:var(--shadow)}
-.steps li b{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#e8eef3;color:var(--muted);font-size:13px}
-.steps li[aria-current=step]{color:var(--ink);border-color:var(--brand);font-weight:600}
-.steps li[aria-current=step] b{background:var(--brand);color:#fff}
-.steps li.done b{background:var(--ok);color:#fff}
+.steps{display:flex;align-items:center;list-style:none;margin:0;padding:16px 20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px}
+.steps li{position:relative;display:flex;align-items:center;gap:10px;font-size:14px;color:#b9cfdc;white-space:nowrap}
+.steps li+li{margin-left:14px;padding-left:46px}
+.steps li+li::before{content:"";position:absolute;left:0;top:50%;width:32px;height:2px;border-radius:2px;background:rgba(255,255,255,.22)}
+.steps li.is-done+li::before{background:#7fd6a5}
+.steps li b{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;font-size:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);color:#d6e5ee}
+.steps li[aria-current=step]{color:#fff;font-weight:600}
+.steps li[aria-current=step] b{background:#5fd6c8;border-color:#5fd6c8;color:#073b3e;box-shadow:0 0 0 4px rgba(95,214,200,.22)}
+.steps li.is-done{color:#e6f0f5}
+.steps li.is-done b{background:#7fd6a5;border-color:#7fd6a5;color:transparent;position:relative}
+.steps li.is-done b::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#0c3a26;font-weight:700}
 
 /* Cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:16px;box-shadow:var(--shadow)}
@@ -173,8 +180,17 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
 
 .foot{font-size:13px;color:var(--muted);margin-top:12px}
 
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;padding:24px 22px}
+  .steps{justify-content:space-between}
+}
 @media (max-width:760px){
   .wrap{padding:0 16px}
+  .hero{margin-top:16px;padding:22px 18px}
+  .steps{padding:12px 10px}
+  .steps li{flex-direction:column;gap:4px;font-size:13px;flex:1}
+  .steps li+li{margin-left:0;padding-left:0}
+  .steps li+li::before{left:-50%;width:calc(100% - 40px);top:16px;margin-left:20px}
   .card{padding:18px}
   .export-bar{margin:16px -18px -18px;padding:12px 18px}
   .export-bar .btn{width:100%}
@@ -192,21 +208,23 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="eyebrow">INTERNAL DOCUMENT TOOLS</div>
-    <h1>ระบบช่วยแยกเอกสาร</h1>
-    <p>เลือก PDF รวม ระบบอ่านรหัสนักศึกษาในแต่ละหน้า ให้คุณตรวจแก้ แล้วดาวน์โหลด PDF แยกรายคนเป็นไฟล์ ZIP</p>
-    <div class="privacy"><span aria-hidden="true">🔒</span> ประมวลผลในเบราว์เซอร์นี้เท่านั้น — ไม่อัปโหลด PDF ไปที่ใด</div>
-  </div>
-</header>
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="eyebrow">INTERNAL DOCUMENT TOOLS</div>
+      <h1>ระบบช่วยแยกเอกสาร</h1>
+      <p>แยก PDF รวมเป็นไฟล์รายคนตามรหัสนักศึกษา ตรวจแก้ได้ก่อนดาวน์โหลดเป็น ZIP</p>
+      <div class="privacy"><span aria-hidden="true">🔒</span> ประมวลผลในเบราว์เซอร์นี้เท่านั้น — ไม่อัปโหลด PDF ไปที่ใด</div>
+    </div>
+    <ol class="steps" aria-label="ขั้นตอน">
+      <li id="st1" aria-current="step"><b>1</b>เลือกไฟล์</li>
+      <li id="st2"><b>2</b>ตรวจสอบ</li>
+      <li id="st3"><b>3</b>ดาวน์โหลด</li>
+    </ol>
+  </header>
+</div>
 
 <main class="wrap">
-  <ol class="steps" aria-label="ขั้นตอน">
-    <li id="st1" aria-current="step"><b>1</b>เลือกไฟล์</li>
-    <li id="st2"><b>2</b>ตรวจสอบ</li>
-    <li id="st3"><b>3</b>ดาวน์โหลด</li>
-  </ol>
 
   <!-- ขั้นที่ 1 -->
   <section class="card" aria-labelledby="h-setup">
@@ -395,7 +413,7 @@ function setStatus(text, kind) { const s = $('status'); s.textContent = text; s.
 function setStep(n) {
   [1, 2, 3].forEach(i => {
     const li = $('st' + i);
-    li.classList.toggle('done', i < n);
+    li.classList.toggle('is-done', i < n);
     if (i === n) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
   });
 }
