@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<meta name="referrer" content="no-referrer">
 <base target="_blank">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -205,6 +206,14 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
   td.c-act{grid-area:act;white-space:normal}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.tool-tabs,.merge-actions{display:flex;gap:10px;flex-wrap:wrap}
+.tool-tabs .btn{flex:1}
+.merge-list{list-style:none;padding:0;margin:12px 0 20px;display:grid;gap:10px}
+.merge-item{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fafcfd}
+.merge-item .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.merge-item .order{font-weight:700;color:var(--brand);min-width:24px}
+.merge-item .controls{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:600px){.merge-item{flex-wrap:wrap}.merge-item .controls{width:100%;justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -212,8 +221,8 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
   <header class="hero">
     <div>
       <div class="eyebrow">INTERNAL DOCUMENT TOOLS</div>
-      <h1>ระบบช่วยแยกเอกสาร</h1>
-      <p>แยก PDF รวมเป็นไฟล์รายคนตามรหัสนักศึกษา ตรวจแก้ได้ก่อนดาวน์โหลดเป็น ZIP</p>
+      <h1>ตัวช่วยจัดการเอกสาร</h1>
+      <p>แยก PDF เป็นรายคน หรือรวม PDF หลายไฟล์เป็นไฟล์เดียว พร้อมดาวน์โหลด</p>
       <div class="privacy"><span aria-hidden="true">🔒</span> ประมวลผลในเบราว์เซอร์นี้เท่านั้น — ไม่อัปโหลด PDF ไปที่ใด</div>
     </div>
     <ol class="steps" aria-label="ขั้นตอน">
@@ -225,6 +234,11 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
 </div>
 
 <main class="wrap">
+  <nav class="card tool-tabs" aria-label="เลือกเครื่องมือ">
+    <button type="button" class="btn primary" id="tabSplit" aria-pressed="true" aria-controls="splitPanel">แยกเอกสารรายคน</button>
+    <button type="button" class="btn ghost" id="tabMerge" aria-pressed="false" aria-controls="mergePanel">รวมไฟล์ PDF</button>
+  </nav>
+  <div id="splitPanel">
 
   <!-- ขั้นที่ 1 -->
   <section class="card" aria-labelledby="h-setup">
@@ -308,6 +322,30 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
     <p class="foot">ไฟล์ถูกบันทึกลงโฟลเดอร์ดาวน์โหลดของเครื่องแล้ว • ใน ZIP มี <b>รายการไฟล์.csv</b> สำหรับตรวจทานหรือส่งต่อ • ไม่พบไฟล์? <a class="btn link" id="download" target="_self">ดาวน์โหลดอีกครั้ง</a></p>
   </section>
 
+  </div>
+  <section class="card" id="mergePanel" hidden aria-labelledby="h-merge">
+    <fieldset id="mergeSetup">
+      <h2 id="h-merge">รวมไฟล์ PDF เป็นไฟล์เดียว</h2>
+      <p class="hint">เลือกหลายไฟล์พร้อมกัน หรือเพิ่มทีละชุด จัดลำดับไฟล์ แล้วดาวน์โหลด PDF รวมได้ทันที</p>
+      <div class="drop" id="mergeDrop">
+        <div class="icon" aria-hidden="true">📚</div>
+        <p><b>ลากไฟล์ PDF หลายไฟล์มาวางที่นี่</b> หรือ</p>
+        <button type="button" class="btn primary" id="mergePick">เลือก / เพิ่มไฟล์ PDF</button>
+        <small>เฉพาะ PDF • รวมไม่เกิน 30 MB / 600 หน้า / 100 ไฟล์ต่อชุด</small>
+        <input type="file" id="mergeFiles" class="sr-only" accept="application/pdf,.pdf" multiple tabindex="-1" aria-hidden="true">
+      </div>
+      <div class="toolbar" style="margin-top:18px"><b id="mergeSummary">ยังไม่มีไฟล์</b><button type="button" class="btn ghost sm" id="mergeClear">ล้างไฟล์ทั้งหมด</button></div>
+      <p class="hint">เรียงจากบนลงล่าง • รวมทุกหน้าของแต่ละไฟล์ตามลำดับเดิม • กด ↑ / ↓ เพื่อจัดลำดับ</p>
+      <ol class="merge-list" id="mergeList" aria-label="ลำดับไฟล์ที่จะรวม"></ol>
+      <label for="mergeName"><b>ชื่อไฟล์รวม</b></label>
+      <input type="text" id="mergeName" value="เอกสารรวม" maxlength="125" placeholder="เอกสารรวม" style="margin:8px 0 14px">
+      <div class="merge-actions"><button type="button" class="btn primary lg" id="mergeExport" disabled>รวมไฟล์และดาวน์โหลด PDF</button></div>
+    </fieldset>
+    <div id="mergeStatus" class="status" role="status" aria-live="polite">เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม</div>
+    <progress id="mergeProgress" hidden aria-label="ความคืบหน้าการรวมไฟล์"></progress>
+    <a id="mergeDownload" target="_self" hidden aria-hidden="true" tabindex="-1"></a>
+    <p class="foot">ประมวลผลในเบราว์เซอร์ ไม่ส่งเอกสารไปเก็บในระบบหรือ Google Drive • กดล้างไฟล์เมื่อเสร็จงาน • ไฟล์ที่ดาวน์โหลดแล้วจะยังอยู่ในเครื่องของคุณ</p>
+  </section>
   <details class="card">
     <summary>คำแนะนำและข้อจำกัด</summary>
     <ul>
@@ -316,7 +354,9 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
       <li>คนเดียวมีหลายหน้า: ใส่เลขหน้าไว้ในแถวเดียวกัน หรือกด “รวมขึ้น” เพื่อรวมกับแถวด้านบน</li>
       <li>ยังไม่รองรับหลายคนในหน้าเดียว — หน้าเอกสารคงเดิมทั้งหน้า ไม่ครอป ไม่แก้ข้อความ</li>
       <li>PDF ที่ตั้งรหัสผ่านหรือล็อกสิทธิ์: ให้เปิดแล้ว “พิมพ์เป็น PDF” (Print → Save as PDF) ก่อนนำมาใช้</li>
-      <li>PDF ที่เซ็นดิจิทัล: ไฟล์ที่แยกออกมาจะไม่คงสถานะการรับรองลายเซ็นดิจิทัล</li>
+      <li>รวมไฟล์: รองรับเฉพาะ PDF ไม่รองรับ Word / Excel / รูปภาพโดยตรง กรุณาแปลงเป็น PDF ก่อน</li>
+      <li>การรวมไฟล์คัดลอกหน้าเอกสารและภาพลายเซ็น ไม่รับประกันการคงแบบฟอร์มโต้ตอบ บุ๊กมาร์ก หรือไฟล์แนบภายใน PDF</li>
+      <li>PDF ที่เซ็นดิจิทัล: ไฟล์ที่แยกหรือรวมออกมาจะไม่คงสถานะการรับรองลายเซ็นดิจิทัล</li>
       <li>ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อโหลดเครื่องมืออ่าน PDF แต่ตัวไฟล์ไม่ถูกส่งออกจากเครื่อง</li>
     </ul>
   </details>
@@ -342,9 +382,10 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
 
 <div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" class="btn link" id="toastUndo">เลิกทำ</button></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<!-- SECURITY: ไลบรารีทุกตัวตรึงเวอร์ชันและตรวจ Subresource Integrity — ถ้าไฟล์บน CDN ถูกแก้ เบราว์เซอร์จะไม่รัน -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -401,8 +442,16 @@ function formatPages(pages) {
   return out.join(',');
 }
 
+/** ตัด Additional Actions (/AA) ของหน้า เช่น JavaScript ที่รันเองตอนเปิดหน้า ไม่ให้ติดไปกับไฟล์ที่ส่งต่อ */
+function stripPageActions(page) {
+  page.node.delete(PDFLib.PDFName.of('AA'));
+  return page;
+}
+
 function cleanName(value) {
-  let s = String(value).normalize('NFC').trim().replace(/\.pdf$/i, '')
+  let s = String(value).normalize('NFC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\x7f]/g, '') // กันชื่อไฟล์หลอกตาด้วยอักขระกลับทิศ/มองไม่เห็น
+    .trim().replace(/\.pdf$/i, '')
     .replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').replace(/\s+/g, ' ').slice(0, MAX_NAME)
     .replace(/[. ]+$/g, '').trim();
   if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s)) s += '_';
@@ -426,6 +475,8 @@ function lock(on) {
   state.busy = on;
   $('setup').disabled = on || !libsReady;
   $('review').disabled = on;
+  $('mergeSetup').disabled = on || !libsReady;
+  $('tabSplit').disabled = $('tabMerge').disabled = on;
   document.body.style.cursor = on ? 'progress' : '';
 }
 
@@ -481,7 +532,7 @@ async function loadFile(f) {
     state.pdf = null; state.lib = null; $('fileChip').hidden = true; $('drop').hidden = false;
 
     let pdf;
-    try { pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise; }
+    try { pdf = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false, enableXfa: false }).promise; }
     catch (e) {
       if (e && e.name === 'PasswordException') throw Error('PDF นี้ตั้งรหัสผ่านไว้\nเปิดไฟล์ด้วยรหัสผ่านแล้ว “พิมพ์เป็น PDF” เพื่อได้สำเนาที่ไม่มีรหัส');
       throw Error('ไฟล์อาจเสียหายหรืออ่านไม่ได้ (' + (e && e.message || e) + ')');
@@ -809,13 +860,13 @@ async function exportZip() {
       progress(i, jobs.length); setStatus('กำลังสร้างไฟล์ ' + (i + 1) + ' / ' + jobs.length + ' — ' + j.name + '.pdf');
       const out = await PDFLib.PDFDocument.create();
       const copied = await out.copyPages(state.lib, j.pages.map(p => p - 1));
-      copied.forEach(p => out.addPage(p));
+      copied.forEach(p => out.addPage(stripPageActions(p)));
       zip.file(j.name + '.pdf', await out.save());
       manifest.push([String(j.no), j.name + '.pdf', formatPages(j.pages), String(j.pages.length)]);
       await tick();
     }
     // กันสูตรใน Excel (CSV injection) และ escape เครื่องหมายคำพูด
-    const cell = s => '"' + (/^[=+\-@\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
+    const cell = s => '"' + (/^[\s]*[=+\-@|]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
     zip.file('รายการไฟล์.csv', '﻿' + manifest.map(r => r.map(cell).join(',')).join('\r\n'));
     setStatus('กำลังรวมเป็น ZIP …');
     const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' }, m => progress(m.percent, 100));
@@ -878,6 +929,126 @@ document.addEventListener('keydown', e => {
 });
 $('viewer').addEventListener('click', e => { if (e.target === $('viewer')) $('viewer').close(); });
 
+/* ---------- merge PDFs: local browser memory only ---------- */
+let mergeItems = [], mergeURL = null, mergeSeq = 0;
+const MERGE_MAX_BYTES = 30 * 1048576, MERGE_MAX_PAGES = 600, MERGE_MAX_FILES = 100;
+function mergeStatus(text, kind) {
+  $('mergeStatus').textContent = text;
+  $('mergeStatus').className = 'status' + (kind ? ' ' + kind : '');
+}
+function invalidateMerge() {
+  if (mergeURL) URL.revokeObjectURL(mergeURL);
+  mergeURL = null;
+  $('mergeDownload').hidden = true;
+  $('mergeDownload').removeAttribute('href');
+}
+function showTool(tool) {
+  if (state.busy) return;
+  const split = tool === 'split';
+  $('splitPanel').hidden = !split; $('mergePanel').hidden = split;
+  for (const [id, active] of [['tabSplit', split], ['tabMerge', !split]]) {
+    $(id).className = 'btn ' + (active ? 'primary' : 'ghost');
+    $(id).setAttribute('aria-pressed', String(active));
+  }
+  setStep(split ? (state.exported ? 3 : rows.length ? 2 : 1) : (mergeURL ? 3 : mergeItems.length ? 2 : 1));
+}
+function renderMergeList() {
+  const totalPages = mergeItems.reduce((n, f) => n + f.pages, 0);
+  const totalBytes = mergeItems.reduce((n, f) => n + f.size, 0);
+  $('mergeSummary').textContent = mergeItems.length ? mergeItems.length + ' ไฟล์ • ' + totalPages + ' หน้า • ' + fmtSize(totalBytes) : 'ยังไม่มีไฟล์';
+  $('mergeExport').disabled = mergeItems.length < 2;
+  $('mergeClear').disabled = !mergeItems.length;
+  const frag = document.createDocumentFragment();
+  mergeItems.forEach((item, i) => {
+    const li = document.createElement('li'); li.className = 'merge-item';
+    const order = document.createElement('span'); order.className = 'order'; order.textContent = String(i + 1);
+    const info = document.createElement('div'); info.className = 'grow';
+    const name = document.createElement('b'); name.textContent = item.name;
+    const meta = document.createElement('div'); meta.className = 'hint'; meta.textContent = item.pages + ' หน้า • ' + fmtSize(item.size);
+    info.append(name, meta);
+    const controls = document.createElement('div'); controls.className = 'controls';
+    const action = (text, label, disabled, fn) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = text;
+      b.setAttribute('aria-label', label + ' ' + item.name); b.disabled = disabled;
+      b.onclick = () => { if (state.busy) return; invalidateMerge(); fn(); renderMergeList(); setStep(mergeItems.length ? 2 : 1); mergeStatus(mergeItems.length ? 'รายการเปลี่ยนแล้ว ตรวจลำดับก่อนรวมไฟล์' : 'เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม'); };
+      controls.append(b);
+    };
+    action('↑', 'เลื่อนขึ้น', i === 0, () => { [mergeItems[i - 1], mergeItems[i]] = [mergeItems[i], mergeItems[i - 1]]; });
+    action('↓', 'เลื่อนลง', i === mergeItems.length - 1, () => { [mergeItems[i], mergeItems[i + 1]] = [mergeItems[i + 1], mergeItems[i]]; });
+    action('ลบ', 'ลบไฟล์', false, () => { mergeItems.splice(i, 1); });
+    li.append(order, info, controls); frag.append(li);
+  });
+  $('mergeList').replaceChildren(frag);
+}
+async function addMergeFiles(files) {
+  if (state.busy || !libsReady || !files.length) return;
+  lock(true); invalidateMerge();
+  const errors = []; let added = 0;
+  const prog = $('mergeProgress'); prog.hidden = false; prog.max = files.length;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]; prog.value = i;
+      mergeStatus('กำลังตรวจไฟล์ ' + (i + 1) + '/' + files.length + ' — ' + f.name);
+      try {
+        if (mergeItems.length >= MERGE_MAX_FILES) throw Error('ครบขีดจำกัด 100 ไฟล์แล้ว');
+        if (f.size > MAX_MB * 1048576) throw Error('ขนาดไฟล์เกิน 30 MB');
+        if (mergeItems.reduce((n, x) => n + x.size, 0) + f.size > MERGE_MAX_BYTES) throw Error('ขนาดรวมจะเกิน 30 MB');
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        if (!new TextDecoder('latin1').decode(bytes.subarray(0, 1024)).includes('%PDF-')) throw Error('ไม่ใช่ PDF กรุณาแปลงไฟล์เป็น PDF ก่อน');
+        const doc = await PDFLib.PDFDocument.load(bytes, { updateMetadata: false });
+        const pages = doc.getPageCount();
+        if (!pages) throw Error('ไม่มีหน้าเอกสาร');
+        if (mergeItems.reduce((n, x) => n + x.pages, 0) + pages > MERGE_MAX_PAGES) throw Error('จำนวนหน้ารวมจะเกิน 600 หน้า');
+        mergeItems.push({ id: ++mergeSeq, name: f.name, size: f.size, pages, doc }); added++;
+      } catch (e) {
+        errors.push(f.name + ': ' + (/encrypt|password/i.test(e.message) ? 'PDF เข้ารหัส/มีรหัสผ่าน กรุณาใช้สำเนาที่ปลดรหัสแล้ว' : e.message));
+      }
+      await tick();
+    }
+    renderMergeList(); setStep(mergeItems.length ? 2 : 1);
+    mergeStatus('เพิ่มได้ ' + added + ' ไฟล์ • ในรายการมี ' + mergeItems.length + ' ไฟล์' + (errors.length ? '\nไฟล์ที่ไม่ได้เพิ่ม (' + errors.length + '):\n' + errors.join('\n') : '\nตรวจลำดับก่อนกดรวมไฟล์'), errors.length ? 'warn' : 'ok');
+  } finally { prog.hidden = true; lock(false); }
+}
+async function exportMergedPdf() {
+  if (state.busy || mergeItems.length < 2) return;
+  const name = cleanName($('mergeName').value);
+  if (!name) { mergeStatus('กรุณาตั้งชื่อไฟล์รวม', 'error'); $('mergeName').focus(); return; }
+  lock(true); invalidateMerge();
+  const prog = $('mergeProgress'); prog.hidden = false; prog.max = mergeItems.length;
+  try {
+    const out = await PDFLib.PDFDocument.create();
+    for (let i = 0; i < mergeItems.length; i++) {
+      const item = mergeItems[i];
+      mergeStatus('กำลังรวมไฟล์ ' + (i + 1) + '/' + mergeItems.length + ' — ' + item.name); prog.value = i;
+      const pages = await out.copyPages(item.doc, item.doc.getPageIndices());
+      pages.forEach(p => out.addPage(stripPageActions(p)));
+      await tick();
+    }
+    const bytes = await out.save();
+    mergeURL = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = $('mergeDownload'); a.href = mergeURL; a.download = name + '.pdf';
+    mergeStatus('รวมสำเร็จ ' + mergeItems.length + ' ไฟล์ → ' + out.getPageCount() + ' หน้า • ' + fmtSize(bytes.length) + '\nเริ่มดาวน์โหลดอัตโนมัติแล้ว • ตรวจไฟล์ได้ที่รายการดาวน์โหลดของเบราว์เซอร์', 'ok');
+    setStep(3); a.click();
+  } catch (e) { invalidateMerge(); mergeStatus('รวมไฟล์ไม่สำเร็จ: ' + e.message, 'error'); }
+  finally { prog.hidden = true; lock(false); }
+}
+$('tabSplit').onclick = () => showTool('split');
+$('tabMerge').onclick = () => showTool('merge');
+$('mergePick').onclick = () => $('mergeFiles').click();
+$('mergeFiles').onchange = () => { const files = Array.from($('mergeFiles').files); $('mergeFiles').value = ''; addMergeFiles(files); };
+$('mergeClear').onclick = () => {
+  if (state.busy) return;
+  invalidateMerge(); mergeItems = []; $('mergeFiles').value = ''; $('mergeName').value = 'เอกสารรวม';
+  renderMergeList(); setStep(1); mergeStatus('ล้างรายการแล้ว • เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม');
+};
+$('mergeName').addEventListener('input', () => { invalidateMerge(); setStep(mergeItems.length ? 2 : 1); });
+$('mergeExport').onclick = exportMergedPdf;
+['dragenter', 'dragover'].forEach(t => $('mergeDrop').addEventListener(t, e => { e.preventDefault(); if (!state.busy) $('mergeDrop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => $('mergeDrop').addEventListener(t, () => $('mergeDrop').classList.remove('over')));
+$('mergeDrop').addEventListener('drop', e => { e.preventDefault(); addMergeFiles(Array.from(e.dataTransfer.files)); });
+// ยกเลิกลิงก์ดาวน์โหลดชั่วคราวเมื่อออกจากหน้า ไม่มีการเก็บประวัติหรือใช้ localStorage
+window.addEventListener('pagehide', () => { invalidateMerge(); if (state.zipURL) URL.revokeObjectURL(state.zipURL); });
+
 /* ---------- wiring ---------- */
 $('pick').onclick = () => $('file').click();
 $('change').onclick = () => $('file').click();
@@ -914,19 +1085,29 @@ window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
 
 window.addEventListener('beforeunload', e => {
-  if (rows.length && !state.exported) { e.preventDefault(); e.returnValue = ''; }
+  if ((rows.length && !state.exported) || (mergeItems.length && !mergeURL)) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* ---------- init ---------- */
-const libsReady = !!(window.pdfjsLib && window.PDFLib && window.JSZip);
-if (libsReady) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  setStatus('พร้อมใช้งาน • เลือกไฟล์ PDF รวม');
-} else {
-  setStatus('โหลดเครื่องมืออ่าน PDF ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วโหลดหน้าใหม่', 'error');
-}
+const WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+const WORKER_SRI = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
+let libsReady = false;
 lock(false);
 syncMode();
+(async () => {
+  try {
+    if (!(window.pdfjsLib && window.PDFLib && window.JSZip)) throw Error('libs');
+    // Worker ใส่ integrity ผ่าน <script> ไม่ได้ จึงดาวน์โหลดพร้อมตรวจ SRI แล้วรันจาก blob: ของหน้านี้เอง
+    const res = await fetch(WORKER_URL, { integrity: WORKER_SRI, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!res.ok) throw Error('worker ' + res.status);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(await res.blob());
+    libsReady = true;
+    setStatus('พร้อมใช้งาน • เลือกไฟล์ PDF รวม');
+  } catch (e) {
+    setStatus('โหลดเครื่องมืออ่าน PDF ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วโหลดหน้าใหม่', 'error');
+  }
+  lock(false);
+})();
 </script>
 </body>
 </html>
