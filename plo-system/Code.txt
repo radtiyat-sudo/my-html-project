@@ -1332,12 +1332,15 @@ function saveRubrics(pid, plos) {
     if(!Array.isArray(plos)||plos.length!==pr.plos.length) throw new Error('รายการ PLO ไม่ตรงกับหลักสูตร');
     pr.plos.forEach(function(p){
       var incoming=plos.filter(function(x){return x.id===p.id;})[0];
-      if(!incoming) throw new Error('ไม่พบ PLO ต้นฉบับ');p.crit=incoming.crit;
+      if(!incoming) throw new Error('ไม่พบ PLO ต้นฉบับ');p.crit=incoming.crit;p.learn=incoming.learn;p.research=incoming.research;
     });
     validateRubric_(pr);archiveRubric_(pid);
     var rows=[];
-    pr.plos.forEach(function(p){p.crit.forEach(function(c,i){var b=c.desc||['','','','',''];rows.push({programId:pid,ploId:p.id,critId:c.id,name:c.name,order:i+1,bA:b[0],bB:b[1],bC:b[2],bD:b[3],bE:b[4],weight:num_(c.weight,1),alignment:s_(c.alignment),evidence:s_(c.evidence)});});});
+    pr.plos.forEach(function(p){p.crit.forEach(function(c,i){var b=c.desc||['','','','',''];rows.push({programId:pid,ploId:p.id,critId:c.id,name:c.name,order:i+1,bA:b[0],bB:b[1],bC:b[2],bD:b[3],bE:b[4],weight:num_(c.weight,1),alignment:s_(c.alignment),evidence:s_(c.evidence),dimension:s_(c.dimension).slice(0,200)});});});
     writeAll_('Criteria',readAll_('Criteria').filter(function(c){return s_(c.programId)!==s_(pid);}).concat(rows));
+    // แนวทางการเรียน/การวิจัยของแต่ละ PLO (ไม่กระทบคะแนน)
+    var gm={};pr.plos.forEach(function(p){gm[p.id]=p;});
+    writeAll_('PLOs',readAll_('PLOs').map(function(r){var g=s_(r.programId)===s_(pid)&&gm[s_(r.ploId)];if(g){if(g.learn!==undefined)r.learnGuide=guide_(g.learn);if(g.research!==undefined)r.researchGuide=guide_(g.research);}return r;}));
     return getProgram(pid);
   });
 }
