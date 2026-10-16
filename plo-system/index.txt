@@ -29,28 +29,64 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{transition:background-color .2s,color .2s;background:var(--bg);color:var(--ink);font:14px/1.6 var(--f-body);padding-inline:16px;padding-block:0 56px}
+body{transition:background-color .2s,color .2s;background:var(--bg);color:var(--ink);font:14px/1.6 var(--f-body)}
 h1,h2,h3{font-family:var(--f-head);margin:0;text-wrap:balance;line-height:1.3}
 .wrap{max-width:1200px;margin-inline:auto}
 button,select,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 button:disabled{cursor:progress;opacity:.6}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-block:12px 0;border-bottom:1px solid var(--line)}
-.top-row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between}
-.brand{font:700 18px/1.3 var(--f-head);cursor:pointer}
-.brand small{display:block;font:400 12px var(--f-body);color:var(--muted)}
-.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
-/* โทรศัพท์: แถบบนไม่ตรึง เพื่อเหลือพื้นที่ให้คะแนนเต็มจอ */
-@media (max-width:700px){.top{position:static;padding-block:8px 0}.brand{font-size:16px}.brand small{display:none}.howto{display:none}}
-.crumbs{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding-block:8px 10px;font-size:13px;color:var(--muted)}
+/* ===== โครงหน้าแบบระบบหลังบ้าน: เมนูด้านซ้าย + แถบหัวด้านบน + เนื้อหา ===== */
+.shell{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:30}
+.side-brand{display:flex;gap:12px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+.logo{flex:none;width:40px;height:40px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 13px var(--f-head);letter-spacing:.02em}
+.side-brand b{display:block;font:700 16px/1.25 var(--f-head)}
+.side-brand small{display:block;font-size:11.5px;color:var(--muted);line-height:1.35}
+.nav{display:grid;gap:2px;padding:8px 10px 16px}
+.nav-h{font:600 12px var(--f-head);color:var(--muted);padding:14px 12px 6px}
+.nav-prog{margin:0 4px 6px;padding:8px 10px;border-radius:8px;background:var(--surface-2);font-size:12px;line-height:1.4}
+.nav-prog b{display:block;font:600 13px var(--f-head);color:var(--ink)}
+.nav-prog span{color:var(--muted)}
+.nav-i{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:9px 12px;color:var(--ink);font:500 14px/1.35 var(--f-body);position:relative}
+.nav-i svg{width:19px;height:19px;flex:none;color:var(--muted)}
+.nav-i:hover{background:var(--surface-2)}
+.nav-i[aria-current=page]{background:var(--accent-tint);color:var(--accent);font-weight:600}
+.nav-i[aria-current=page]::before{content:"";position:absolute;left:-10px;top:6px;bottom:6px;width:4px;border-radius:0 4px 4px 0;background:var(--accent)}
+.nav-i[aria-current=page] svg{color:var(--accent)}
+.side-foot{margin-top:auto;padding:12px 18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.main-col{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);padding:10px 24px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.top-row{display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:48px}
+.top-l{display:flex;gap:10px;align-items:center;min-width:0}
+.page-t{min-width:0}
+.page-t h1{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:var(--muted)}
+.who .uname{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{display:inline-flex;gap:6px;align-items:center}
+.icon-btn svg{width:16px;height:16px}
+.menu-btn{display:none;min-width:40px;min-height:40px;justify-content:center;padding:0}
+.menu-btn svg{width:20px;height:20px}
+.scrim{display:none}
+@media (prefers-reduced-motion:no-preference){.spin svg{animation:spin 1s linear infinite}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;font-size:12px;color:var(--muted)}
 .crumbs a{color:var(--accent);cursor:pointer;text-decoration:none}
 .crumbs a:hover{text-decoration:underline}
-.crumbs b{color:var(--ink);font-weight:600}
-.tabs{display:flex;gap:4px;overflow-x:auto}
-.tab{background:none;border:0;border-bottom:3px solid transparent;padding:9px 14px;color:var(--muted);font:600 14px var(--f-head);white-space:nowrap}
-.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-main{padding-block:20px}
+.crumbs b{color:var(--ink);font-weight:500}
+main{padding:24px}
+main.wrap{max-width:1280px;margin-inline:0}
+main.wrap.wide{max-width:1600px}
+@media (max-width:1000px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .side{position:fixed;left:0;top:0;bottom:0;width:280px;max-width:86vw;transform:translateX(-100%);transition:transform .2s;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .shell.nav-open .side{transform:none}
+  .shell.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(15,20,24,.45);z-index:25}
+  .menu-btn{display:inline-flex}
+  .top{padding:8px 16px}
+  main{padding:16px}
+}
+@media (max-width:700px){.who .uname,.who .role-chip,.icon-btn .lbl{display:none}.page-t h1{font-size:16px}.howto{display:none}}
 select,input[type=text],input[type=number],input[type=search],textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0;max-width:100%}
 textarea{width:100%;resize:vertical}
 .btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-weight:500}
@@ -62,7 +98,7 @@ textarea{width:100%;resize:vertical}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .muted{color:var(--muted)}
 .stack{display:grid;gap:16px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0;box-shadow:0 1px 2px rgba(16,24,40,.05)}
 .card h2{font-size:16px;margin-bottom:2px}
 .card .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
 .note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-tint);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:16px}
@@ -86,7 +122,7 @@ textarea{width:100%;resize:vertical}
 .empty{padding:28px;text-align:center;color:var(--muted)}
 /* kpis & charts */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:14px 16px;min-width:0;box-shadow:0 1px 2px rgba(16,24,40,.05)}
 .kpi .l{color:var(--muted);font-size:12px}
 .kpi .v{font:700 28px/1.2 var(--f-head);font-variant-numeric:tabular-nums}
 .kpi .v small{font-size:14px;color:var(--muted);font-weight:500}
@@ -143,7 +179,7 @@ tr.click:hover td{background:var(--surface-2)}
 .cell:disabled{cursor:default;opacity:1}
 .cell[aria-pressed=true]{background:var(--accent-tint);color:var(--ink);box-shadow:inset 0 0 0 2px var(--accent)}
 .cell[aria-pressed=true]::after{content:"✓";position:absolute;right:8px;top:6px;color:var(--accent);font-weight:700}
-.result-sticky{position:sticky;top:130px}
+.result-sticky{position:sticky;top:88px}
 @media (max-width:860px){.result-sticky{position:static}}
 .score{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .score b{font:700 40px/1.1 var(--f-head);font-variant-numeric:tabular-nums}
@@ -178,10 +214,9 @@ tr.click:hover td{background:var(--surface-2)}
 .loading{padding:40px;text-align:center;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.fill{transition:width .4s}}
 
-.wrap.wide{max-width:1560px}
 .split{display:grid;grid-template-columns:270px minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:1000px){.split{grid-template-columns:minmax(0,1fr)}}
-.slist{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;position:sticky;top:132px;max-height:calc(100vh - 150px);overflow:auto}
+.slist{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;position:sticky;top:88px;max-height:calc(100vh - 104px);overflow:auto}
 @media (max-width:1000px){.slist{position:static;max-height:340px}}
 .slist input[type=search]{width:100%}
 .sitem{display:grid;gap:2px;text-align:left;width:100%;border:1px solid transparent;background:none;border-radius:8px;padding:8px 10px}
@@ -286,15 +321,22 @@ tr.click:hover td{background:var(--surface-2)}
 </style>
 </head>
 <body>
-<div class="top"><div class="wrap">
-  <div class="top-row">
-    <div class="brand" id="brand" role="link" tabindex="0">ระบบประเมิน PLOs<small>วิทยานิพนธ์ · สารนิพนธ์ · การค้นคว้าอิสระ — ใช้ PLOs ของหลักสูตรเป็นตัวชี้วัด</small></div>
+<div class="shell" id="shell">
+<aside class="side" id="side" aria-label="เมนูหลัก">
+  <div class="side-brand" id="brand" role="link" tabindex="0"><span class="logo" aria-hidden="true">PLO</span><span><b>ระบบประเมิน PLOs</b><small>วิทยานิพนธ์ · สารนิพนธ์ · การค้นคว้าอิสระ</small></span></div>
+  <nav class="nav" id="sidenav"></nav>
+  <div class="side-foot">ใช้ PLOs ของหลักสูตรเป็นตัวชี้วัด</div>
+</aside>
+<div class="scrim" data-act="menuclose"></div>
+<div class="main-col">
+  <header class="top"><div class="top-row">
+    <div class="top-l"><button class="btn menu-btn" data-act="menu" aria-label="เปิดเมนู" aria-controls="side"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="page-t"><h1 id="pagetitle">ระบบประเมิน PLOs</h1><div class="crumbs" id="crumbs"></div></div></div>
     <div class="who" id="who"></div>
-  </div>
-  <div class="crumbs" id="crumbs"></div>
-  <div class="tabs" role="tablist" id="tabs" hidden></div>
-</div></div>
-<main class="wrap" id="app"><div class="loading">กำลังโหลดข้อมูล…</div></main>
+  </div></header>
+  <main class="wrap" id="app"><div class="loading">กำลังโหลดข้อมูล…</div></main>
+</div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
@@ -1265,20 +1307,59 @@ function xBody(x){
 /* ============================================================
  * Shell / render
  * ============================================================ */
+/* ไอคอนเส้น (SVG) สำหรับเมนูด้านซ้ายและปุ่มบนแถบหัว */
+var IC={
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  exec:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  ind:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  rubric:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  analysis:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  eval:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
+  export:'<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/>',
+  cross:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  admin:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+  prog:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/>',
+  items:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+  stu:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14a6.5 6.5 0 013.5 6"/>',
+  users:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',
+  refresh:'<path d="M21 12a9 9 0 11-2.6-6.4"/><path d="M21 3v6h-6"/>'
+};
+function ico(k){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(IC[k]||IC.items)+'</svg>'}
+function navItem(act,label,icon,on,extra){return '<button type="button" class="nav-i" data-act="'+act+'"'+(extra||"")+(on?' aria-current="page"':"")+'>'+ico(icon)+'<span>'+label+'</span></button>'}
+/* แท็บของหลักสูตร เรียงตาม: ภาพรวม → ตัวชี้วัด → รูบริก → วิเคราะห์ผล → ประเมินนักศึกษา → ส่งออก */
+function progTabs(){return [["exec","ภาพรวม"],["ind","ตัวชี้วัด PLOs"],["rubric","จัดการรูบริก"],["analysis","วิเคราะห์ผล"],["eval",canScore()?"ประเมินนักศึกษา":"นักศึกษาและสถานะ"],["export","ส่งออก"]]}
+function sideNav(){
+  var h='<div class="nav-h">เมนูหลัก</div>'+navItem("home","หน้าหลัก","home",G.view==="home"||G.view==="faculty")+navItem("cross","เทียบ PLOs ข้ามหลักสูตร","cross",G.view==="cross");
+  if(G.view==="program"&&G.P){
+    h+='<div class="nav-h">หลักสูตร</div><div class="nav-prog"><b>'+esc(G.P.name)+'</b><span>'+esc(G.P.facultyName||"")+'</span></div>';
+    h+=progTabs().map(function(t){return navItem("tab",t[1],t[0],G.tab===t[0],' data-t="'+t[0]+'"')}).join("");
+  }
+  if(canCurr()){
+    h+='<div class="nav-h">'+(canEdit()?"ผู้ดูแลระบบ":"ข้อมูลหลักสูตร")+'</div>';
+    if(G.view==="admin")h+=adminTabs().map(function(t){return navItem("tab",t[1],t[0],G.admin.tab===t[0],' data-t="'+t[0]+'"')}).join("");
+    else h+=navItem("adminhome",canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร","admin",false);
+  }
+  return h;
+}
+function refreshBtn(){var b=G.busy.refresh;return '<button class="btn sm icon-btn'+(b?" spin":"")+'" data-act="refresh"'+(b?" disabled":"")+' title="ดึงข้อมูลล่าสุดจากระบบ'+(G.loadedAt?" (โหลดล่าสุด "+G.loadedAt+")":"")+'">'+ico("refresh")+'<span class="lbl">'+(b?"กำลังรีเฟรช…":"รีเฟรชข้อมูล")+'</span></button>'}
+function pageTitle(){
+  if(G.view==="program"){var t=progTabs().find(function(x){return x[0]===G.tab});return t?t[1]:G.P.name}
+  if(G.view==="admin"){var a=adminTabs().find(function(x){return x[0]===G.admin.tab});return a?a[1]:"จัดการระบบ"}
+  if(G.view==="cross")return "เทียบ PLOs ข้ามหลักสูตร";
+  if(G.view==="faculty"){var f=facOf(G.facId);return f?f.name:"ส่วนงาน"}
+  return "หน้าหลัก";
+}
 function render(){
   var m=G.me;
-  $("who").innerHTML=themeBtn()+'<span>'+esc(m.name)+'</span><span class="chip na" title="บทบาทบัญชี (ผู้ดูแลระบบกำหนด)">'+esc(ROLE_TH[m.role]||m.role)+'</span>'+
-    (canCurr()?'<button class="btn sm'+(G.view==="admin"?" primary":"")+'" data-act="adminhome">'+(canEdit()?"จัดการระบบ":"จัดการข้อมูลหลักสูตร")+'</button>':"");
+  $("who").innerHTML=refreshBtn()+themeBtn()+'<span class="uname">'+esc(m.name)+'</span><span class="chip na role-chip" title="บทบาทบัญชี (ผู้ดูแลระบบกำหนด)">'+esc(ROLE_TH[m.role]||m.role)+'</span>';
   var c='<a data-act="home" role="link" tabindex="0">หน้าหลัก</a>';
   if(G.view==="faculty"){var f=facOf(G.facId);c+=' › <b>'+esc(f?f.name:"")+'</b>'}
   if(G.view==="program"){var f2=facOf(G.facId);c+=' › <a data-act="fac" role="link" tabindex="0" data-id="'+esc(G.facId)+'">'+esc(f2?f2.name:G.P.facultyName)+'</a> › <b>'+esc(G.P.name)+'</b>'}
   if(G.view==="cross")c+=' › <b>เทียบข้ามหลักสูตร</b>';
   if(G.view==="admin")c+=' › <b>จัดการระบบ</b>';
-  $("crumbs").innerHTML=c;
-  var tabs=$("tabs"),T=null,cur=null;
-  if(G.view==="program"){T=isSimple()?[["eval","ประเมินนักศึกษา"],["ind","เกณฑ์การประเมิน"],["exec","ผลภาพรวม"]]:[["exec","ภาพรวม"],["ind","ตัวชี้วัด PLOs"],["eval",canScore()?"ประเมินนักศึกษา":"นักศึกษาและสถานะ"],["export","ส่งออก"]];T.push(["rubric","จัดการรูบริก"],["analysis","วิเคราะห์ผล"]);cur=G.tab}
-  if(G.view==="admin"){T=adminTabs();cur=G.admin.tab}
-  if(T){tabs.hidden=false;tabs.innerHTML=T.map(function(t){return '<button class="tab" role="tab" data-act="tab" data-t="'+t[0]+'" aria-selected="'+(cur===t[0])+'">'+t[1]+'</button>'}).join("")}else tabs.hidden=true;
+  $("crumbs").innerHTML=G.view==="home"?"":c;
+  $("pagetitle").textContent=pageTitle();
+  $("sidenav").innerHTML=sideNav();
   $("app").className="wrap"+((G.view==="program"&&G.tab==="eval")?" wide":"");
   var html;
   if(G.view==="home")html=viewHome();
@@ -1302,7 +1383,27 @@ async function goProgram(id,tab){
     render();window.scrollTo(0,0);
   }catch(e){fail(e);G.view="home";render()}
 }
-async function refreshBoot(){G.boot=await call("getBootstrap");G.me=G.boot.me}
+function hhmm(){var d=new Date();return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)}
+async function refreshBoot(){G.boot=await call("getBootstrap");G.me=G.boot.me;G.loadedAt=hhmm()}
+/** ปุ่ม "รีเฟรชข้อมูล": ดึงข้อมูลล่าสุดจากสเปรดชีต โดยอยู่หน้าเดิม (หลักสูตร แท็บ และนักศึกษาที่เปิดอยู่) */
+async function refreshData(){
+  if(!G.boot||G.busy.refresh)return;
+  if(G.dirty||(G.it&&G.it.dirty)){toast("มีการแก้ไขที่ยังไม่บันทึก กดบันทึกก่อนรีเฟรช");return}
+  if(Object.keys(pendingSave).some(function(k){return pendingSave[k]})){toast("กำลังบันทึกคะแนน รอสักครู่แล้วกดรีเฟรชอีกครั้ง");return}
+  G.busy.refresh=true;render();
+  try{
+    await refreshBoot();
+    if(G.view==="program"&&G.P){
+      var keep=G.stuId;G.P=await call("getProgram",G.P.id);
+      if(keep&&!G.P.students.some(function(x){return x.id===keep}))G.stuId=null;
+    }else if(G.view==="admin"){
+      if(G.P&&["plo","stu","items"].indexOf(G.admin.tab)>=0){G.P=await call("getProgram",G.P.id);G.it=null;G.preview=null}
+      if(G.admin.tab==="users")G.admin.users=await call("getUsers");
+    }else if(G.view==="cross"){G.cross=await call("getCrossData")}
+    toast("อัปเดตข้อมูลล่าสุดแล้ว ("+G.loadedAt+" น.)");
+  }catch(e){fail(e)}
+  G.busy.refresh=false;renderKeep();
+}
 async function openCross(){
   G.view="cross";G.cross=null;render();window.scrollTo(0,0);
   try{G.cross=await call("getCrossData");render()}catch(e){fail(e);G.view="home";render()}
@@ -1474,6 +1575,10 @@ document.addEventListener("change",async function(ev){
 async function act(el){
   var a=el.getAttribute("data-act"),pr=G.P;
   try{
+    if(el.closest&&el.closest("#side")||a==="menuclose")$("shell").classList.remove("nav-open");
+    if(a==="menu"){$("shell").classList.toggle("nav-open");return}
+    if(a==="menuclose")return;
+    if(a==="refresh"){await refreshData();return}
     if(a==="theme"){G.theme=isDark()?"light":"dark";applyTheme();try{sessionStorage.setItem("plo-theme",G.theme)}catch(e){}if(G.boot)renderKeep();else $("who").innerHTML=themeBtn()}
     else if(a==="home"){G.view="home";render();window.scrollTo(0,0)}
     else if(a==="fac"){G.facId=el.getAttribute("data-id");G.view="faculty";render();window.scrollTo(0,0)}
@@ -1686,13 +1791,14 @@ document.addEventListener("keydown",function(ev){
   }
   if(ev.key!=="Enter")return;var t=ev.target;
   if(t.getAttribute&&t.getAttribute("data-act")&&t.tagName!=="BUTTON")act(t);
-  if(t.id==="brand"){G.view="home";render()}
+  if(t.id==="brand"){G.view="home";$("shell").classList.remove("nav-open");render()}
 });
 window.addEventListener("beforeunload",function(ev){
   var pending=Object.keys(pendingSave).some(function(k){return pendingSave[k]});
   if(G.dirty||(G.it&&G.it.dirty)||pending){ev.preventDefault();ev.returnValue=""}
 });
-$("brand").addEventListener("click",function(){G.view="home";render();window.scrollTo(0,0)});
+$("brand").addEventListener("click",function(){G.view="home";$("shell").classList.remove("nav-open");render();window.scrollTo(0,0)});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape")$("shell").classList.remove("nav-open")});
 
 /* Rubric criteria are assessment dimensions, not official sub-PLOs. */
 function gradeOf(total,settings){if(!isNum(total)||total<0||total>100)return "–";var g=settings||{};return total>=(g.gradeA==null?85:g.gradeA)?"A":total>=(g.gradeB==null?80:g.gradeB)?"B":total>=(g.gradeC==null?70:g.gradeC)?"C":total>=(g.gradeD==null?60:g.gradeD)?"D":"F"}
