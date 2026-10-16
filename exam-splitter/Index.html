@@ -285,10 +285,9 @@ dialog::backdrop{background:rgba(12,32,48,.55)}
     <h2 id="h-done">✅ 3. สร้างไฟล์เรียบร้อย</h2>
     <p id="doneText"></p>
     <div class="actions">
-      <a class="btn primary lg" id="download" target="_self">ดาวน์โหลด ZIP</a>
-      <button type="button" class="btn ghost" id="restart">แยกไฟล์ใหม่</button>
+      <button type="button" class="btn primary" id="restart">แยกไฟล์ใหม่</button>
     </div>
-    <p class="foot">ถ้าไฟล์ไม่ดาวน์โหลดอัตโนมัติ ให้กดปุ่ม “ดาวน์โหลด ZIP” • ใน ZIP มี <b>รายการไฟล์.csv</b> สำหรับตรวจทานหรือส่งต่อ</p>
+    <p class="foot">ไฟล์ถูกบันทึกลงโฟลเดอร์ดาวน์โหลดของเครื่องแล้ว • ใน ZIP มี <b>รายการไฟล์.csv</b> สำหรับตรวจทานหรือส่งต่อ • ไม่พบไฟล์? <a class="btn link" id="download" target="_self">ดาวน์โหลดอีกครั้ง</a></p>
   </section>
 
   <details class="card">
@@ -806,7 +805,7 @@ async function exportZip() {
     const a = $('download');
     a.href = state.zipURL;
     a.download = (cleanName(state.fileName) || 'ผลสอบ') + '_รายคน.zip';
-    $('doneText').textContent = 'สร้าง PDF ' + jobs.length + ' ไฟล์ จาก ' + pageCount() + ' หน้า ขนาด ZIP ' + fmtSize(blob.size) + ' • ชื่อไฟล์ “' + a.download + '”';
+    $('doneText').textContent = 'ดาวน์โหลดแล้ว: PDF ' + jobs.length + ' ไฟล์ จาก ' + pageCount() + ' หน้า ขนาด ZIP ' + fmtSize(blob.size) + ' • ชื่อไฟล์ “' + a.download + '”';
     $('doneCard').hidden = false; setStep(3);
     state.exported = true;
     setStatus('สร้าง ZIP เรียบร้อย', 'ok');
