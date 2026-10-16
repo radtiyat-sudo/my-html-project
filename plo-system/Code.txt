@@ -708,7 +708,7 @@ function importPlos(pid, list, mode) {
     list.forEach(function (it, i) {
       var ploId = uid_('l');
       var text = s_(it.textEn);
-      plos.push({ programId: pid, ploId: ploId, code: s_(it.code) || ('PLO' + (start + i + 1)), titleTh: s_(it.titleTh) || shortTitle_(text), textEn: text, weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? Math.max(0, num_(it.weight, 100)) : 100, order: start + i + 1 });
+      plos.push({ programId: pid, ploId: ploId, code: s_(it.code) || ('PLO' + (start + i + 1)), titleTh: s_(it.titleTh) || text, textEn: text, weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? Math.max(0, num_(it.weight, 100)) : 100, order: start + i + 1 });
       var cs = (it.crit && it.crit.length) ? it.crit : draftCriteria_(text + ' ' + s_(it.titleTh));
       cs.forEach(function (c, ci) {
         var name = typeof c === 'object' && c ? c.name : c, b = (c && c.bands && c.bands.length === 5) ? c.bands : ['', '', '', '', ''];
@@ -928,11 +928,18 @@ function parsePlo_(text) {
     if (!body) { // รหัสอยู่บรรทัดหนึ่ง ข้อความอยู่บรรทัดถัดไป
       for (var j = i + 1; j < lines.length && j <= i + 3; j++) { if (lines[j] && !/^(?:PLO|ผลลัพธ์การเรียนรู้)/i.test(lines[j])) { body = lines[j]; break; } }
     }
-    body = body.replace(/^["“'‘]+|["”'’]+$/g, '').trim();
+    else { // ข้อความ PLO ที่ขึ้นบรรทัดใหม่ (เช่นคัดลอกจาก PDF) ให้ต่อกันจนถึง PLO ถัดไป / บรรทัดว่าง / หัวข้อใหม่
+      for (var k = i + 1; k < lines.length && k <= i + 8; k++) {
+        var nx = lines[k];
+        if (!nx || /^(?:PLO|ผลลัพธ์การเรียนรู้|Sub-?PLO|หมวด|ตาราง|Table|\d+(?:\.\d+)+\s)/i.test(nx)) break;
+        body += ' ' + nx; i = k;
+      }
+    }
+    body = body.replace(/\s+/g, ' ').replace(/^["“'‘]+|["”'’]+$/g, '').trim();
     var code = 'PLO' + m[1];
     if (body.length < 4 || seen[code]) continue;
     seen[code] = true;
-    out.push({ code: code, titleTh: shortTitle_(body), textEn: body, crit: draftCriteria_(body) });
+    out.push({ code: code, titleTh: body, textEn: body, crit: draftCriteria_(body) });
   }
   return out;
 }
@@ -1084,7 +1091,7 @@ function aiExtractPlos(text) {
     var code = s_(p.code).replace(/\s+/g, '').toUpperCase() || ('PLO' + (i + 1));
     if (seen[code]) return;
     seen[code] = true;
-    out.push({ code: code.slice(0, 20), titleTh: s_(p.titleTh).trim().slice(0, 56) || shortTitle_(body), textEn: body.slice(0, 2000), crit: draftCriteria_(body) });
+    out.push({ code: code.slice(0, 20), titleTh: body.slice(0, 2000), textEn: body.slice(0, 2000), crit: draftCriteria_(body) });
   });
   if (!out.length) throw new Error('AI ไม่พบ PLOs ในข้อความนี้');
   return out.slice(0, 30);
