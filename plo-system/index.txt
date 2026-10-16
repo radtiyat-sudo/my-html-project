@@ -774,8 +774,8 @@ function viewExec(){
     '<div class="kpi"><div class="l">นักศึกษาที่ประเมินครบ</div><div class="v">'+C.done.length+'<small> / '+C.ev.length+' คน</small></div><div class="s">ที่เหลือยังกรอกไม่ครบ</div></div>'+
     '<div class="kpi"><div class="l">ผ่านเกณฑ์โดยรวม</div><div class="v">'+fmt(C.passAll)+'<small>%</small></div><div class="s">คะแนนรวม ≥ '+pr.set.overall+' และผ่าน PLOs ≥ '+pr.set.fraction+'% ของทั้งหมด</div></div>'+
     '<div class="kpi"><div class="l">คะแนนเฉลี่ยรุ่น (เต็ม 100)</div><div class="v">'+(C.mean==null?"–":C.mean.toFixed(1))+'</div><div class="s">ถ่วงน้ำหนักตาม PLOs</div></div>'+
-    '<div class="kpi"><div class="l">PLOs ต่ำกว่าเป้า '+t+'%</div><div class="v">'+below+'<small> / '+pr.plos.length+'</small></div><div class="s">เป้า = สัดส่วนนักศึกษาที่ผ่าน PLOs นั้น</div></div>'+
-    '<div class="kpi"><div class="l">สอดคล้องกับการออกแบบหลักสูตร</div><div class="v">'+fmt(C.align)+'<small>%</small></div><div class="s">'+(C.align==null?'ต้องให้ AI วิเคราะห์ความเห็นอย่างน้อย 1 คนก่อน':'จากความเห็นอาจารย์ '+C.aiN+' คน (100 = ตรงเป๊ะ)')+'</div></div>'+'</div>';
+    '<div class="kpi"><div class="l">PLOs ต่ำกว่าเป้า '+t+'%</div><div class="v">'+below+'<small> / '+pr.plos.length+'</small></div><div class="s">เป้า = สัดส่วนนักศึกษาที่ผ่าน PLOs นั้น</div></div></div>';
+
   h+='<div class="grid2"><section class="card"><h2>ผลลัพธ์การเรียนรู้ (PLOs) ของรุ่นนี้</h2><div class="sub">แต่ละ PLOs เต็ม 100 แยกกัน แถบน้ำเงินคือสัดส่วนนักศึกษาที่ผ่าน PLOs ≥ '+pr.set.ploPass+'% เส้นดำคือเป้า '+t+'%</div>';
   C.per.forEach(function(x){
     var s=status(x.pass,t);
@@ -785,18 +785,14 @@ function viewExec(){
   });
   h+='</section><section class="card"><h2>แผนภาพ PLOs ของรุ่น</h2><div class="sub">คะแนนเฉลี่ยต่อ PLOs เทียบเกณฑ์ผ่าน (%)</div>'+
     radar(axesOf(pr),[thresholdSeries(pr),{name:"คะแนนเฉลี่ยรุ่น",vals:C.per.map(function(x){return x.mean}),color:"var(--s1)",fill:true,marks:true}])+'</section></div>';
-  h+='<section class="card" style="margin-top:16px"><h2>สัดส่วน PLOs รวม 100%</h2><div class="sub">เทียบสามมุม: ที่หลักสูตรออกแบบไว้ ส่วนที่แต่ละ PLOs สร้างคะแนนรวมจริง และสิ่งที่อาจารย์พูดถึงในความเห็น (AI แมปให้)</div>'+
-    stackBar(pr,C.ws,"1) น้ำหนักตามการออกแบบหลักสูตร")+stackBar(pr,C.contrib,"2) ส่วนร่วมต่อคะแนนรวมจริง ("+C.done.length+" คน)")+stackBar(pr,C.aiAvg,"3) สิ่งที่อาจารย์ให้ความสำคัญในความเห็น"+(C.aiN?" (AI วิเคราะห์ "+C.aiN+" คน)":""))+stackLegend(pr)+
-    '<div class="table-scroll" style="margin-top:12px"><table><thead><tr><th>PLOs</th><th class="num">ออกแบบ %</th><th class="num">ส่วนร่วมจริง %</th><th class="num">ความเห็นอาจารย์ %</th><th class="num">ส่วนต่าง (ความเห็น − ออกแบบ)</th></tr></thead><tbody>';
+  h+='<section class="card" style="margin-top:16px"><h2>สัดส่วน PLOs รวม 100%</h2><div class="sub">เทียบน้ำหนักที่หลักสูตรออกแบบไว้ กับส่วนที่แต่ละ PLOs สร้างคะแนนรวมจริง</div>'+
+    stackBar(pr,C.ws,"1) น้ำหนักตามการออกแบบหลักสูตร")+stackBar(pr,C.contrib,"2) ส่วนร่วมต่อคะแนนรวมจริง ("+C.done.length+" คน)")+stackLegend(pr)+
+    '<div class="table-scroll" style="margin-top:12px"><table><thead><tr><th>PLOs</th><th class="num">ออกแบบ %</th><th class="num">ส่วนร่วมจริง %</th><th class="num">ส่วนต่าง (จริง − ออกแบบ)</th></tr></thead><tbody>';
   pr.plos.forEach(function(p){
-    var d=C.aiAvg&&C.ws?(C.aiAvg[p.id]-C.ws[p.id]):null;
-    h+='<tr><td>'+esc(p.code)+' '+esc(p.th)+'</td><td class="num">'+(C.ws?C.ws[p.id]:"–")+'</td><td class="num">'+(C.contrib?C.contrib[p.id]:"–")+'</td><td class="num">'+(C.aiAvg?C.aiAvg[p.id]:"–")+'</td><td class="num">'+(d==null?"–":(d>0?'<span class="diff-up">▲ +'+d+'</span>':(d<0?'<span class="diff-dn">▼ '+d+'</span>':"0")))+'</td></tr>';
+    var d=C.contrib&&C.ws?(C.contrib[p.id]-C.ws[p.id]):null;
+    h+='<tr><td>'+esc(p.code)+' '+esc(p.th)+'</td><td class="num">'+(C.ws?C.ws[p.id]:"–")+'</td><td class="num">'+(C.contrib?C.contrib[p.id]:"–")+'</td><td class="num">'+(d==null?"–":(d>0?'<span class="diff-up">▲ +'+d+'</span>':(d<0?'<span class="diff-dn">▼ '+d+'</span>':"0")))+'</td></tr>';
   });
-  h+='<tr><td><b>รวม</b></td><td class="num"><b>100</b></td><td class="num"><b>'+(C.contrib?100:"–")+'</b></td><td class="num"><b>'+(C.aiAvg?100:"–")+'</b></td><td></td></tr></tbody></table></div>';
-  if(C.aiAvg&&C.ws){
-    var big=pr.plos.map(function(p){return {p:p,d:C.aiAvg[p.id]-C.ws[p.id]}}).sort(function(a,b){return Math.abs(b.d)-Math.abs(a.d)})[0];
-    h+='<div class="insight">'+(Math.abs(big.d)<5?'ความเห็นอาจารย์กระจายตรงกับการออกแบบหลักสูตรดี':'อาจารย์พูดถึง '+esc(big.p.code)+' '+esc(big.p.th)+(big.d>0?' มากกว่าที่หลักสูตรออกแบบไว้ '+big.d+' จุด ควรทบทวนว่าน้ำหนักของ PLOs นี้ต่ำเกินไปหรือไม่':' น้อยกว่าที่หลักสูตรออกแบบไว้ '+(-big.d)+' จุด อาจเป็นสัญญาณว่าเกณฑ์ข้อนี้ยังไม่ถูกใช้ประเมินจริง'))+'</div>';
-  }
+  h+='<tr><td><b>รวม</b></td><td class="num"><b>100</b></td><td class="num"><b>'+(C.contrib?100:"–")+'</b></td><td></td></tr></tbody></table></div>';
   h+='</section>';
   if(low.length){
     var w=low[0],bt=low[low.length-1];
@@ -898,10 +894,9 @@ function viewEval(){
     h+='<details><summary>ดูตารางรูบริก '+esc(p.code)+' ครบทุกเกณฑ์</summary>'+rubricTable(p)+'</details></section>';
   });
   h+='<div class="sticky-bar"><div><b>'+myc+'/'+tot2+'</b> เกณฑ์<div class="prog" style="margin:3px 0 0;width:120px"><i style="width:'+(tot2?myc/tot2*100:0)+'%"></i></div></div><div class="sb-score">รวม <b>'+(e.total==null?"–":e.total.toFixed(1))+'</b></div><div class="row" style="flex-wrap:nowrap">'+(myc<tot2&&!ro?'<button class="btn sm" data-act="nextunscored">ข้อที่ยังไม่ให้</button>':"")+(idx<pr.students.length-1?'<button class="btn primary sm" data-act="stunext">คนถัดไป ›</button>':"")+'</div></div>';
-  h+='</div><section class="card"><h2>ความเห็นของฉัน</h2><div class="sub">'+(G.boot.aiEnabled?"เขียนอิสระ AI จะอ่านความเห็นของกรรมการทุกคนเพื่อดูว่าสอดคล้องกับ PLOs ไหนและคะแนนสะท้อนความเห็นหรือไม่":"เขียนอิสระ เช่น จุดเด่น จุดที่ควรแก้ไข และข้อเสนอแนะต่อนักศึกษา")+'</div><textarea id="my-comment" rows="4" data-f="comment" placeholder="เช่น จุดเด่น จุดที่ควรแก้ไข ข้อเสนอแนะ"'+(ro?" disabled":"")+'>'+esc(mine.comment)+'</textarea></section>'+
+  h+='</div><section class="card"><h2>ความเห็นของฉัน</h2><div class="sub">'+"เขียนอิสระ เช่น จุดเด่น จุดที่ควรแก้ไข และข้อเสนอแนะต่อนักศึกษา"+'</div><textarea id="my-comment" rows="4" data-f="comment" placeholder="เช่น จุดเด่น จุดที่ควรแก้ไข ข้อเสนอแนะ"'+(ro?" disabled":"")+'>'+esc(mine.comment)+'</textarea></section>'+
     (ro?"":'<section class="card"><h2>ความเห็นของฉันต่อผลการสอบ</h2><div class="sub">ประธานสอบและกรรมการสอบให้ความเห็นได้ทุกคน ระบบรวมเป็นมติให้เองเมื่อทุกคนให้คะแนนและความเห็นครบ (แตะซ้ำเพื่อยกเลิก)</div><div class="row">'+Object.keys(DEC).map(function(k){return '<button type="button" class="btn'+(mine.vote===k?" primary":"")+'" data-act="vote" data-v="'+k+'" aria-pressed="'+(mine.vote===k)+'"><span aria-hidden="true">'+DEC[k][1]+'</span> '+DEC[k][2]+'</button>'}).join("")+'</div>'+(myc<tot2?'<div class="muted" style="font-size:12px;margin-top:8px">คุณยังให้คะแนนไม่ครบ ('+myc+'/'+tot2+') ความเห็นจะถูกนับในมติเมื่อให้คะแนนครบทุกข้อ</div>':"")+'</section>')+'</div>';
-  h+='<aside class="stack">'+committeeCard(pr,st,e,mine,evs,ro)+totalCard(pr,st,e)+raterPloCard(pr,st)+ploCard(pr,st,e)+
-    aiCard(pr,st,evs)+'</aside></div></div></div>';
+  h+='<aside class="stack">'+committeeCard(pr,st,e,mine,evs,ro)+totalCard(pr,st,e)+raterPloCard(pr,st)+ploCard(pr,st,e)+'</aside></div></div></div>';
   return h;
 }
 /** การ์ดให้คะแนน 0-10 แบบ 5 ช่วง ใช้ทั้งเกณฑ์ราย PLOs และหัวข้อการสอบ */
@@ -1066,7 +1061,7 @@ var KINDS=[
  ["people","ตารางรายคน","ทั้งหลักสูตร แถวละ 1 คน: รหัส ชื่อ แผนการเรียน สถานะ คะแนน PLOs แต่ละข้อ คะแนนรวม สถานะ ความเห็น"],
  ["byrater","แยกตามกรรมการ","แถวละ 1 คน ต่อ 1 กรรมการ: คะแนน 0-10 ของทุกเกณฑ์ ความเห็น เวลาบันทึก"],
  ["person","รายงานรายบุคคล","เลือกนักศึกษา 1 คน ได้ใบสรุปผล PLOs เกณฑ์ ระดับของกรรมการแต่ละคน และความเห็น"],
- ["share","สัดส่วน PLOs รวม 100%","ภาพรวมทั้งรุ่น: ออกแบบ ส่วนร่วมจริง และความเห็นอาจารย์ (AI)"]
+ ["share","สัดส่วน PLOs รวม 100%","ภาพรวมทั้งรุ่น: น้ำหนักที่ออกแบบ เทียบส่วนร่วมต่อคะแนนรวมจริง"]
 ];
 /** คอลัมน์คะแนนรายหน่วย: เกณฑ์ราย PLOs หรือหัวข้อการสอบ (a = PLOs/ลำดับ, b = ชื่อ) */
 function critCols(pr){
@@ -1102,13 +1097,12 @@ function rowsPerson(pr,st){
   critCols(pr).forEach(function(x){var m=sc[x.c.id];L.push([x.a,x.b,isNum(m)?+m.toFixed(2):"",isNum(m)?BANDS[bandIdx(m)].k:""].concat(ev.map(function(y){var v=y.scores[x.c.id];return isNum(v)?v:""})))});
   L.push([]);L.push(["ความเห็นของกรรมการ"]);
   ev.forEach(function(x){if(x.comment)L.push([x.name,x.comment])});
-  if(a&&a.summary){L.push([]);L.push(["สรุปโดย AI",a.summary])}
   return L;
 }
 function rowsShare(pr){
-  var C=cohort(pr,progStudents()),L=[["PLO","ชื่อ PLO","ออกแบบ (%)","ส่วนร่วมต่อคะแนนรวมจริง (%)","ความเห็นอาจารย์โดย AI (%)","ส่วนต่าง (ความเห็น − ออกแบบ)","คะแนนเฉลี่ย PLOs (%)","นักศึกษาที่ผ่าน PLOs (%)"]];
-  pr.plos.forEach(function(p,i){var x=C.per[i];L.push([p.code,p.th,C.ws?C.ws[p.id]:"",C.contrib?C.contrib[p.id]:"",C.aiAvg?C.aiAvg[p.id]:"",C.aiAvg&&C.ws?C.aiAvg[p.id]-C.ws[p.id]:"",x.mean==null?"":+x.mean.toFixed(1),x.pass==null?"":+x.pass.toFixed(1)])});
-  L.push(["รวม","",100,C.contrib?100:"",C.aiAvg?100:"","","",""]);
+  var C=cohort(pr,progStudents()),L=[["PLO","ชื่อ PLO","ออกแบบ (%)","ส่วนร่วมต่อคะแนนรวมจริง (%)","ส่วนต่าง (จริง − ออกแบบ)","คะแนนเฉลี่ย PLOs (%)","นักศึกษาที่ผ่าน PLOs (%)"]];
+  pr.plos.forEach(function(p,i){var x=C.per[i];L.push([p.code,p.th,C.ws?C.ws[p.id]:"",C.contrib?C.contrib[p.id]:"",C.contrib&&C.ws?C.contrib[p.id]-C.ws[p.id]:"",x.mean==null?"":+x.mean.toFixed(1),x.pass==null?"":+x.pass.toFixed(1)])});
+  L.push(["รวม","",100,C.contrib?100:"","","",""]);
   return L;
 }
 function rowsRubric(pr){
