@@ -318,14 +318,75 @@ tr.click:hover td{background:var(--surface-2)}
 .mode input{margin-top:4px}
 .mode span{font-size:12px;color:var(--muted);display:block}
 @media (max-width:480px){.bands{gap:4px}.band{padding:4px}.band-h span{display:none}.band .lvl{min-height:44px}.plo-h{padding:10px 12px}.crit-card{padding:12px}}
+
+/* ===== ชุดสไตล์รอบ 4: ให้ทุกหน้า (รวมหน้าจัดการระบบ) หน้าตาเดียวกับแดชบอร์ด ===== */
+:root{--shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);--radius:12px}
+:root[data-theme="dark"]{--shadow:0 1px 2px rgba(0,0,0,.4)}
+/* ฟอร์มและปุ่ม */
+select,input[type=text],input[type=number],input[type=search],input[type=email],textarea{border-radius:8px;padding:8px 12px;min-height:38px;transition:border-color .15s,box-shadow .15s}
+select:hover,input[type=text]:hover,input[type=search]:hover,textarea:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.btn{border-radius:8px;padding:8px 14px;min-height:38px;font-weight:600;display:inline-flex;gap:6px;align-items:center;justify-content:center;transition:background-color .15s,border-color .15s,box-shadow .15s}
+.btn.sm{padding:4px 11px;min-height:32px;font-size:12.5px}
+.btn.primary{box-shadow:0 1px 2px rgba(16,24,40,.12)}
+.btn.danger{border-color:color-mix(in srgb,var(--bad) 30%,var(--line))}
+.btn.danger:hover:not(:disabled){background:var(--bad-tint)}
+/* การ์ด */
+.card{border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.card h2{font-size:17px;margin-bottom:4px}
+.card .sub{font-size:13px;margin-bottom:14px}
+.card-h{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+.card-h .sub{margin-bottom:0}
+.mgr>.card+.card,.stack>.card{margin:0}
+/* ตาราง: หัวตารางมีพื้น กรอบโค้ง แถวไฮไลต์เมื่อชี้ */
+.table-scroll{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.table-scroll table{margin:0}
+.table-scroll th{background:var(--surface-2);padding:10px 12px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line)}
+.table-scroll td{padding:10px 12px;vertical-align:middle}
+.table-scroll tbody tr:last-child td{border-bottom:0}
+.table-scroll tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+.table-scroll tbody tr:hover td.low{background:var(--bad-tint)}
+.utab th,.utab td{padding:10px 12px;vertical-align:middle}
+.td-empty{text-align:center;padding:28px 12px!important;color:var(--muted)}
+/* กล่องข้อความแจ้ง */
+.note{background:var(--warn-tint);border:0;border-left:4px solid var(--warn);border-radius:8px;padding:12px 14px}
+.note.info{background:var(--accent-tint);border-left-color:var(--accent)}
+.note.info b{color:var(--accent)}
+/* หน้าว่าง */
+.empty{padding:36px 20px}
+.empty::before{content:"";display:block;width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b96a1' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1z'/%3E%3Cpath d='M4 7l2-3h12l2 3'/%3E%3Cpath d='M9 12h6'/%3E%3C/svg%3E") center/26px no-repeat}
+.loading{display:flex;gap:10px;align-items:center;justify-content:center}
+@media (prefers-reduced-motion:no-preference){.loading::before{content:"";width:18px;height:18px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}}
+/* หน้าแรก / ส่วนงาน: แบนเนอร์ต้อนรับ + การ์ดเลือก */
+.hero{background:linear-gradient(120deg,var(--accent-tint),var(--surface) 70%);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow);margin-bottom:20px}
+.hero h1{font-size:22px}
+.search{max-width:460px}
+.cards{gap:16px}
+.pick{border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);border-top:3px solid var(--accent);transition:transform .15s,box-shadow .15s,border-color .15s}
+.pick:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(16,24,40,.10);border-color:var(--accent)}
+/* แถบเลือกหลักสูตร / ขั้นตอนเตรียมหลักสูตร ในหน้าจัดการระบบ */
+.adminbar,.setup{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);margin-bottom:16px}
+.adminbar label{font-weight:600}
+.setup>b{width:100%;font-family:var(--f-head)}
+/* คำอธิบายบทบาท (หน้าผู้ใช้และสิทธิ์) */
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px}
+.role-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2);font-size:12.5px;line-height:1.5;color:var(--muted)}
+.role-card b{display:block;color:var(--ink);font:600 13.5px var(--f-head);margin-bottom:2px}
+.btn.menu-btn{display:none}
+@media (max-width:1000px){.btn.menu-btn{display:inline-flex}}
+table.mgr{display:table}
+input[type=file]{font-size:13px;color:var(--muted);max-width:100%}
+input[type=file]::file-selector-button{font:600 13px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 14px;margin-right:10px;cursor:pointer}
+input[type=file]::file-selector-button:hover{background:var(--surface-2)}
+.actionbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
 <div class="shell" id="shell">
 <aside class="side" id="side" aria-label="เมนูหลัก">
-  <div class="side-brand" id="brand" role="link" tabindex="0"><span class="logo" aria-hidden="true">PLO</span><span><b>ระบบประเมิน PLOs</b><small>วิทยานิพนธ์ · สารนิพนธ์ · การค้นคว้าอิสระ</small></span></div>
+  <div class="side-brand" id="brand" role="link" tabindex="0"><span class="logo" aria-hidden="true">PLO</span><span><b>ระบบประเมิน PLOs</b><small>ประเมินผลลัพธ์การเรียนรู้</small></span></div>
   <nav class="nav" id="sidenav"></nav>
-  <div class="side-foot">ใช้ PLOs ของหลักสูตรเป็นตัวชี้วัด</div>
+  <div class="side-foot">วิทยานิพนธ์ · สารนิพนธ์ · การค้นคว้าอิสระ</div>
 </aside>
 <div class="scrim" data-act="menuclose"></div>
 <div class="main-col">
@@ -1056,7 +1117,7 @@ function viewAdminProg(){
       h+='<tr><td><input type="text" data-f="pn:'+esc(p.id)+'" value="'+esc(p.name)+'" aria-label="ชื่อหลักสูตร"></td><td><input type="text" data-f="pl:'+esc(p.id)+'" value="'+esc(p.level)+'" aria-label="ระดับ" style="max-width:150px"></td><td>'+progStatus(p.ploCount)+'</td><td class="num">'+p.studentCount+'</td>'+
         '<td><div class="row"><button class="btn sm" data-act="adminplo" data-id="'+esc(p.id)+'">PLOs</button><button class="btn sm" data-act="adminstu" data-id="'+esc(p.id)+'">นักศึกษา</button><button class="btn sm" data-act="prog" data-id="'+esc(p.id)+'">เปิดหน้าประเมิน</button>'+delBtn("prog:"+p.id,"ลบ","ยืนยันลบหลักสูตรและข้อมูลทั้งหมด")+'</div></td></tr>';
     });
-    if(!f.programs.length)h+='<tr><td colspan="5" class="muted">ยังไม่มีหลักสูตร</td></tr>';
+    if(!f.programs.length)h+='<tr><td colspan="5" class="td-empty">ยังไม่มีหลักสูตรในส่วนงานนี้</td></tr>';
     h+='</tbody></table></div><div class="row" style="margin-top:10px"><input type="text" id="np-'+esc(f.id)+'" placeholder="ชื่อหลักสูตรใหม่" aria-label="ชื่อหลักสูตรใหม่" style="min-width:240px"><button class="btn sm" data-act="mkprog" data-id="'+esc(f.id)+'">+ เพิ่มหลักสูตรในส่วนงานนี้</button></div></section>';
   });
   return h+'</div>';
@@ -1097,15 +1158,17 @@ function scopeCell(x,i){
 }
 function viewAdminUsers(){
   var u=G.admin.users;
-  if(!u)return '<div class="loading">กำลังโหลดรายชื่อผู้ใช้…</div>';
-  var h='<section class="card"><h2>ผู้ใช้และสิทธิ์</h2><div class="sub">กำหนดบทบาทของแต่ละคน แถวอีเมล * คือบทบาทตั้งต้นของทุกคนที่เข้าลิงก์ได้ (ควรเป็นผู้บริหาร/ดูอย่างเดียว)</div>'+
-    '<div class="note" style="margin-bottom:10px"><b>บทบาท</b><span>'+ROLE_OPTS.map(function(r){return "<b>"+esc(r[1])+"</b>: "+esc(r[2])}).join(" · ")+'</span></div>'+
+  if(!u)return '<div class="card loading">กำลังโหลดรายชื่อผู้ใช้…</div>';
+  var h='<section class="card"><div class="card-h"><div><h2>บทบาทในระบบ</h2><div class="sub">แต่ละบทบาททำอะไรได้บ้าง · แถวอีเมล * คือบทบาทตั้งต้นของทุกคนที่เข้าลิงก์ได้ (ควรเป็นผู้บริหาร/ดูอย่างเดียว)</div></div></div>'+
+    '<div class="roles" style="margin:0">'+ROLE_OPTS.map(function(r){return '<div class="role-card"><b>'+esc(r[1])+'</b>'+esc(r[2])+'</div>'}).join("")+'</div></section>';
+  h+='<section class="card" style="margin-top:16px"><div class="card-h"><div><h2>รายชื่อผู้ใช้ ('+u.length+' คน)</h2><div class="sub">แก้ในช่องได้เลย แล้วกด "บันทึกผู้ใช้"</div></div><button class="btn primary" data-act="adduser">+ เพิ่มผู้ใช้</button></div>'+
     '<div class="table-scroll"><table class="utab"><thead><tr><th>อีเมล</th><th>ชื่อที่แสดง</th><th>บทบาท</th><th>หลักสูตรที่รับผิดชอบ</th><th></th></tr></thead><tbody>';
+  if(!u.length)h+='<tr><td colspan="5" class="td-empty">ยังไม่มีผู้ใช้ในระบบ กด "+ เพิ่มผู้ใช้" เพื่อเริ่ม</td></tr>';
   u.forEach(function(x,i){
-    h+='<tr><td><input type="text" data-f="usr:'+i+':email" value="'+esc(x.email)+'" aria-label="อีเมล"></td><td><input type="text" data-f="usr:'+i+':name" value="'+esc(x.name)+'" aria-label="ชื่อ"></td><td><select data-f="usr:'+i+':role" aria-label="บทบาท">'+
+    h+='<tr><td><input type="text" data-f="usr:'+i+':email" value="'+esc(x.email)+'" placeholder="name@example.com" aria-label="อีเมล"></td><td><input type="text" data-f="usr:'+i+':name" value="'+esc(x.name)+'" placeholder="ชื่อ-สกุล" aria-label="ชื่อ"></td><td><select data-f="usr:'+i+':role" aria-label="บทบาท">'+
       ROLE_OPTS.map(function(r){return '<option value="'+r[0]+'"'+(x.role===r[0]?" selected":"")+'>'+r[1]+'</option>'}).join("")+'</select></td><td>'+scopeCell(x,i)+'</td><td><button class="btn sm danger" data-act="rmuser" data-i="'+i+'">เอาออก</button></td></tr>';
   });
-  return h+'</tbody></table></div><div class="row" style="margin-top:10px"><button class="btn" data-act="adduser">+ เพิ่มผู้ใช้</button><button class="btn primary" data-act="saveusers"'+(G.busy.users?" disabled":"")+'>'+(G.busy.users?"กำลังบันทึก…":"บันทึกผู้ใช้")+'</button></div></section>';
+  return h+'</tbody></table></div><div class="actionbar"><span class="muted" style="font-size:12px">การเปลี่ยนแปลงยังไม่ถูกบันทึกจนกว่าจะกดปุ่มบันทึก</span><button class="btn primary" data-act="saveusers"'+(G.busy.users?" disabled":"")+'>'+(G.busy.users?"กำลังบันทึก…":"บันทึกผู้ใช้")+'</button></div></section>';
 }
 function fld(label,type,key,val,dis){
   var id="f-"+key.replace(/:/g,"-");
