@@ -624,6 +624,18 @@ function evalsOf(stId,pr){
   var real=all.filter(function(e){return e.email!==SAMPLE_EMAIL});
   return real.length?real:all;
 }
+/** การ์ดในหน้าประเมิน: นักศึกษา 1 คน — กรรมการแต่ละคนให้คะแนนแต่ละ PLO เท่าไร */
+function raterPloCard(pr,st){
+  var evs=evalsOf(st.id).filter(function(x){return Object.keys(x.scores||{}).length}),order={chair:0,member:1};
+  evs.sort(function(a,b){return (order[a.role]||0)-(order[b.role]||0)});
+  var h='<section class="card"><h2>คะแนนแยกราย PLO ของกรรมการแต่ละคน</h2><div class="sub">ตัวเลขใหญ่ = คะแนน PLO เต็ม 100 · ตัวเลขเล็ก = คะแนนดิบที่ให้ใน'+unitWord(pr)+'ของ PLO นั้น · พื้นแดง = ต่ำกว่าเกณฑ์ผ่าน '+pr.set.ploPass+'</div>';
+  if(!evs.length)return h+'<p class="muted">ยังไม่มีกรรมการให้คะแนน</p></section>';
+  var sc=stuScores(pr,st.id);
+  return h+'<div class="table-scroll"><table class="pv"><thead><tr><th>ผู้ประเมิน</th>'+ploHeads(pr)+'<th class="num">รวม /100</th></tr></thead><tbody>'+
+    evs.map(function(x){var t=evalStu(pr,x.scores).total;return '<tr><td><span class="chip '+(x.role==="chair"?"good":"na")+'">'+esc(examTh(x.role))+'</span><div style="font-size:12px">'+esc(x.name||x.email)+(x.email===me()?' (ฉัน)':"")+'</div></td>'+pr.plos.map(function(p){return ploCell(pr,p,x.scores)}).join("")+'<td class="num"><b>'+(t==null?"–":t.toFixed(1))+'</b></td></tr>'}).join("")+
+    (evs.length>1?'<tr style="background:var(--surface-2)"><td><b>เฉลี่ยกรรมการ</b><div class="muted" style="font-size:11px">คิดจากคนที่ให้ครบทุกข้อ</div></td>'+pr.plos.map(function(p){return ploCell(pr,p,sc)}).join("")+'<td class="num"><b>'+(evalStu(pr,sc).total==null?"–":evalStu(pr,sc).total.toFixed(1))+'</b></td></tr>':"")+
+    '</tbody></table></div></section>';
+}
 function meanOf(list){
   var acc={};
   list.forEach(function(e){Object.keys(e.scores||{}).forEach(function(c){var v=e.scores[c];if(isNum(v))(acc[c]=acc[c]||[]).push(v)})});
