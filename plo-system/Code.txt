@@ -709,7 +709,7 @@ function importPlos(pid, list, mode) {
       var ploId = uid_('l');
       var text = s_(it.textEn);
       plos.push({ programId: pid, ploId: ploId, code: s_(it.code) || ('PLO' + (start + i + 1)), titleTh: s_(it.titleTh) || text, textEn: text, weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? Math.max(0, num_(it.weight, 100)) : 100, order: start + i + 1 });
-      var cs = (it.crit && it.crit.length) ? it.crit : draftCriteria_(text + ' ' + s_(it.titleTh));
+      var cs = (it.crit && it.crit.length) ? it.crit : draftCriteria_(text);
       cs.forEach(function (c, ci) {
         var name = typeof c === 'object' && c ? c.name : c, b = (c && c.bands && c.bands.length === 5) ? c.bands : ['', '', '', '', ''];
         crits.push({ programId: pid, ploId: ploId, critId: uid_('c'), name: s_(name), d1: '', d2: '', d3: '', d4: '', order: ci + 1, bA: s_(b[0]), bB: s_(b[1]), bC: s_(b[2]), bD: s_(b[3]), bE: s_(b[4]), weight: num_(c.weight, 1), alignment: s_(c.alignment).slice(0, 1200), evidence: s_(c.evidence).slice(0, 1200) });
@@ -957,9 +957,23 @@ var RULES_ = [
   [/policy|health|นโยบาย/i, ['การวิเคราะห์นโยบายและบริบท', 'การเสนอแนะที่นำไปปฏิบัติได้']]
 ];
 
+/**
+ * แยก PLO 1 ข้อ ออกเป็นองค์ประกอบความหมาย (วลีย่อยของประโยค) แต่ละวลีกลายเป็น 1 เกณฑ์ประเมิน
+ * เช่น "Master the principles ... technologies, applying critical thinking to solve ..."
+ *   → ["Master the principles ... technologies", "applying critical thinking to solve ..."]
+ * ต้องตรงกับ splitPlo() ฝั่งหน้าเว็บ
+ */
+function splitPlo_(text) {
+  var t = s_(text).replace(/\s+/g, ' ').trim().replace(/[.。]+$/, '');
+  var parts = t.split(/\s*(?:;|,?\s+(?:while also|while|whilst|as well as|so as to|in order to)\s+|,\s*(?=[a-z]+ing\b)|,?\s+with an? (?:strong |particular |special )?(?:focus|emphasis) on\s+|\s+(?:รวมทั้ง|ตลอดจน|โดยคำนึงถึง|และสามารถ)\s*)\s*/i).map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+  var out = [];
+  parts.forEach(function (x) { if (out.length && x.length < 12) out[out.length - 1] += ' ' + x; else out.push(x); });
+  return out.slice(0, 6);
+}
 function draftCriteria_(text) {
-  for (var i = 0; i < RULES_.length; i++) if (RULES_[i][0].test(text)) return RULES_[i][1].slice();
-  return ['การแสดงผลลัพธ์ตาม PLO นี้ในงานวิทยานิพนธ์', 'หลักฐานสนับสนุนจากงานของนักศึกษา'];
+  var parts = splitPlo_(text);
+  if (!parts.length) return [{ name: 'การแสดงผลลัพธ์ตาม PLO นี้ในงานวิทยานิพนธ์', weight: 1, alignment: '' }];
+  return parts.map(function (x) { return { name: x.charAt(0).toUpperCase() + x.slice(1), weight: 1, alignment: x }; });
 }
 
 /* ============================================================

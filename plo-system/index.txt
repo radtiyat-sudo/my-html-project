@@ -394,6 +394,24 @@ input[type=file]::file-selector-button:hover{background:var(--surface-2)}
 .pv-body h3{font-size:17px;margin-bottom:6px}
 .pv-list{margin:0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:13.5px}
 .pv-list b{font-family:var(--f-head);color:var(--accent);margin-right:6px}
+.seg{background:color-mix(in srgb,var(--sc) 16%,transparent);border-bottom:2px solid var(--sc);color:inherit;padding:1px 2px;border-radius:3px}
+.seg i,.seg-n{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:50%;background:var(--sc);color:#fff;font:700 11px/1 var(--f-head);font-style:normal;margin-right:4px;vertical-align:1px}
+.s1{--sc:var(--c1)}.s2{--sc:var(--c2)}.s3{--sc:var(--c3)}.s4{--sc:var(--c7)}.s5{--sc:var(--c5)}.s6{--sc:var(--c6)}
+.trace{display:grid;gap:12px}
+.tr-plo{display:flex;gap:12px;align-items:flex-start}
+.tr-plo p{margin:0;font-size:15px;line-height:1.9}
+.code-badge{flex:none;background:var(--accent);color:var(--accent-ink);font:700 14px var(--f-head);border-radius:8px;padding:4px 10px}
+.tr-step{display:flex;gap:8px;align-items:center;font-weight:600;font-size:13.5px}
+.step-n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent-tint);color:var(--accent);font:700 12px var(--f-head)}
+.tr-res{display:flex;gap:16px;align-items:center;flex-wrap:wrap;border-radius:12px;padding:14px 18px;background:var(--surface-2);border-left:5px solid var(--muted)}
+.tr-res.good{background:var(--good-tint);border-left-color:var(--good)}.tr-res.bad{background:var(--bad-tint);border-left-color:var(--bad)}
+.tr-score{font:600 18px var(--f-head)}.tr-score b{font-size:32px;font-variant-numeric:tabular-nums}.tr-score small{color:var(--muted);font-size:14px;margin-left:2px}
+.tr-f{flex:1;min-width:220px;font-size:13px;font-variant-numeric:tabular-nums}
+.an-sum{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.an-chip{display:grid;gap:0;min-width:84px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-decoration:none;color:var(--ink);text-align:center}
+.an-chip b{font:600 12px var(--f-head);color:var(--muted)}.an-chip span{font:700 20px var(--f-head);font-variant-numeric:tabular-nums}
+.an-chip.good{border-color:var(--good);background:var(--good-tint)}.an-chip.bad{border-color:var(--bad);background:var(--bad-tint)}.an-chip.tot{background:var(--accent-tint);border-color:var(--accent)}
+.trace{scroll-margin-top:90px}
 .plo-name{width:100%;min-height:0;line-height:1.5;resize:vertical}
 .actionbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 </style>
@@ -522,6 +540,24 @@ function gen(n,i){return [
   n+"ได้บางส่วน มีข้อผิดพลาดสำคัญ ต้องปรับปรุง (4 = ทำได้บางส่วนเมื่อได้รับคำแนะนำ, 3 = ทำได้น้อย)",
   n+"ไม่ได้หรือไม่มีหลักฐาน (2 = มีความพยายามแต่ไม่ถึงเกณฑ์, 1 = แทบไม่มีหลักฐาน, 0 = ไม่มีเลย)"][i]}
 function desc(c,i){return c.desc&&c.desc[i]?c.desc[i]:gen(c.name,i)}
+/* แยก PLO 1 ข้อเป็นองค์ประกอบความหมาย (วลีย่อย) — ตรงกับ splitPlo_ ใน Code.gs */
+function splitPlo(text){
+  var t=String(text||"").replace(/\s+/g," ").trim().replace(/[.。]+$/,"");
+  var parts=t.split(/\s*(?:;|,?\s+(?:while also|while|whilst|as well as|so as to|in order to)\s+|,\s*(?=[a-z]+ing\b)|,?\s+with an? (?:strong |particular |special )?(?:focus|emphasis) on\s+|\s+(?:รวมทั้ง|ตลอดจน|โดยคำนึงถึง|และสามารถ)\s*)\s*/i).map(function(x){return x.trim()}).filter(Boolean),out=[];
+  parts.forEach(function(x){if(out.length&&x.length<12)out[out.length-1]+=" "+x;else out.push(x)});
+  return out.slice(0,6);
+}
+function critFromPlo(text){var ps=splitPlo(text);return (ps.length?ps:[String(text||"")]).map(function(x){return {name:x.charAt(0).toUpperCase()+x.slice(1),weight:1,alignment:x}})}
+function critName(c){return typeof c==="object"&&c?c.name:String(c)}
+/* ไฮไลต์วลีใน PLO ที่แต่ละเกณฑ์วัด (สีตามลำดับเกณฑ์) */
+function segHtml(text,units){
+  var t=String(text||""),low=t.toLowerCase(),rg=[];
+  units.forEach(function(c,i){var a=String(c.alignment||c.name||"").replace(/\s+/g," ").trim();if(a.length<4)return;var k=low.indexOf(a.toLowerCase());if(k<0)return;
+    if(rg.some(function(r){return k<r[1]&&k+a.length>r[0]}))return;rg.push([k,k+a.length,i])});
+  rg.sort(function(a,b){return a[0]-b[0]});
+  var o="",at=0;rg.forEach(function(r){o+=esc(t.slice(at,r[0]))+'<mark class="seg s'+(r[2]%6+1)+'"><i>'+(r[2]+1)+'</i>'+esc(t.slice(r[0],r[1]))+'</mark>';at=r[1]});
+  return o+esc(t.slice(at));
+}
 /* แสดงข้อความต้นฉบับใต้ชื่อ เฉพาะเมื่อไม่ซ้ำกับชื่อ PLO */
 function ploSub(p,a,b){var e=cleanEn(p.en);return e&&e.replace(/\s+/g," ")!==String(p.th||"").replace(/\s+/g," ").trim()?a+esc(e)+b:""}
 function cleanEn(t){return String(t||"").replace(/\(draft wording[^)]*\)/i,"").trim()}
@@ -1213,7 +1249,7 @@ function viewAdminPlo(){
         BANDS.map(function(b,bi){return '<div><label for="d-'+pi+'-'+ci+'-'+bi+'">'+b.k+' ('+bandRange(b)+' คะแนน) '+b.n+'</label><textarea id="d-'+pi+'-'+ci+'-'+bi+'" rows="2" data-f="d:'+pi+':'+ci+':'+bi+'">'+esc(desc(c,bi))+'</textarea></div>'}).join("")+
         (c.desc?'<div><button class="btn sm" data-act="resetdesc" data-p="'+pi+'" data-c="'+ci+'">กลับไปใช้ร่างอัตโนมัติ</button></div>':"")+'</div></details></div>';
     });
-    h+='<div class="row"><button class="btn sm" data-act="addcrit" data-p="'+pi+'">+ เพิ่มเกณฑ์</button>'+(G.boot.aiEnabled?'<button class="btn sm" data-act="aidraft" data-p="'+pi+'"'+(G.busy.draft===pi?" disabled":"")+'>'+(G.busy.draft===pi?"AI กำลังร่าง…":"ให้ AI ร่างเกณฑ์ใหม่")+'</button>':"")+'<button class="btn sm danger" data-act="delplo" data-p="'+pi+'">ลบ PLOs นี้</button></div></div>';
+    h+='<div class="row"><button class="btn sm" data-act="resplit" data-p="'+pi+'">แยกเกณฑ์ตามความหมาย PLO</button><button class="btn sm" data-act="addcrit" data-p="'+pi+'">+ เพิ่มเกณฑ์</button>'+(G.boot.aiEnabled?'<button class="btn sm" data-act="aidraft" data-p="'+pi+'"'+(G.busy.draft===pi?" disabled":"")+'>'+(G.busy.draft===pi?"AI กำลังร่าง…":"ให้ AI ร่างเกณฑ์ใหม่")+'</button>':"")+'<button class="btn sm danger" data-act="delplo" data-p="'+pi+'">ลบ PLOs นี้</button></div></div>';
   });
   h+='<div><button class="btn" data-act="addplo">+ เพิ่ม PLOs</button></div></div>';
   if(G.dirty)h+='<div class="savebar"><span>มีการแก้ไขที่ยังไม่บันทึก</span><span class="row"><button class="btn" data-act="discard">ยกเลิก</button><button class="btn primary" data-act="save">บันทึกการเปลี่ยนแปลง</button></span></div>';
@@ -1314,7 +1350,7 @@ function importCard(){
       (pv.length?'<ol class="pv-list">'+pv.map(function(x){return '<li><b>'+esc(x.code)+'</b> '+esc(x.titleTh)+'</li>'}).join("")+'</ol>':'<p class="muted" style="margin:0">ไม่พบบรรทัดที่ขึ้นต้นด้วย PLO1, PLO2 … ตรวจข้อความแล้วกด "แยก PLOs" อีกครั้ง</p>')+'</div></div>';
     if(pv.length)h+='<div class="muted" style="font-size:12px;margin:14px 0 6px">ตรวจหรือแก้ชื่อในตารางด้านล่าง แล้วกด "นำเข้า"</div>';
     if(pv.length){
-      h+='<div class="table-scroll"><table class="pv"><thead><tr><th>รหัส</th><th>ชื่อ PLO</th><th>เกณฑ์ที่ร่างให้</th></tr></thead><tbody>'+pv.map(function(x,i){return '<tr><td style="vertical-align:top"><b>'+esc(x.code)+'</b></td><td class="wrapt" style="min-width:420px;width:60%"><textarea class="plo-name" rows="'+Math.max(2,Math.ceil(String(x.titleTh||"").length/90))+'" data-f="pv:'+i+'" aria-label="ชื่อ '+esc(x.code)+'">'+esc(x.titleTh)+'</textarea></td><td class="wrapt" style="vertical-align:top;font-size:12px">'+esc(x.crit.join(" · "))+'</td></tr>'}).join("")+'</tbody></table></div>'+
+      h+='<div class="table-scroll"><table class="pv"><thead><tr><th>รหัส</th><th>ชื่อ PLO</th><th>แยกความหมายเป็นเกณฑ์</th></tr></thead><tbody>'+pv.map(function(x,i){return '<tr><td style="vertical-align:top"><b>'+esc(x.code)+'</b></td><td class="wrapt" style="min-width:420px;width:60%"><textarea class="plo-name" rows="'+Math.max(2,Math.ceil(String(x.titleTh||"").length/90))+'" data-f="pv:'+i+'" aria-label="ชื่อ '+esc(x.code)+'">'+esc(x.titleTh)+'</textarea></td><td class="wrapt" style="vertical-align:top;font-size:12px">'+x.crit.map(function(c,k){return '<div><span class="seg-n s'+(k%6+1)+'">'+(k+1)+'</span> '+esc(critName(c))+'</div>'}).join("")+'</td></tr>'}).join("")+'</tbody></table></div>'+
         '<div class="row" style="margin-top:10px"><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:replace"'+(G.importMode==="replace"?" checked":"")+'> แทนที่ PLOs เดิมทั้งหมด</label><label class="row" style="gap:6px"><input type="radio" name="imode" data-f="imode:append"'+(G.importMode==="append"?" checked":"")+'> เพิ่มต่อท้าย</label>'+(G.boot.aiEnabled?'<label class="row" style="gap:6px"><input type="checkbox" data-f="autodraft"'+(G.autoDraft?" checked":"")+'> ให้ AI ร่างเกณฑ์ 5 ช่วงทุก PLOs หลังนำเข้า</label>':"")+'<button class="btn primary" data-act="doimport"'+(G.busy.imp?" disabled":"")+'>'+(G.busy.imp?"กำลังนำเข้า…":"นำเข้า "+pv.length+" PLO")+'</button></div>'+
         (G.importMode==="replace"&&G.P.plos.length&&G.P.evals.length?'<div class="note" style="margin-top:10px;margin-bottom:0"><b>ระวัง</b><span>การแทนที่จะสร้างเกณฑ์ใหม่ คะแนนที่กรรมการกรอกไว้กับเกณฑ์เดิมจะไม่ถูกนำมาคำนวณ</span></div>':"");
     }
@@ -1651,8 +1687,9 @@ document.addEventListener("change",async function(ev){
     if(f==="rplan"){var ro2=G.admin.roster;ro2.plan=t.value;var rt=$("roster-text");if(rt)ro2.text=rt.value;if(ro2.list)ro2.list=parseRoster(ro2.text,ro2.plan);render();return}
     if(f.indexOf("blend:")===0){G.blend[f.slice(6)]=t.checked;render();return}
     if(f.indexOf("imode:")===0){G.importMode=f.slice(6);render();return}
+    if(f==="anstu"){G.anStu=t.value;renderKeep();return}
     if(f==="autodraft"){G.autoDraft=t.checked;return}
-    if(f.indexOf("pv:")===0){var pv1=G.preview[+f.slice(3)];pv1.titleTh=pv1.textEn=t.value.replace(/\s+/g," ").trim();renderKeep();return}
+    if(f.indexOf("pv:")===0){var pv1=G.preview[+f.slice(3)];pv1.titleTh=pv1.textEn=t.value.replace(/\s+/g," ").trim();pv1.crit=critFromPlo(pv1.titleTh);renderKeep();return}
     if(f==="apfac"){
       var fac=facOf(t.value);G.admin.facId=t.value;
       if(fac&&fac.programs.length)await loadAdminProgram(fac.programs[0].id);else{G.P=null;render()}
@@ -1894,6 +1931,7 @@ async function act(el){
       G.busy.draft=null;render();
     }
     else if(a==="save"){await saveProgram()}
+    else if(a==="resplit"){var rp=pr.plos[+el.getAttribute("data-p")];rp.crit=critFromPlo(rp.th).map(function(c){return {id:rid("c"),name:c.name,desc:null,weight:1,alignment:c.alignment,evidence:""}});G.dirty=true;renderKeep();toast("แยก "+rp.code+" เป็น "+rp.crit.length+" เกณฑ์แล้ว ตรวจแล้วกดบันทึก")}
     else if(a==="discard"){await loadAdminProgram(pr.id)}
     else if(a==="adduser"){G.admin.users.push({email:"",name:"",role:"faculty",programs:"*"});render()}
     else if(a==="rmuser"){G.admin.users.splice(+el.getAttribute("data-i"),1);render()}
@@ -1947,22 +1985,40 @@ function viewRubricEditor(){
 function viewPloAnalysis(){
   var pr=G.P;
   if(!pr.plos.length)return emptyPlo();
-  var C=cohort(pr,progStudents()),list=pr.students.filter(function(s){return raters(pr,s.id).all.length});
-  var h='<div class="stack">'+rubricMap(pr);
-  h+='<section class="card"><h2>สรุปผลราย PLO ของรุ่น</h2><div class="sub">เฉพาะนักศึกษาที่กรรมการประเมินครบตามจำนวนและรายชื่อที่กำหนด · ผ่านเมื่อคะแนน PLO ≥ '+pr.set.ploPass+'</div><div class="table-scroll"><table class="pv"><thead><tr><th>PLO</th><th class="num">จำนวน'+unitWord(pr)+'</th><th class="num">คะแนนเฉลี่ย /100</th><th class="num">ผ่านเกณฑ์ (%)</th><th class="num">จำนวนคน</th></tr></thead><tbody>'+
-    C.per.map(function(x){return '<tr><td class="wrapt"><b>'+esc(x.p.code)+'</b> '+esc(x.p.th)+'</td><td class="num">'+unitsOfPlo(pr,x.p).length+'</td><td class="num'+(x.mean!=null&&x.mean<pr.set.ploPass?" low":"")+'">'+fmt(x.mean)+'</td><td class="num">'+fmt(x.pass)+'</td><td class="num">'+x.n+'</td></tr>'}).join('')+'</tbody></table></div></section>';
-  h+='<section class="card"><h2>คะแนนราย PLO ของนักศึกษาแต่ละคน (เฉลี่ยกรรมการ)</h2><div class="sub">คิดจากกรรมการที่ให้คะแนนครบทุกข้อ (คอลัมน์กรรมการ = ให้ครบ/ให้แล้ว) · กดที่แถวเพื่อเปิดหน้าประเมินของนักศึกษาคนนั้น</div>';
-  if(!list.length)h+='<p class="muted">ยังไม่มีคะแนน</p>';
-  else h+='<div class="table-scroll"><table class="pv"><thead><tr><th>นักศึกษา</th><th class="num">กรรมการ</th>'+ploHeads(pr)+'<th class="num">รวม /100</th></tr></thead><tbody>'+
-    list.map(function(st){var R=raters(pr,st.id),sc=stuScores(pr,st.id),t=evalStu(pr,sc).total;
-      return '<tr class="click" data-act="open" data-id="'+esc(st.id)+'" tabindex="0"><td><b>'+esc(st.name)+'</b><div class="muted" style="font-size:11px">'+esc(st.code||"")+'</div></td><td class="num">'+R.full.length+'/'+R.all.length+'</td>'+pr.plos.map(function(p){return ploCell(pr,p,sc)}).join("")+'<td class="num"><b>'+(t==null?"–":t.toFixed(1))+'</b></td></tr>'}).join("")+'</tbody></table></div>';
+  var list=pr.students.filter(function(s){return raters(pr,s.id).all.length});
+  if(!G.anStu||!list.some(function(s){return s.id===G.anStu}))G.anStu=list.length?list[0].id:null;
+  var st=list.find(function(s){return s.id===G.anStu})||null;
+  var h='<div class="stack"><section class="card"><div class="card-h"><div><h2>PLO แต่ละข้อ วัดอย่างไร และนักศึกษาได้เท่าไร</h2><div class="sub" style="margin:0">1) แยกความหมายของ PLO เป็นเกณฑ์ → 2) กรรมการให้คะแนนแต่ละเกณฑ์ 0–10 → 3) รวมเป็นคะแนน PLO เต็ม 100</div></div>'+
+    (list.length?'<label class="row" style="gap:8px"><span class="muted">นักศึกษา</span><select data-f="anstu" aria-label="เลือกนักศึกษา">'+list.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===G.anStu?" selected":"")+'>'+esc(s.name)+(s.code?" ("+esc(s.code)+")":"")+'</option>'}).join("")+'</select></label>':'<span class="chip na">ยังไม่มีนักศึกษาที่ได้รับคะแนน</span>')+'</div>';
+  if(st){var sc0=stuScores(pr,st.id),e0=evalStu(pr,sc0);
+    h+='<div class="an-sum">'+e0.rows.map(function(r){var ok=r.pct!=null&&r.pct>=pr.set.ploPass;return '<a class="an-chip '+(r.pct==null?"na":(ok?"good":"bad"))+'" href="#an-'+esc(r.p.id)+'"><b>'+esc(r.p.code)+'</b><span>'+(r.pct==null?"–":r.pct.toFixed(1))+'</span></a>'}).join("")+
+      '<div class="an-chip tot"><b>รวม</b><span>'+(e0.total==null?"–":e0.total.toFixed(1))+'</span></div></div>';}
   h+='</section>';
-  h+='<section class="card"><h2>คะแนนราย PLO แยกตามผู้ประเมิน</h2><div class="sub">กรรมการแต่ละคนให้คะแนนนักศึกษาแต่ละคนสอดคล้องกับแต่ละ PLO กี่คะแนน (ตัวเลขเล็ก = คะแนนดิบ / คะแนนเต็มของ'+unitWord(pr)+'ใน PLO นั้น)</div>';
-  if(!list.length)h+='<p class="muted">ยังไม่มีคะแนน</p>';
-  else h+='<div class="table-scroll"><table class="pv"><thead><tr><th>นักศึกษา</th><th>ผู้ประเมิน</th>'+ploHeads(pr)+'<th class="num">รวม /100</th></tr></thead><tbody>'+
-    list.map(function(st){var evs=raters(pr,st.id).all;return evs.map(function(x,i){var t=evalStu(pr,x.scores).total;
-      return '<tr>'+(i===0?'<td rowspan="'+evs.length+'" style="vertical-align:top"><b>'+esc(st.name)+'</b></td>':"")+'<td><span class="chip '+(x.role==="chair"?"good":"na")+'">'+esc(examTh(x.role))+'</span><div style="font-size:12px">'+esc(x.name||x.email)+'</div></td>'+pr.plos.map(function(p){return ploCell(pr,p,x.scores)}).join("")+'<td class="num"><b>'+(t==null?"–":t.toFixed(1))+'</b></td></tr>'}).join("")}).join("")+'</tbody></table></div>';
-  return h+'</section></div>';
+  pr.plos.forEach(function(p){h+=ploTrace(pr,p,st)});
+  return h+'</div>';
+}
+/** การ์ด 1 PLO: ความหมาย → เกณฑ์ → คะแนนของกรรมการ → คะแนน PLO ของนักศึกษา 1 คน */
+function ploTrace(pr,p,st){
+  var u=unitsOfPlo(pr,p),W=u.reduce(function(a,c){return a+criterionWeight(c)},0)||1;
+  var R=st?raters(pr,st.id):{all:[],full:[]},sc=st?stuScores(pr,st.id):{},r=ploPct(pr,p,sc);
+  var fullSet={};R.full.forEach(function(x){fullSet[x.email]=1});
+  var h='<section class="card trace" id="an-'+esc(p.id)+'"><div class="tr-plo"><span class="code-badge">'+esc(p.code)+'</span><p>'+segHtml(p.th,u)+'</p></div>';
+  h+='<div class="tr-step"><span class="step-n">1</span>แยกความหมายเป็น <b>'+u.length+' '+unitWord(pr)+'</b>'+(isItems(pr)?" (หัวข้อการประเมินที่เชื่อมกับ PLO นี้)":"")+' แต่ละ'+unitWord(pr)+'ให้คะแนน 0–10</div>';
+  h+='<div class="table-scroll"><table class="pv"><thead><tr><th>#</th><th>'+unitWord(pr)+'ประเมิน</th><th>วลีจาก PLO ที่วัด</th><th class="num">น้ำหนัก</th>'+
+    R.all.map(function(x){return '<th class="num">'+esc(x.name||x.email)+'<div style="font-weight:400;font-size:11px">'+esc(examTh(x.role))+(fullSet[x.email]?"":" · ยังให้ไม่ครบ")+'</div></th>'}).join("")+
+    (st?'<th class="num">เฉลี่ย /10</th>':"")+'</tr></thead><tbody>'+
+    u.map(function(c,i){var w=criterionWeight(c)/W,m=sc[c.id];
+      return '<tr><td><span class="seg-n s'+(i%6+1)+'">'+(i+1)+'</span></td><td class="wrapt"><b>'+esc(c.name)+'</b></td><td class="wrapt muted" style="font-size:12px">'+esc(c.alignment||"–")+'</td><td class="num">'+(w*100).toFixed(0)+'%</td>'+
+        R.all.map(function(x){var v=(x.scores||{})[c.id];return '<td class="num'+(fullSet[x.email]?"":" muted")+'">'+(isNum(v)?v:"–")+'</td>'}).join("")+
+        (st?'<td class="num"><b>'+(isNum(m)?r1(m).toFixed(1):"–")+'</b></td>':"")+'</tr>'}).join("")+'</tbody></table></div>';
+  if(!st)return h+'<p class="muted" style="margin:10px 0 0">เลือกนักศึกษาด้านบนเพื่อดูคะแนน</p></section>';
+  h+='<div class="tr-step"><span class="step-n">2</span>คะแนนแต่ละ'+unitWord(pr)+' = ค่าเฉลี่ยของกรรมการที่ให้ครบทุกข้อ ('+R.full.length+' คน)</div>';
+  var terms=u.map(function(c){var v=sc[c.id];return isNum(v)?r1(v).toFixed(1)+' × '+(criterionWeight(c)/W*100).toFixed(0)+'%':null});
+  var ok=r.pct!=null&&r.pct>=pr.set.ploPass;
+  h+='<div class="tr-step"><span class="step-n">3</span>รวมเป็นคะแนน PLO เต็ม 100</div><div class="tr-res '+(r.pct==null?"na":(ok?"good":"bad"))+'"><div><div class="muted" style="font-size:12px">'+esc(st.name)+' ได้</div><div class="tr-score">'+esc(p.code)+' = <b>'+(r.pct==null?"–":r.pct.toFixed(1))+'</b><small>/100</small></div></div>'+
+    '<div class="tr-f">'+(r.pct==null?'ยังคำนวณไม่ได้: กรรมการยังให้คะแนนไม่ครบทุก'+unitWord(pr)+'ของ PLO นี้':'('+terms.join(" + ")+') ÷ 10 × 100 = <b>'+r.pct.toFixed(1)+'</b>')+'</div>'+
+    (r.pct==null?"":chip(ok?{c:"good",t:"ผ่านเกณฑ์ ≥ "+pr.set.ploPass,i:"✓"}:{c:"bad",t:"ต่ำกว่าเกณฑ์ "+pr.set.ploPass,i:"✕"}))+'</div>';
+  return h+'</section>';
 }
 
 /* ---------- boot ---------- */
