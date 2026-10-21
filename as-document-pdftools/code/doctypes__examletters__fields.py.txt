@@ -1,0 +1,59 @@
+# -*- coding: utf-8 -*-
+"""
+หนังสือจากคำสั่งสอบ: ช่องตรวจ/แก้ข้อมูลที่แสดงในแถวของไฟล์ (manifest fields ของ hub — core/doctype.py)
+
+ทุกช่องเป็น "optional": เว้นว่างได้ (จะเป็นจุดไข่ปลาในหนังสือ) — ช่องที่ระบบอ่านได้จะเติมค่าไว้ให้ตรวจ
+ผู้ได้รับเชิญ 1 คน = ช่อง inv<n>_name / _role / _org / _boss  (ช่องผู้บังคับบัญชาแสดงเมื่อเปิด "สร้างหนังสือขออนุมัติ")
+"""
+from .forms import FORMS
+
+APPROVE = "want_approve"
+COMMON = [
+    ("order_no", "เลขที่คำสั่ง", "เช่น 1234/2569"),
+    ("student_name", "ชื่อ-นามสกุลนักศึกษา", "เช่น นายสมชาย ใจดี"),
+    ("student_id", "รหัสนักศึกษา", "เช่น 6812345 ABCD/M"),
+    ("program", "หลักสูตร / สาขาวิชา / คณะ", "เช่น หลักสูตรวิทยาศาสตรมหาบัณฑิต สาขาวิชา…"),
+    ("work", "ชนิดผลงาน", "วิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ"),
+]
+TITLE = ("title", "หัวข้อผลงาน", "ชื่อหัวข้อวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ")
+EXAM = [
+    ("exam_date", "วันที่สอบ", "เช่น 12 พฤศจิกายน 2569"),
+    ("exam_time", "เวลาสอบ", "เช่น 09.00 - 12.00"),
+    ("exam_place", "สถานที่สอบ", "เช่น ห้อง 101 อาคารบัณฑิตวิทยาลัย"),
+]
+
+
+def field_defs(form: str, values: dict) -> list:
+    """ช่องของแบบฟอร์มนี้ (ค่าเริ่มต้นจาก values) — ลำดับตามที่แสดงในหน้าจอ"""
+    f = FORMS[form]
+    rows = list(COMMON)
+    if form in ("bt39", "bt2", "bt1"):
+        rows.append(TITLE)
+    if f["exam"]:
+        rows += EXAM
+    idx = sorted({int(k[3:k.index("_")]) for k in values if k.startswith("inv") and "_" in k and k[3:k.index("_")].isdigit()}) or [1]
+    out = [{"key": k, "label": label, "placeholder": ph, "value": values.get(k, ""), "check": "optional"}
+           for k, label, ph in rows]
+    for n in idx:
+        p = f"ผู้ได้รับเชิญ {n} · " if len(idx) > 1 else "ผู้ได้รับเชิญ · "
+        out += [
+            {"key": f"inv{n}_name", "label": p + "ชื่อ (พร้อมตำแหน่งทางวิชาการ)", "placeholder": "เช่น รองศาสตราจารย์ ดร.สมชาย ใจดี"},
+            {"key": f"inv{n}_role", "label": p + "หน้าที่", "placeholder": "เว้นว่าง = ตามแบบฟอร์ม เช่น กรรมการสอบ"},
+            {"key": f"inv{n}_org", "label": p + "สังกัด", "placeholder": "เช่น คณะวิทยาศาสตร์ มหาวิทยาลัย…"},
+            {"key": f"inv{n}_boss", "label": p + "ผู้บังคับบัญชา (เรียน)", "placeholder": "เช่น คณบดีคณะวิทยาศาสตร์",
+             "requires": APPROVE},
+        ]
+        for x in out[-4:]:
+            x.update(value=values.get(x["key"], ""), check="optional")
+    return out
+
+
+def initial_values(d: dict) -> dict:
+    """ค่าที่อ่านได้จากคำสั่ง -> ค่าเริ่มต้นของช่อง: ผู้ได้รับเชิญ = กรรมการภายนอก/ผู้ทรงคุณวุฒิ (ถ้าระบุในคำสั่ง)"""
+    vals = {k: d.get(k, "") for k in ("order_no", "student_name", "student_id", "program", "work", "title",
+                                      "exam_date", "exam_time", "exam_place")}
+    ext = [m for m in d.get("members", []) if m["external"]]
+    for n, m in enumerate(ext or [{}], 1):
+        vals.update({f"inv{n}_name": m.get("name", ""), f"inv{n}_role": m.get("role", ""),
+                     f"inv{n}_org": "", f"inv{n}_boss": ""})
+    return vals

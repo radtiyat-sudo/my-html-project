@@ -1,0 +1,162 @@
+# -*- coding: utf-8 -*-
+"""ทดสอบประเภทเอกสาร "หนังสือจากคำสั่งสอบ" (ไม่ใช้ Word/อินเทอร์เน็ต — ข้อมูลในคำสั่งเป็นชื่อสมมติ)
+python -m unittest discover -s tests"""
+import sys
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from core import registry  # noqa: E402
+from core.doctype import Job  # noqa: E402
+from doctypes.examletters import fields, forms, layout, letter, source  # noqa: E402
+
+ORDER = """คำสั่งบัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล
+ที่ ๑๒๓๔/๒๕๖๙
+เรื่อง แต่งตั้งคณะกรรมการสอบโครงร่างวิทยานิพนธ์
+ด้วยนักศึกษา นายสมชาย ใจดี รหัสประจำตัว 6812345 SCBT/M
+หลักสูตรวิทยาศาสตรมหาบัณฑิต สาขาวิชาเทคโนโลยีชีวภาพ คณะวิทยาศาสตร์
+หัวข้อวิทยานิพนธ์ “การศึกษาตัวอย่างระบบทดสอบ”
+สอบในวันที่ 12 พฤศจิกายน 2569 เวลา 09.00-12.00 น. ณ ห้อง 101 อาคารบัณฑิตวิทยาลัย
+ประกอบด้วย
+1. รองศาสตราจารย์ ดร.สมหญิง รักเรียน\tประธานกรรมการ
+2. ผู้ช่วยศาสตราจารย์ ดร.สมชาย รักเรียน\tกรรมการ
+3. อาจารย์ ดร.สมหญิง ใจดี\tกรรมการภายนอก
+สั่ง ณ วันที่ 1 ตุลาคม 2569"""  # allow-name (ชื่อสมมติทั้งหมด)
+
+
+def make_docx(path: Path, text: str):
+    paras = "".join(f"<w:p><w:r><w:t xml:space=\"preserve\">{ln.replace(chr(9), '</w:t><w:tab/><w:t>')}</w:t></w:r></w:p>"
+                    for ln in text.splitlines())
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("word/document.xml", f'<?xml version="1.0"?><w:document xmlns:w="w"><w:body>{paras}</w:body></w:document>')
+
+
+class Parse(unittest.TestCase):
+    def test_reads_order(self):
+        d = source.parse(ORDER.translate(source.THAI_DIGITS))
+        self.assertEqual(d["form"], "bt39")
+        self.assertEqual(d["order_no"], "1234/2569")
+        self.assertEqual(d["student_name"], "นายสมชาย ใจดี")
+        self.assertEqual(d["student_id"], "6812345 SCBT/M")
+        self.assertTrue(d["program"].startswith("หลักสูตรวิทยาศาสตรมหาบัณฑิต"))
+        self.assertEqual(d["title"], "การศึกษาตัวอย่างระบบทดสอบ")
+        self.assertEqual(d["exam_date"], "12 พฤศจิกายน 2569")
+        self.assertEqual(d["exam_time"], "09.00 - 12.00")
+        self.assertEqual(d["exam_place"], "ห้อง 101 อาคารบัณฑิตวิทยาลัย")
+        self.assertEqual(d["work"], "วิทยานิพนธ์")
+        self.assertEqual([m["role"] for m in d["members"]], ["ประธานกรรมการ", "กรรมการ", "กรรมการภายนอก"])
+        self.assertEqual([m["external"] for m in d["members"]], [False, False, True])
+
+    def test_missing_is_blank_not_guessed(self):
+        d = source.parse("เรื่อง แต่งตั้งคณะกรรมการสอบวัดคุณสมบัติ")
+        self.assertEqual(d["form"], "bt35")
+        for k in ("student_name", "student_id", "exam_date", "exam_place", "title"):
+            self.assertEqual(d[k], "", k)
+
+    def test_detect_forms(self):
+        cases = {"แต่งตั้งคณะกรรมการสอบโครงร่างวิทยานิพนธ์": "bt39", "แต่งตั้งคณะกรรมการสอบวิทยานิพนธ์": "bt2",
+                 "แต่งตั้งคณะกรรมการสอบประมวลความรู้": "bt27", "แต่งตั้งคณะกรรมการสอบวัดคุณสมบัติ": "bt35",
+                 "แต่งตั้งอาจารย์ที่ปรึกษาวิทยานิพนธ์": "bt1", "เรื่องอื่น": ""}
+        for subject, fid in cases.items():
+            self.assertEqual(forms.detect(subject), fid, subject)
+
+
+class Letters(unittest.TestCase):
+    def setUp(self):
+        self.values = fields.initial_values(source.parse(ORDER.translate(source.THAI_DIGITS)))
+
+    def test_invitee_is_external_member(self):
+        self.assertEqual(self.values["inv1_name"], "อาจารย์ ดร.สมหญิง ใจดี")     # allow-name
+        self.assertEqual(self.values["inv1_role"], "กรรมการภายนอก")
+        self.assertNotIn("inv2_name", self.values)
+
+    def test_thai_letters(self):
+        inv = letter.make_letters("bt39", "invite", "th", self.values, inform=True)[0]
+        self.assertEqual(inv.subject, "ขอเรียนเชิญเป็นกรรมการสอบโครงร่างวิทยานิพนธ์")
+        self.assertIn("ตามคำสั่งบัณฑิตวิทยาลัย ที่ 1234/2569", inv.body[1])
+        self.assertIn("ทั้งนี้ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว", inv.body[1])
+        self.assertIn("เวลา 09.00 - 12.00 น.", inv.body[0])
+        no_inform = letter.make_letters("bt39", "invite", "th", self.values, inform=False)[0]
+        self.assertNotIn("ผู้บังคับบัญชา", no_inform.body[1])
+        app = letter.make_letters("bt39", "approve", "th", self.values, inform=True)[0]
+        self.assertEqual(app.to, letter.BLANK)                    # ยังไม่กรอกผู้บังคับบัญชา = จุดไข่ปลา
+        self.assertTrue(app.cc[0].startswith("สำเนาเรียน "))
+
+    def test_blank_fields_become_dots_and_are_reported(self):
+        vals = {**self.values, "exam_place": ""}
+        inv = letter.make_letters("bt39", "invite", "th", vals, inform=False)[0]
+        self.assertIn("ณ " + letter.BLANK, inv.body[0])
+        notes = letter.notes_for("bt39", "th", vals, want_approve=False)
+        self.assertIn(letter.DRAFT_NOTE, notes)
+        self.assertTrue(any("สถานที่สอบ" in n for n in notes))
+        self.assertFalse(any("ผู้บังคับบัญชา" in n for n in notes))   # ไม่สร้างหนังสือขออนุมัติ = ไม่ถามช่องนี้
+
+    def test_english_letter_and_names(self):
+        vals = {**self.values, "student_name": "Mr. Somchai Jaidee"}
+        L = letter.make_letters("bt2", "invite", "en", vals, inform=False)[0]
+        self.assertEqual(L.subject, "Invitation to serve as Thesis Examination Committee")
+        self.assertTrue(any("ภาษาไทย" in n for n in letter.notes_for("bt2", "en", vals, False)))
+        self.assertEqual(letter.output_stem("bt2", "invite", "en", "Mr. Somchai Jaidee", "x"),
+                         "หนังสือเชิญ GR.2 Mr. Somchai Jaidee")
+        self.assertEqual(letter.output_stem("bt39", "approve", "th", "", "คำสั่ง 1"), "หนังสือขออนุมัติ บฑ.39 คำสั่ง 1")
+
+    def test_advisor_form_has_no_exam_fields(self):
+        keys = [f["key"] for f in fields.field_defs("bt1", self.values)]
+        self.assertNotIn("exam_date", keys)
+        self.assertIn("title", keys)
+        self.assertTrue(all(f["check"] == "optional" for f in fields.field_defs("bt39", self.values)))
+
+    def test_layout_page_per_invitee(self):
+        vals = {**self.values, "inv2_name": "ศาสตราจารย์ ดร.สมชาย ใจดี", "inv2_role": "", "inv2_org": "", "inv2_boss": ""}  # allow-name
+        ls = letter.make_letters("bt27", "invite", "th", vals, inform=False)
+        self.assertEqual(len(ls), 2)
+        html = layout.build_html(ls, "logo.jpg")
+        self.assertEqual(html.count("page-break-before:always"), 1)
+        self.assertIn("TH Sarabun New", html)
+
+
+class DocTypeFlow(unittest.TestCase):
+    def test_registered(self):
+        d = registry.get("examletters")
+        self.assertNotIn("examletters", registry.errors)
+        self.assertEqual([m["id"] for m in d.manifest()["modes"]], ["bt39", "bt2", "bt27", "bt35", "bt1"])
+
+    def test_inspect_and_convert_docx(self):
+        d = registry.get("examletters")
+        with tempfile.TemporaryDirectory() as t:
+            src = Path(t) / "คำสั่ง.docx"
+            make_docx(src, ORDER)
+            info = d.inspect(src)
+            self.assertTrue(info["ok"], info)
+            self.assertEqual(info["slot"], "bt39")
+            values = {f["key"]: f["value"] for f in info["fields"]}
+            self.assertEqual(values["student_id"], "6812345 SCBT/M")
+            values["inv1_boss"] = "คณบดีคณะวิทยาศาสตร์"
+            with mock.patch("core.render.word_convert", side_effect=RuntimeError("no Word")):   # ไม่มี Word -> .doc
+                r = d.convert([Job("a", src, Path(t))], {"mode": "bt39", "want_approve": True}, False, {"a": values})["a"]
+            self.assertTrue(r["ok"], r)
+            names = sorted(Path(o["doc"]).name for o in r["outputs"])
+            self.assertEqual(names, ["หนังสือขออนุมัติ บฑ.39 นายสมชาย ใจดี.doc", "หนังสือเชิญ บฑ.39 นายสมชาย ใจดี.doc"])  # allow-name
+            body = (Path(t) / "หนังสือขออนุมัติ บฑ.39 นายสมชาย ใจดี.doc").read_text(encoding="utf-8")  # allow-name
+            self.assertIn("คณบดีคณะวิทยาศาสตร์", body)
+
+    def test_scanned_or_unreadable(self):
+        d = registry.get("examletters")
+        with tempfile.TemporaryDirectory() as t:
+            bad = Path(t) / "x.docx"
+            bad.write_bytes(b"not a zip")
+            self.assertFalse(d.inspect(bad)["ok"])
+            empty = Path(t) / "scan.docx"
+            make_docx(empty, "")
+            info = d.inspect(empty)
+            self.assertTrue(info["ok"])
+            self.assertIn("กรอกข้อมูลเอง", info["subtitle2"])
+
+
+if __name__ == "__main__":
+    unittest.main()

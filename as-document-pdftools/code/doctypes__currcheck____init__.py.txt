@@ -1,0 +1,178 @@
+# -*- coding: utf-8 -*-
+"""
+ตรวจโครงสร้างหลักสูตร — ย้ายมาจากเว็บ Apps Script "ตรวจโครงสร้างหลักสูตร" (ระบบสนับสนุนงานบริการการศึกษา)
+
+นำเข้า PDF "โครงสร้างหลักสูตร" ของนักศึกษา (ระบบทะเบียน) + เล่มหลักสูตร (มคอ.2) -> จัดหมวดรายวิชาตามเล่มพร้อมหลักฐาน
+(หน้าและข้อความในเล่ม) -> สรุปหน่วยกิตรายหมวด ตัวเลขสำหรับกรอกในระบบทะเบียน และวิชาที่ยังขาด
+
+    web/index.html   หน้าจอ + ตรรกะอ่าน/ตรวจทั้งหมด (คัดลอกจากเว็บเดิม ไม่เปลี่ยนกฎ: เกรดวิชาบังคับ ≥ B, วิชาเลือก ≥ C,
+                     วิทยานิพนธ์/สารนิพนธ์ยึดหน่วยกิตที่ลงทะเบียน, แผน ก1/ก2/ข, วิชาเอก, GRID = ภาษาอังกฤษ ฯลฯ)
+    __init__.py      ที่เก็บข้อมูลในเครื่อง แทน Google Sheet ของเว็บเดิม (tool_api — ชื่อฟังก์ชันเดียวกับ Code.gs เดิม)
+
+ข้อมูลเก็บที่ %LOCALAPPDATA%/as-document/currcheck/ (นอกโฟลเดอร์โปรแกรม — มีข้อมูลนักศึกษา จึงไม่อยู่ใน git
+และไม่ถูกแตะตอนอัปเดต):
+    curricula/<id>.json          เล่มหลักสูตรที่บันทึกไว้ (ผลการอ่านเล่ม ใช้ซ้ำได้โดยไม่ต้องนำเข้า PDF ใหม่)
+    ผลการตรวจโครงสร้าง.csv        ผลตรวจที่ยืนยันแล้ว (คอลัมน์เดียวกับชีตเดิม เปิดด้วย Excel ได้)
+"""
+import csv
+import getpass
+import io
+import json
+import os
+import re
+import subprocess
+import sys
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+from core.doctype import DocType
+
+FORM_ROWS = ["ปรับพื้นฐาน", "แกน", "บังคับ", "เลือก", "วิทยานิพนธ์/สารนิพนธ์"]
+VERDICTS = {"pass": "ครบตามโครงสร้าง", "waiting": "รอผลการประเมิน", "fail": "ยังไม่ครบ"}
+RESULT_HEADERS = (["บันทึกเมื่อ", "ผู้ตรวจ", "รหัสนักศึกษา", "รหัสหลักสูตร", "ชื่อ-สกุล", "สาขาวิชา", "เล่มหลักสูตรที่ใช้", "ผลตรวจ"]
+                  + [f"{k} ({x})" for k in FORM_ROWS for x in ("เรียน", "โอน")]
+                  + ["รวม (เกณฑ์)", "รวม (เรียน)", "รวม (โอน)", "สรุปรายหมวด", "วิชาที่ยังขาด", "หมายเหตุ", "รายวิชา (JSON)", "เกณฑ์รายหมวด (JSON)"])
+ID_RE = re.compile(r"^[0-9a-f]{8}$")
+MAX_BOOK = 5 * 1048576              # ผลการอ่านเล่ม (JSON) ไม่เกิน 5 MB
+
+
+def store_dir() -> Path:
+    base = os.environ.get("AS_DOCUMENT_DATA") or os.path.join(os.environ.get("LOCALAPPDATA") or str(Path.home()), "as-document")
+    d = Path(base) / "currcheck"
+    (d / "curricula").mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def results_file() -> Path:
+    return store_dir() / "ผลการตรวจโครงสร้าง.csv"
+
+
+def me() -> str:
+    try:
+        return getpass.getuser()
+    except Exception:
+        return ""
+
+
+def cell(v) -> str:
+    """ค่าใน CSV: กันสูตร Excel (ขึ้นต้นด้วย = + - @ |) — ตัวเลขล้วนไม่ต้องกัน"""
+    s = "" if v is None else str(v)
+    return "'" + s if re.match(r"^\s*[=+\-@|]", s) and not re.fullmatch(r"-?\d+(\.\d+)?", s) else s
+
+
+def book_path(cid: str) -> Path:
+    if not ID_RE.match(str(cid or "")):
+        raise ValueError("รหัสเล่มหลักสูตรไม่ถูกต้อง")
+    return store_dir() / "curricula" / f"{cid}.json"
+
+
+# ---------- ฟังก์ชันที่หน้าจอเรียก (ชื่อเดียวกับ Code.gs เดิม) ----------
+def listCurricula():
+    out = []
+    for f in (store_dir() / "curricula").glob("*.json"):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        out.append({"id": d.get("id", f.stem), "key": d.get("key", ""), "name": d.get("name", ""),
+                    "savedAt": d.get("savedAt", ""), "_t": d.get("savedIso", "")})
+    out.sort(key=lambda x: x.pop("_t"), reverse=True)
+    return out
+
+
+def getCurriculum(cid):
+    try:
+        d = json.loads(book_path(cid).read_text(encoding="utf-8"))
+    except OSError:
+        raise ValueError("ไม่พบเล่มหลักสูตร id " + str(cid))
+    c = json.loads(d["data"])
+    c["savedId"] = d["id"]
+    return c
+
+
+def saveCurriculum(p):
+    if not isinstance(p, dict) or not isinstance(p.get("data"), str) or not p["data"]:
+        raise ValueError("ไม่มีข้อมูลเล่มหลักสูตร")
+    if len(p["data"]) > MAX_BOOK:
+        raise ValueError("ข้อมูลเล่มหลักสูตรใหญ่เกินไป")
+    json.loads(p["data"])                       # ต้องเป็น JSON ที่อ่านได้
+    cid = uuid.uuid4().hex[:8]
+    now = datetime.now()
+    # เก็บแต่ละฉบับแยกกัน (เหมือนเว็บเดิม) ป้องกันเล่มต่างปีของสาขาเดียวกันถูกทับ
+    book_path(cid).write_text(json.dumps({"id": cid, "key": str(p.get("key") or "")[:40], "name": str(p.get("name") or "")[:300],
+                                          "savedAt": now.strftime("%d/%m/%Y %H:%M"), "savedIso": now.isoformat(),
+                                          "by": me(), "data": p["data"]}, ensure_ascii=False), encoding="utf-8")
+    return cid
+
+
+def deleteCurriculum(cid):
+    book_path(cid).unlink(missing_ok=True)
+    return True
+
+
+def saveResult(r):
+    if not isinstance(r, dict):
+        raise ValueError("ไม่มีผลตรวจ")
+    total = r.get("total") or {}
+    form = r.get("form") or {}
+    groups = r.get("groups") or []
+    row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), me(), r.get("studentId", ""), r.get("programKey", ""),
+           r.get("name", ""), r.get("program", ""), r.get("book", ""), VERDICTS.get(r.get("verdict"), r.get("verdict", ""))]
+    for k in FORM_ROWS:
+        s = form.get(k) or {}
+        row += [s.get("study", 0), s.get("transfer", 0)]
+    row += [total.get("required", ""), total.get("study", ""), total.get("transfer", ""),
+            "\n".join(f"{g.get('label', '')} {g.get('got', '')}/{'-' if g.get('required') is None else g.get('required')} {g.get('status', '')}"
+                      for g in groups),
+            ", ".join(m for g in groups for m in (g.get("missing") or [])),
+            r.get("note", ""), json.dumps(r.get("courses") or [], ensure_ascii=False)[:45000], json.dumps(form, ensure_ascii=False)]
+    f = results_file()
+    new = not f.exists()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    if new:
+        w.writerow(RESULT_HEADERS)
+    w.writerow([cell(v) for v in row])
+    with open(f, "a", encoding="utf-8-sig" if new else "utf-8", newline="") as out:
+        out.write(buf.getvalue())
+    return True
+
+
+def openResults():
+    """เปิดไฟล์ผลตรวจ (ยังไม่มี = เปิดโฟลเดอร์ที่เก็บ)"""
+    target = results_file() if results_file().exists() else store_dir()
+    if sys.platform.startswith("win"):
+        os.startfile(target)                    # noqa: S606 — ไฟล์ของโปรแกรมเอง
+    else:
+        subprocess.Popen(["xdg-open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return str(target)
+
+
+API = {f.__name__: f for f in (listCurricula, getCurriculum, saveCurriculum, deleteCurriculum, saveResult, openResults)}
+
+
+class CurrCheck(DocType):
+    id = "currcheck"
+    name = "ตรวจโครงสร้างหลักสูตร"
+    description = "เทียบโครงสร้างหลักสูตรของนักศึกษากับเล่มหลักสูตร (มคอ.2) พร้อมหลักฐานหน้า/ข้อความในเล่ม — สรุปหน่วยกิตรายหมวดและวิชาที่ยังขาด"
+    icon = "book"
+    color = "amber"
+    order = 80
+    page = "index.html"
+    drop_hint = "วางไฟล์ในกรอบ “โครงสร้างของนักศึกษา” หรือ “เล่มหลักสูตรอ้างอิง” ของเครื่องมือ"
+    ui = {"modes": [], "slots": []}
+
+    def tool_api(self, fn: str, args: list):
+        if fn not in API:
+            raise ValueError("ไม่รู้จักคำสั่ง")
+        return API[fn](*(args or []))
+
+    def inspect(self, path):
+        return {"ok": False, "reason": "เครื่องมือนี้เปิดไฟล์ในหน้าของตัวเอง"}
+
+    def convert(self, jobs, options, pdf, extra, log=print):
+        return {j.id: {"ok": False, "error": "เครื่องมือนี้ทำงานในหน้าของตัวเอง", "notes": [], "outputs": []} for j in jobs}
+
+
+DOCTYPE = CurrCheck()

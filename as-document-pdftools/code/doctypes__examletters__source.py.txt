@@ -1,0 +1,109 @@
+# -*- coding: utf-8 -*-
+"""
+หนังสือจากคำสั่งสอบ: อ่านคำสั่ง (PDF ที่มีชั้นข้อความ / Word .docx) -> ข้อมูลสำหรับหนังสือ
+
+หลัก "ระบบไม่เดา" (เหมือนเว็บเดิม): อ่านเฉพาะสิ่งที่พบตามรูปแบบชัดเจน ช่องที่ไม่พบปล่อยว่าง
+ให้ผู้ใช้ตรวจ/กรอกในหน้าจอ — ช่องที่ยังว่างตอนสร้างหนังสือจะเป็นจุดไข่ปลาให้เขียนเอง
+
+รูปแบบที่อ่าน (ปรับได้ที่นี่เมื่อได้คำสั่งตัวอย่างจริง — เก็บใน doctypes/examletters/samples/ ห้าม commit):
+  ที่ <เลข>/<ปี>             เลขที่คำสั่ง
+  เรื่อง <หัวเรื่อง>            ใช้ระบุแบบฟอร์ม (forms.detect)
+  (นาย|นางสาว|นาง) ชื่อ สกุล   ชื่อนักศึกษา (ชื่อแรกที่อยู่หลังคำว่า "นักศึกษา")
+  6812345 ABCD/M             รหัสนักศึกษา
+  หลักสูตร…                   บรรทัดหลักสูตร/สาขาวิชา
+  “…”                        หัวข้อผลงาน (ข้อความในเครื่องหมายคำพูดหลังคำว่า หัวข้อ/เรื่อง)
+  วันที่ … / เวลา … / ณ …      วัน เวลา สถานที่สอบ
+  1. ชื่อ ... ประธานกรรมการ    รายชื่อกรรมการ (บรรทัดที่ขึ้นต้นด้วยเลขข้อและลงท้ายด้วยหน้าที่)
+"""
+import html
+import re
+import zipfile
+from pathlib import Path
+
+from core.text import clean
+
+from .forms import detect, work_of
+
+THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+QUOTE = r"[\"“”'‘’]"
+ROLES = r"(ประธาน\S*|รองประธาน\S*|กรรมการ\S*|เลขานุการ\S*|อาจารย์ที่ปรึกษา\S*|ผู้ทรงคุณวุฒิ\S*)"
+EXTERNAL = re.compile(r"ภายนอก|ผู้ทรงคุณวุฒิ")
+MONTHS = r"(?:มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม" \
+         r"|ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)"
+
+
+def read_text(path: Path) -> str:
+    """ข้อความทั้งไฟล์ ตัดเป็นบรรทัด (PDF: ตามบรรทัดบนหน้า / .docx: ตามย่อหน้า)"""
+    path = Path(path)
+    if path.suffix.lower() == ".pdf":
+        import pymupdf
+        with pymupdf.open(str(path)) as doc:
+            text = "\n".join(page.get_text("text", sort=True) for page in doc)
+    elif path.suffix.lower() == ".docx":
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("word/document.xml").decode("utf-8")
+        lines = []
+        for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S):
+            t = ""
+            for r in re.finditer(r"<w:t(?: [^>]*)?>(.*?)</w:t>|<w:tab/>|<w:br/>", p):
+                t += html.unescape(r.group(1)) if r.group(1) is not None else "\t"
+            lines.append(t)
+        text = "\n".join(lines)
+    else:
+        raise ValueError("รองรับเฉพาะ PDF และ .docx")
+    return text.translate(THAI_DIGITS).replace(" ", " ")
+
+
+def first(pattern: str, text: str, flags=0) -> str:
+    m = re.search(pattern, text, flags)
+    return clean(m.group(1)) if m else ""
+
+
+def members(lines: list) -> list:
+    """[{name, role, external}] จากบรรทัด "1. ชื่อ .... หน้าที่" (หน้าที่อาจอยู่บรรทัดถัดไป)"""
+    out = []
+    for i, ln in enumerate(lines):
+        m = re.match(r"^\s*\d{1,2}\s*[.)]\s*(.+)$", ln)
+        if not m:
+            continue
+        body = clean(m.group(1).replace("\t", " "))
+        role = re.search(ROLES + r"(?:\s*\S*ภายนอก\S*)?\s*$", body)
+        if not role and i + 1 < len(lines):
+            nxt = clean(lines[i + 1])
+            if re.match(ROLES, nxt):
+                body, role = f"{body} {nxt}", re.search(ROLES + r".*$", f"{body} {nxt}")
+        if not role:
+            continue
+        name = clean(body[:role.start()])
+        if len(name) < 4 or re.search(r"หลักสูตร|นักศึกษา|คำสั่ง", name):
+            continue
+        r = clean(body[role.start():])
+        out.append({"name": name, "role": r, "external": bool(EXTERNAL.search(r))})
+    return out
+
+
+def parse(text: str) -> dict:
+    lines = [ln for ln in text.splitlines()]
+    flat = clean(" ".join(clean(x) for x in lines))
+    subject = first(r"(?:^|\n)\s*เรื่อง\s*(.+)", text)
+    d = {
+        "order_no": first(r"(?:^|\s)ที่\s*(\d{1,5}\s*/\s*\d{4})", flat),
+        "subject": subject,
+        "form": detect(subject or flat[:400]),
+        "work": work_of(subject) or work_of(flat),
+        "student_name": first(r"นักศึกษา\S*\s*(?:ชื่อ\s*)?((?:นาย|นางสาว|นาง)\s*\S+\s+\S+)", flat)
+        or first(r"((?:นาย|นางสาว|นาง)\s*\S+\s+\S+)", flat),
+        "student_id": first(r"\b(\d{7}\s*[A-Z]{2,6}\s*/\s*[A-Z])\b", flat).replace(" /", "/").replace("/ ", "/"),
+        "program": first(r"(หลักสูตร[^\n]+?)(?=\s+(?:เรื่อง|หัวข้อ|ทั้งนี้|โดย|ประกอบด้วย|ใน\s*วันที่)|$)", flat),
+        "title": first(rf"(?:หัวข้อ|ชื่อเรื่อง|เรื่อง)\S*\s*{QUOTE}(.+?){QUOTE}", flat),
+        "exam_date": first(rf"วันที่\s*(\d{{1,2}}\s*{MONTHS}\s*(?:พ\.ศ\.\s*)?\d{{4}})", flat),
+        "exam_time": first(r"เวลา\s*(\d{1,2}[.:]\d{2}\s*[-–]\s*\d{1,2}[.:]\d{2}\s*(?:น\.)?)", flat),
+        "exam_place": first(r"(?:ณ|สถานที่สอบ)\s+(.+?)(?=\s+(?:ทั้งนี้|โดย|ประกอบด้วย|คณะกรรมการ|สั่ง\s*ณ)|$)", flat),
+        "members": members(lines),
+    }
+    d["exam_time"] = re.sub(r"\s*[-–]\s*", " - ", d["exam_time"]).replace("น.", "").strip()
+    return d
+
+
+def read(path: Path) -> dict:
+    return parse(read_text(path))

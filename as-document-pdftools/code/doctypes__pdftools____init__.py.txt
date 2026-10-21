@@ -1,0 +1,36 @@
+# -*- coding: utf-8 -*-
+"""
+แยก / รวม PDF — เครื่องมือที่ทำงานในหน้าโปรแกรมทั้งหมด (ย้ายมาจากเว็บ Apps Script "ตัวช่วยจัดการเอกสาร")
+
+ต่างจากประเภทเอกสารอื่นตรงที่ไม่ใช้ Word และไม่ผ่าน inspect/convert ของ hub:
+หน้าจออยู่ที่ web/index.html (ประกาศด้วย page) hub แสดงในกรอบแทนช่องวางไฟล์ แล้วหน้านี้อ่าน/ตัด/รวม PDF
+ด้วย JavaScript ในหน้าต่างโปรแกรมเอง (pdf.js, pdf-lib, JSZip ใน web/vendor ของโปรแกรม — ไม่โหลดจากอินเทอร์เน็ต)
+ผลลัพธ์ดาวน์โหลดลงโฟลเดอร์ Downloads ของเครื่อง — ไม่มีการส่งไฟล์ออกนอกเครื่อง และไม่ต้องใช้บัญชีออนไลน์
+
+    แยกเอกสารรายคน  PDF รวม (ผลสอบ ฯลฯ) -> อ่านรหัสนักศึกษาแต่ละหน้า -> ตรวจ/แก้ในตาราง -> ZIP ของ PDF รายคน + รายการไฟล์.csv
+    รวมไฟล์ PDF     PDF หลายไฟล์ -> เรียงลำดับ -> PDF ไฟล์เดียว
+
+แก้หน้าจอ/กฎการอ่านรหัส: web/index.html (ID_PATTERN) · ไลบรารี: web/vendor/VERSIONS.txt
+"""
+from core.doctype import DocType
+
+
+class PdfTools(DocType):
+    id = "pdftools"
+    name = "แยก / รวม PDF"
+    description = "แยก PDF ผลสอบเป็นไฟล์รายคนตามรหัสนักศึกษา (ZIP) หรือรวม PDF หลายไฟล์เป็นไฟล์เดียว — ทำงานในเครื่อง ไม่ใช้ Word"
+    icon = "pdf"
+    color = "teal"
+    order = 90
+    page = "index.html"           # หน้าจอของตัวเองใน web/ (core/doctype.py: page)
+    drop_hint = "วางไฟล์ PDF ในกรอบของเครื่องมือแยก / รวม PDF"
+    ui = {"modes": [], "slots": []}
+
+    def inspect(self, path):
+        return {"ok": False, "reason": "เครื่องมือนี้เปิดไฟล์ในหน้าของตัวเอง — วางไฟล์ในกรอบแยก / รวม PDF"}
+
+    def convert(self, jobs, options, pdf, extra, log=print):
+        return {j.id: {"ok": False, "error": "เครื่องมือนี้ทำงานในหน้าของตัวเอง", "notes": [], "outputs": []} for j in jobs}
+
+
+DOCTYPE = PdfTools()

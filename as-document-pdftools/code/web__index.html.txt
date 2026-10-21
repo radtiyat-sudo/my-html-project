@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="th" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบปรับเอกสาร</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3f5fa;
+  --bg-glow-1: rgba(79, 70, 229, .10);
+  --bg-glow-2: rgba(14, 165, 233, .10);
+  --card: #ffffff;
+  --card-soft: #f8f9fc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: #e4e8f1;
+  --primary: #4338ca;
+  --primary-2: #2563eb;
+  --primary-soft: #eef2ff;
+  --ok: #16a34a;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --err: #dc2626;
+  --err-soft: #fee2e2;
+  /* สีที่ประเภทเอกสารเลือกใช้ได้ (manifest: color) */
+  --blue: #2563eb; --blue-soft: #dbeafe;
+  --violet: #7c3aed; --violet-soft: #ede9fe;
+  --teal: #0d9488; --teal-soft: #ccfbf1;
+  --amber: #d97706; --amber-soft: #fef3c7;
+  --rose: #e11d48; --rose-soft: #ffe4e6;
+  --green: #16a34a; --green-soft: #dcfce7;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .06);
+  --radius: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1020; --bg-glow-1: rgba(99, 102, 241, .16); --bg-glow-2: rgba(14, 165, 233, .10);
+    --card: #121a2e; --card-soft: #0f172a; --text: #e5e9f5; --muted: #8b97b3; --line: #222c45;
+    --primary: #818cf8; --primary-2: #60a5fa; --primary-soft: #1e2347;
+    --ok: #4ade80; --ok-soft: #12321f; --warn: #fbbf24; --warn-soft: #3a2c0b; --err: #f87171; --err-soft: #3b1414;
+    --blue: #60a5fa; --blue-soft: #172a4d; --violet: #a78bfa; --violet-soft: #2a1f4d; --teal: #2dd4bf; --teal-soft: #0f3a36;
+    --amber: #fbbf24; --amber-soft: #3a2c0b; --rose: #fb7185; --rose-soft: #3b0a14; --green: #4ade80; --green-soft: #12321f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1020; --bg-glow-1: rgba(99, 102, 241, .16); --bg-glow-2: rgba(14, 165, 233, .10);
+  --card: #121a2e; --card-soft: #0f172a; --text: #e5e9f5; --muted: #8b97b3; --line: #222c45;
+  --primary: #818cf8; --primary-2: #60a5fa; --primary-soft: #1e2347;
+  --ok: #4ade80; --ok-soft: #12321f; --warn: #fbbf24; --warn-soft: #3a2c0b; --err: #f87171; --err-soft: #3b1414;
+  --blue: #60a5fa; --blue-soft: #172a4d; --violet: #a78bfa; --violet-soft: #2a1f4d; --teal: #2dd4bf; --teal-soft: #0f3a36;
+  --amber: #fbbf24; --amber-soft: #3a2c0b; --rose: #fb7185; --rose-soft: #3b0a14; --green: #4ade80; --green-soft: #12321f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+}
+:root { --c: var(--primary); --c-soft: var(--primary-soft); }
+.c-blue { --c: var(--blue); --c-soft: var(--blue-soft); }
+.c-violet { --c: var(--violet); --c-soft: var(--violet-soft); }
+.c-teal { --c: var(--teal); --c-soft: var(--teal-soft); }
+.c-amber { --c: var(--amber); --c-soft: var(--amber-soft); }
+.c-rose { --c: var(--rose); --c-soft: var(--rose-soft); }
+.c-green { --c: var(--green); --c-soft: var(--green-soft); }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(900px 500px at 0% -10%, var(--bg-glow-1), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, var(--bg-glow-2), transparent 60%),
+    var(--bg);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+svg { flex: none; }
+.app { max-width: 1120px; margin: 0 auto; padding: 22px 24px 28px; }
+
+/* ---------- header ---------- */
+header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.app-icon { width: 46px; height: 46px; border-radius: 14px; box-shadow: 0 8px 20px -8px rgba(67, 56, 202, .6); }
+.title h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+.title p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.title .ver { margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary);
+  font-size: 12px; font-weight: 600; vertical-align: middle; }
+.header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--card); border: 1px solid var(--line); color: var(--muted);
+}
+.icon-btn:hover { color: var(--text); }
+@media (max-width: 640px) { header { flex-wrap: wrap; } .header-right { margin-left: 0; width: 100%; } }
+
+/* ---------- hub: เลือกประเภทเอกสาร ---------- */
+.hub-label { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 0 0 8px 2px; letter-spacing: .02em; }
+.doctypes { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.dt-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; text-align: left;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); transition: border-color .15s, box-shadow .15s;
+}
+.dt-card:hover { border-color: var(--c); }
+.dt-card.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c), var(--shadow); }
+.dt-card .di { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--c-soft); color: var(--c); flex: none; }
+.dt-card .dn { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 8px; }
+.dt-card .dd { font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dt-card .dc { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--c); color: #fff; font-size: 11.5px; display: inline-grid; place-items: center; }
+.load-err { margin-bottom: 16px; }
+/* ---------- แถบอัปเดต (patch จาก GitHub) ---------- */
+.update-bar { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: 18px; border-color: var(--primary); }
+.update-bar .ui { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
+.update-bar .ut { min-width: 0; flex: 1; }
+.update-bar b { display: block; font-size: 14.5px; }
+.update-bar ul { margin: 2px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
+.update-bar .btn { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff; }
+.update-bar .btn[disabled] { filter: grayscale(.6) opacity(.6); cursor: default; }
+@media (max-width: 640px) { .update-bar { flex-wrap: wrap; } .update-bar .btn { width: 100%; justify-content: center; } }
+
+/* ---------- layout ---------- */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+main { display: flex; flex-direction: column; gap: 20px; }
+#slots { display: flex; flex-direction: column; gap: 20px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 12px;
+  font-weight: 500; font-size: 14px; white-space: nowrap; transition: background .15s, box-shadow .15s, border-color .15s;
+}
+.btn-soft { background: var(--primary-soft); color: var(--primary); }
+.btn-soft:hover { box-shadow: inset 0 0 0 1px var(--primary); }
+.btn-outline { border: 1px solid var(--line); background: var(--card); }
+.btn-outline:hover { border-color: var(--muted); }
+.badge-count {
+  min-width: 22px; height: 22px; padding: 0 7px; border-radius: 99px; display: inline-grid; place-items: center;
+  background: var(--primary); color: #fff; font-size: 12px; font-weight: 600;
+}
+
+/* ---------- slots ---------- */
+.slot { overflow: hidden; }
+.slot-head { display: flex; align-items: center; gap: 14px; padding: 18px 20px 14px; }
+.slot-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex: none; position: relative; background: var(--c-soft); color: var(--c); }
+.slot-icon .num {
+  position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; border: 2px solid var(--card); background: var(--c);
+}
+.slot-head h2 { margin: 0; font-size: 16.5px; font-weight: 600; }
+.slot-head p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.want {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px 8px 10px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--card-soft); cursor: pointer; user-select: none; font-size: 14px; font-weight: 500;
+  white-space: nowrap; transition: border-color .15s, background .15s; position: relative;
+}
+.want:hover { border-color: var(--c); }
+.want input { position: absolute; opacity: 0; width: 0; height: 0; }
+.want .box {
+  width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--muted); display: grid; place-items: center;
+  color: transparent; transition: .15s; background: var(--card);
+}
+.want input:checked + .box { background: var(--c); border-color: var(--c); color: #fff; }
+.want input:focus-visible + .box { outline: 2px solid var(--c); outline-offset: 2px; }
+.want:has(input:checked) { border-color: var(--c); background: var(--c-soft); color: var(--c); }
+
+.zone {
+  margin: 0 20px 18px; padding: 18px; border: 2px dashed var(--line); border-radius: 14px; background: var(--card-soft);
+  display: flex; align-items: center; gap: 14px; transition: border-color .15s, transform .15s;
+}
+.zone .zi { color: var(--muted); display: grid; }
+.zone .zt b { display: block; font-weight: 600; font-size: 14.5px; }
+.zone .zt span { color: var(--muted); font-size: 13px; }
+.zone .btn { margin-left: auto; }
+.zone.over { border-color: var(--c); transform: scale(1.005); }
+@media (max-width: 640px) {
+  .zone { flex-direction: column; text-align: center; } .zone .btn { margin: 0; }
+  .slot-head { flex-wrap: wrap; } .want { margin-left: 0; }
+}
+
+/* ช่องที่ต้องติ๊กตัวเลือกก่อน (gate) แต่ยังไม่ติ๊ก: เทาและใช้ไม่ได้ (ยกเว้นช่องติ๊ก) */
+.slot.off .slot-icon, .slot.off .slot-head h2, .slot.off .slot-head p,
+.slot.off .zone, .slot.off .files { opacity: .45; filter: grayscale(1); }
+.slot.off .zone, .slot.off .files { pointer-events: none; user-select: none; }
+.off-note { margin: -6px 20px 16px; font-size: 12.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+
+/* ---------- mode tabs ---------- */
+.tabs { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; gap: 6px; padding: 6px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.tab { min-height: 46px; padding: 6px 10px; line-height: 1.3; text-align: center; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 600; font-size: 14.5px; color: var(--muted); transition: background .15s, color .15s; }
+.tab:hover { color: var(--text); }
+.tab.on { background: var(--c-soft); color: var(--c); }
+@media (max-width: 640px) { .tabs { grid-auto-flow: row; } }
+.steps { margin: -4px 20px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); }
+.steps b { color: var(--c); font-weight: 700; margin-right: 4px; }
+.sub2 { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-btn .k { color: var(--muted); font-weight: 600; }
+
+/* ---------- ช่องกรอกข้อมูลก่อนแปลง (fields) ---------- */
+.enform { margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-soft); display: grid; gap: 8px; }
+.enform-h { font-size: 12.5px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.enrow { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px 10px; align-items: center; }
+.enrow .l { font-size: 12.5px; font-weight: 600; }
+.enrow .th { grid-column: 2; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.enrow input {
+  grid-column: 2; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--card); color: var(--text); font: inherit; font-size: 13.5px; min-width: 0;
+}
+.enrow input:focus { outline: 2px solid var(--c); outline-offset: -1px; border-color: transparent; }
+.enrow.need input { border-color: var(--warn); background: var(--warn-soft); }
+.enrow .l::after { content: ""; }
+.enrow.need .l::after { content: " *"; color: var(--warn); }
+@media (max-width: 640px) { .enrow { grid-template-columns: 1fr; } .enrow .th, .enrow input { grid-column: 1; } }
+
+/* ---------- file rows ---------- */
+.files { border-top: 1px solid var(--line); }
+.row {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  padding: 12px 20px; border-bottom: 1px solid var(--line);
+}
+.row.fresh { animation: in .25s ease; }
+/* หลายไฟล์ผลลัพธ์: ปุ่มขึ้นบรรทัดใหม่ใต้ชื่อไฟล์ */
+.row.multi { grid-template-columns: 40px minmax(0, 1fr) auto; }
+.row.multi > .actions { grid-column: 2 / -1; flex-wrap: wrap; }
+.row:last-child { border-bottom: 0; }
+@keyframes in { from { opacity: 0; transform: translateY(4px); } }
+.ficon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--c-soft); color: var(--c); }
+.ficon.other { background: var(--card-soft); color: var(--muted); }
+.fname { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fname span.n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; white-space: nowrap; border: 1px solid transparent; }
+.lang.th { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+.lang.en { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+:root[data-theme="dark"] .lang.th { background: #3b0a14; color: #fda4af; border-color: #5b1324; }
+:root[data-theme="dark"] .lang.en { background: #0b1f44; color: #93c5fd; border-color: #1e3a6b; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lang.th { background: #3b0a14; color: #fda4af; border-color: #5b1324; }
+  :root:not([data-theme="light"]) .lang.en { background: #0b1f44; color: #93c5fd; border-color: #1e3a6b; }
+}
+.preview { margin-top: 4px; font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 1px; }
+.preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview span::before { content: "→ "; color: var(--primary); font-weight: 700; }
+.fsub { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note { margin-top: 6px; font-size: 12.5px; color: var(--warn); background: var(--warn-soft); padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.note.err { color: var(--err); background: var(--err-soft); }
+.note button { font-weight: 600; text-decoration: underline; font-size: 12.5px; color: inherit; }
+
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 5px 11px; border-radius: 99px; white-space: nowrap; }
+.status.ready { background: var(--card-soft); color: var(--muted); border: 1px solid var(--line); }
+.status.busy { background: var(--primary-soft); color: var(--primary); }
+.status.done { background: var(--ok-soft); color: var(--ok); }
+.status.warn { background: var(--warn-soft); color: var(--warn); }
+.status.error { background: var(--err-soft); color: var(--err); }
+.actions { display: flex; gap: 6px; }
+.chip-btn {
+  height: 32px; padding: 0 11px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 500; border: 1px solid var(--line); background: var(--card);
+}
+.chip-btn:hover { border-color: var(--primary); color: var(--primary); }
+.x-btn { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); }
+.x-btn:hover { background: var(--err-soft); color: var(--err); }
+@media (max-width: 640px) { .row { grid-template-columns: 40px minmax(0, 1fr); } .row > .status-wrap, .row > .actions { grid-column: 2; } }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- side ---------- */
+.side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px; }
+.panel { padding: 20px; }
+.panel h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+.opt { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
+.opt + .opt { border-top: 1px solid var(--line); }
+.opt .t { font-size: 14px; font-weight: 500; }
+.opt .d { font-size: 12.5px; color: var(--muted); }
+.switch { margin-left: auto; position: relative; width: 44px; height: 26px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--line); transition: .2s; }
+.switch span::after {
+  content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: .2s;
+}
+.switch input:checked + span { background: linear-gradient(135deg, var(--primary), var(--primary-2)); }
+.switch input:checked + span::after { transform: translateX(18px); }
+.switch input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.label { font-size: 13px; color: var(--muted); margin: 14px 0 8px; font-weight: 500; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--card-soft); border: 1px solid var(--line); border-radius: 12px; }
+.seg button { height: 34px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.seg button.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+#docChecks .opt { padding-top: 0; margin-bottom: 10px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+#docChecks .opt + .opt { border-top: 0; padding-top: 2px; }
+.seg.fmt { grid-template-columns: 1fr 1fr 1.25fr; }
+.seg.fmt button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg.fmt button.on { color: var(--primary); }
+
+/* ---------- ดูตัวอย่างเอกสาร ---------- */
+.chip-btn.pv { border-color: var(--primary-soft); background: var(--primary-soft); color: var(--primary); }
+.chip-btn.pv:hover { border-color: var(--primary); }
+.chip-btn:disabled { opacity: .5; cursor: not-allowed; }
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+  background: rgba(15, 23, 42, .45); animation: fade .15s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.modal-box { width: min(980px, 100%); height: min(94vh, 1200px); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 24px 64px rgba(0, 0, 0, .3); }
+.modal-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--line); }
+.modal-h .ttl { flex: 1; min-width: 0; }
+.modal-h .ttl b { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.modal-h .ttl b svg { color: var(--primary); }
+.modal-h .ttl .d { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-tabs { display: flex; gap: 4px; padding: 4px; background: var(--card-soft); border: 1px solid var(--line); border-radius: 12px; }
+.pv-tabs button { height: 32px; padding: 0 12px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pv-tabs button.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+.modal-body { position: relative; flex: 1; background: var(--card-soft); }
+.modal-body iframe { width: 100%; height: 100%; border: 0; display: block; background: #525659; }
+.pv-msg { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 24px;
+  text-align: center; color: var(--muted); font-size: 14px; }
+.pv-msg.err { color: var(--err); }
+.pv-notes { padding: 8px 20px 0; }
+.modal-f { display: flex; align-items: center; gap: 12px; padding: 12px 16px 12px 20px; border-top: 1px solid var(--line); }
+.modal-f .hint { margin: 0; flex: 1; text-align: left; }
+@media (max-width: 640px) { .modal-f { flex-wrap: wrap; } .modal-f .hint { flex-basis: 100%; } }
+@media (max-width: 640px) { .modal { padding: 0; } .modal-box { height: 100vh; border-radius: 0; }
+  .modal-h { flex-wrap: wrap; } .pv-tabs { order: 3; width: 100%; overflow-x: auto; } }
+.dest-path { margin-top: 8px; font-size: 12.5px; color: var(--muted); word-break: break-all; display: flex; gap: 6px; align-items: flex-start; }
+
+.run-panel { padding: 20px; }
+.sum { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.sum > div { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); }
+.sum .dot { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--c-soft); color: var(--c); }
+.sum .dot.plain { background: var(--card-soft); color: var(--muted); }
+.sum b { margin-left: auto; color: var(--text); font-weight: 600; }
+.sum .dim .dot { filter: grayscale(1); opacity: .5; }
+.sum .dim b { color: var(--muted); font-weight: 500; }
+.primary {
+  width: 100%; height: 52px; border-radius: 14px; color: #fff; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  box-shadow: 0 12px 24px -10px rgba(67, 56, 202, .7); transition: filter .15s, box-shadow .15s;
+}
+.primary:hover { filter: brightness(1.07); }
+.primary[disabled] { filter: grayscale(.6) opacity(.55); box-shadow: none; cursor: default; }
+.progress { height: 6px; border-radius: 99px; background: var(--card-soft); overflow: hidden; margin-top: 14px; display: none; }
+.progress.on { display: block; }
+.progress i { display: block; height: 100%; width: 40%; border-radius: 99px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); animation: slide 1.2s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.hint { margin-top: 12px; font-size: 12.5px; color: var(--muted); text-align: center; }
+.wide { width: 100%; justify-content: center; margin-top: 10px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: #0f172a; color: #fff; padding: 12px 18px; border-radius: 14px; font-size: 14px; z-index: 20;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .25); display: flex; gap: 10px; align-items: center; transition: .25s; max-width: calc(100% - 32px);
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+/* ประเภทเอกสารที่มีหน้าจอของตัวเอง (manifest: page) — แสดงในกรอบแทนช่องวางไฟล์ */
+.tool-box iframe { display: block; width: 100%; min-height: 520px; border: 0; background: transparent; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <img class="app-icon" src="/icon.png" alt="">
+    <div class="title">
+      <h1>ระบบปรับเอกสาร<span class="ver" id="appVer" hidden></span></h1>
+      <p id="subtitle">บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล — เลือกประเภทเอกสาร แล้ววางไฟล์ → ไฟล์ Word หรือ PDF รูปแบบมาตรฐาน</p>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-soft" id="dlBtn" hidden>
+        <span data-icon="download"></span><span id="dlLabel"></span> <span class="badge-count" id="dlCount" hidden>0</span>
+      </button>
+      <button class="icon-btn" id="themeBtn" title="สลับโหมดสว่าง/มืด" aria-label="สลับโหมดสว่าง/มืด"><span data-icon="moon"></span></button>
+    </div>
+  </header>
+
+  <section class="card update-bar" id="updateBar" hidden>
+    <span class="ui"><span data-icon="download" data-size="20"></span></span>
+    <div class="ut"><b id="updateTitle">มีอัปเดตใหม่</b><ul id="updateNotes"></ul></div>
+    <button class="btn" id="updateBtn"><span data-icon="refresh"></span>อัปเดตเลย</button>
+  </section>
+
+  <div class="hub-label">ประเภทเอกสาร</div>
+  <nav class="doctypes" id="doctypes" aria-label="ประเภทเอกสาร"></nav>
+  <div class="note err load-err" id="loadErr" hidden></div>
+
+  <div class="grid" id="grid">
+    <main>
+      <div class="tabs" id="tabs" role="tablist" hidden></div>
+      <div id="slots"></div>
+    </main>
+
+    <aside class="side">
+      <section class="card panel">
+        <h3>ตัวเลือก</h3>
+        <div id="docChecks"></div>
+        <div class="label" style="margin-top:0">รูปแบบไฟล์ที่ได้</div>
+        <div class="seg fmt" role="radiogroup" aria-label="รูปแบบไฟล์ที่ได้">
+          <button id="fmtDocx" role="radio" title="ไฟล์ Word (.docx) อย่างเดียว"><span data-icon="word" data-size="15"></span>Word</button>
+          <button id="fmtPdf" role="radio" title="ไฟล์ PDF (.pdf) อย่างเดียว"><span data-icon="pdf" data-size="15"></span>PDF</button>
+          <button id="fmtBoth" role="radio" title="ได้ทั้งไฟล์ Word และ PDF">Word + PDF</button>
+        </div>
+        <div class="label">บันทึกไฟล์ที่</div>
+        <div class="seg">
+          <button id="destSame">ข้างไฟล์ต้นฉบับ</button>
+          <button id="destFolder">เลือกโฟลเดอร์…</button>
+        </div>
+        <div class="dest-path" id="destPath"></div>
+      </section>
+
+      <section class="card run-panel">
+        <div class="sum" id="sum"></div>
+        <button class="primary" id="runBtn" disabled><span data-icon="sparkle" data-size="20"></span><span id="runLabel">ปรับเอกสาร</span></button>
+        <div class="progress" id="progress"><i></i></div>
+        <div class="hint" id="hint">ใช้ Microsoft Word ในเครื่องแปลงไฟล์</div>
+        <button class="btn btn-outline wide" id="folderBtn" hidden><span data-icon="folder"></span>เปิดโฟลเดอร์ผลลัพธ์</button>
+        <button class="btn btn-outline wide" id="clearBtn" hidden><span data-icon="refresh"></span>เริ่มชุดใหม่</button>
+      </section>
+    </aside>
+  </div>
+  <div class="tool-box" id="toolBox" hidden></div>
+</div>
+<div class="modal" id="pv" hidden role="dialog" aria-modal="true" aria-labelledby="pvTitle">
+  <div class="modal-box">
+    <div class="modal-h">
+      <div class="ttl"><b id="pvTitle"><span data-icon="eye" data-size="18"></span>ดูตัวอย่างเอกสาร</b><div class="d" id="pvSub"></div></div>
+      <div class="pv-tabs" id="pvTabs" hidden></div>
+      <button class="x-btn" id="pvX" title="ปิด" aria-label="ปิด"><span data-icon="x"></span></button>
+    </div>
+    <div class="pv-notes" id="pvNotes"></div>
+    <div class="modal-body">
+      <iframe id="pvFrame" title="ตัวอย่างเอกสาร" hidden></iframe>
+      <div class="pv-msg" id="pvMsg"></div>
+    </div>
+    <div class="modal-f">
+      <div class="hint" id="pvHint"></div>
+      <button class="btn btn-outline" id="pvClose">ปิด</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// หน้าจอ hub: ไม่มีอะไรผูกกับเอกสารประเภทใด — ทุกอย่างมาจาก manifest ของประเภทเอกสาร (core/doctype.py)
+const TOKEN = "{{TOKEN}}";
+const $ = (id) => document.getElementById(id);
+const state = { items: [], settings: {}, doctypes: [], busy: false, lastOutput: "", downloadsNew: {} };
+
+// ---------- ชุดไอคอนเดียวทั้งหน้า (เส้น 2px มุมมน) — ประเภทเอกสารเลือกใช้ด้วยชื่อ ----------
+const P = {
+  invite: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+  approve: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  word: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m8 13 1.5 5 2.5-4 2.5 4 1.5-5"/>',
+  pdf: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  sparkle: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  form: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+  cert: '<circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 8 5-3 5 3-1.5-8"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+};
+const icon = (name, size = 16) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || P.file}</svg>`;
+const SPIN = `<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>`;
+document.querySelectorAll("[data-icon]").forEach((el) => (el.outerHTML = icon(el.dataset.icon, +(el.dataset.size || 17))));
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "X-Token": TOKEN, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+  return data;
+}
+// ส่งไฟล์ที่ลากมาวางเป็นไบต์ตรง ๆ (ไม่แปลงเป็นข้อความ base64) — รองรับไฟล์ใหญ่ได้
+async function uploadRaw(f) {
+  const q = `doctype=${encodeURIComponent(dt().id)}&name=${encodeURIComponent(f.name)}`;
+  const res = await fetch("/api/upload_raw?" + q, { method: "POST", headers: { "X-Token": TOKEN }, body: f });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+  return data;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cls = (color) => (color ? " c-" + color : "");
+
+let toastTimer;
+function toast(msg, ic = "check") {
+  const t = $("toast");
+  t.innerHTML = icon(ic, 16) + "<span>" + esc(msg) + "</span>";
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 3400);
+}
+
+// ---------- ประเภทเอกสารที่เปิดอยู่ ----------
+const EMPTY_DT = { id: "", modes: [], slots: [], options: {}, accept: [] };
+const dt = () => state.doctypes.find((d) => d.id === state.settings.doctype) || state.doctypes[0] || EMPTY_DT;
+const opts = () => (state.settings.options || {})[dt().id] || {};
+const opt = (k) => !!opts()[k];
+const slotDef = (id) => dt().slots.find((s) => s.id === id);
+const mode = () => {
+  const ms = dt().modes, m = opts().mode;
+  return ms.some((x) => x.id === m) ? m : (ms[0] || {}).id;
+};
+const modeDef = () => dt().modes.find((m) => m.id === mode());
+const slotVisible = (s) => !s.mode || s.mode === mode();
+const slotOn = (s) => !s.gate || opt(s.gate);
+const ext = (name) => (name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+const accepts = (s, name) => !!s && (s.accept || []).includes(ext(name));
+const mine = () => state.items.filter((x) => x.doctype === dt().id);
+
+// ช่องกรอกข้อมูลก่อนแปลง (เช่น ภาษาอังกฤษของคำร้อง บฑ.31)
+const THAI_RE = /[฀-๿]/;
+const CHECKS = {
+  english: (v) => !!v && !THAI_RE.test(v) && !/\sin\s*$/.test(v),
+  required: (v) => !!String(v || "").trim(),
+  optional: () => true,                 // เว้นว่างได้ (ประเภทเอกสารจัดการค่าว่างเอง เช่น จุดไข่ปลา)
+};
+const fieldValid = (f, v) => (CHECKS[f.check] || CHECKS.required)(v);
+const fieldsFor = (it) => (it.fields || []).filter((f) => !f.requires || opt(f.requires));
+const fieldsReady = (it) => fieldsFor(it).every((f) => fieldValid(f, (it.values || {})[f.key]));
+// แปลงเฉพาะไฟล์ในช่องที่มองเห็น (แท็บที่เปิดอยู่) และช่องที่เปิดใช้ (gate) และกรอกข้อมูลครบ
+const active = (it) => { const s = slotDef(it.at); return !!s && slotVisible(s) && slotOn(s) && fieldsReady(it); };
+const companion = (it) => !!(slotDef(it.at) || {}).companion;     // ไฟล์ประกอบ (เช่นเอกสารแนบ) ไม่ได้ผลลัพธ์ของตัวเอง
+const companionIds = () => mine().filter((x) => companion(x) && x.st === "ready" && active(x)).map((x) => x.id);
+const readyIn = (s) => mine().filter((x) => x.at === s.id && x.st === "ready" && fieldsReady(x)).length;
+
+// ---------- สร้างหน้าจอตาม manifest ----------
+function renderHub() {
+  $("doctypes").innerHTML = state.doctypes.map((d) => `
+    <button class="dt-card${cls(d.color)}" data-doctype="${esc(d.id)}" title="${esc(d.description)}">
+      <span class="di">${icon(d.icon, 22)}</span>
+      <span style="min-width:0"><span class="dn">${esc(d.name)}<span class="dc" data-count="${esc(d.id)}" hidden></span></span>
+      <span class="dd">${esc(d.description)}</span></span>
+    </button>`).join("");
+}
+
+// หน้าจอของประเภทเอกสาร (page): โหลดครั้งเดียวแล้วซ่อน/แสดง — งานที่ค้างในหน้านั้นไม่หายเมื่อสลับประเภท
+function showToolPage(d) {
+  const box = $("toolBox");
+  $("grid").hidden = !!d.page;
+  box.hidden = !d.page;
+  for (const f of box.querySelectorAll("iframe")) f.hidden = f.dataset.tool !== d.id;
+  if (!d.page) return;
+  let f = box.querySelector(`iframe[data-tool="${CSS.escape(d.id)}"]`);
+  if (!f) {
+    f = document.createElement("iframe");
+    f.dataset.tool = d.id;
+    f.title = d.name;
+    f.src = `/tool/${encodeURIComponent(d.id)}/?token=${encodeURIComponent(TOKEN)}`;
+    box.append(f);
+  }
+  fitToolPage();
+}
+function fitToolPage() {
+  const f = [...$("toolBox").querySelectorAll("iframe")].find((x) => !x.hidden);
+  if (f && !$("toolBox").hidden) f.style.height = Math.max(520, innerHeight - $("toolBox").getBoundingClientRect().top - 12) + "px";
+}
+window.addEventListener("resize", fitToolPage);
+
+function renderWorkspace() {
+  const d = dt();
+  showToolPage(d);
+  // ตัวเลือกติ๊กของประเภทเอกสาร (manifest: checks) ในแผงตัวเลือก
+  $("docChecks").innerHTML = (d.checks || []).map((c) => `<label class="opt">
+      <div><div class="t">${esc(c.label)}</div>${c.desc ? `<div class="d">${esc(c.desc)}</div>` : ""}</div>
+      <span class="switch"><input type="checkbox" data-toggle="${esc(c.option)}"><span></span></span></label>`).join("");
+  $("tabs").hidden = d.modes.length < 2;
+  $("tabs").innerHTML = d.modes.map((m) =>
+    `<button class="tab${cls(m.color)}" data-mode="${esc(m.id)}" role="tab">${icon(m.icon || "upload", 18)}${esc(m.label)}</button>`).join("");
+  $("slots").innerHTML = d.slots.map((s) => `
+    <section class="card slot${cls(s.color)}" data-slot="${esc(s.id)}">
+      <div class="slot-head">
+        <div class="slot-icon">${icon(s.icon, 24)}${s.num ? `<span class="num">${esc(s.num)}</span>` : ""}</div>
+        <div><h2>${esc(s.title)}</h2><p>${esc(s.desc || "")}</p></div>
+        ${s.toggle ? `<label class="want"><input type="checkbox" data-toggle="${esc(s.toggle.option)}"><span class="box">${icon("check", 14)}</span>${esc(s.toggle.label)}</label>` : ""}
+      </div>
+      ${s.gate_note ? `<div class="off-note" data-gate-note>${icon("info", 14)}${esc(s.gate_note)}</div>` : ""}
+      ${s.steps ? `<div class="steps">${s.steps.map((t, i) => `<span><b>${i + 1}</b>${esc(t)}</span>`).join("")}</div>` : ""}
+      <div class="zone" data-zone="${esc(s.id)}">
+        <span class="zi">${icon("upload", 26)}</span>
+        <div class="zt"><b>${esc(s.zone_title || "ลากไฟล์มาวางที่นี่")}</b><span>${esc(s.zone_desc || (s.accept || []).join(" "))}${s.max_mb || d.max_mb ? ` · ขนาดไม่เกิน ${s.max_mb || d.max_mb} MB` : ""}</span></div>
+        ${s.pick ? `<button class="btn btn-outline" data-pick="${esc(s.id)}">${icon("plus", 17)}${esc(s.pick_label || "เลือกไฟล์")}</button>` : ""}
+      </div>
+      <div class="files" data-files="${esc(s.id)}" hidden></div>
+    </section>`).join("");
+  const dl = d.downloads;
+  $("dlBtn").hidden = !dl;
+  if (dl) { $("dlLabel").textContent = dl.label; $("dlBtn").title = dl.title || ""; }
+}
+
+// at: ช่องที่ผู้ใช้วางไฟล์ ถ้าไม่ระบุหรือช่องนั้นไม่รับไฟล์ชนิดนี้ จัดลงช่องที่ประเภทเอกสารแนะนำ (it.slot)
+function addItems(list, at) {
+  let added = 0;
+  const offSlots = new Set(), addedSlots = new Set();
+  for (const it of list) {
+    if (state.items.some((x) => x.id === it.id)) continue;
+    const d = state.doctypes.find((x) => x.id === it.doctype) || dt();
+    const def = (id) => d.slots.find((s) => s.id === id);
+    const s = at && accepts(def(at), it.name) ? at
+      : def(it.slot) ? it.slot : (d.slots.find((x) => accepts(x, it.name)) || d.slots[0] || {}).id;
+    addedSlots.add(s);
+    const values = Object.fromEntries((it.fields || []).map((f) => [f.key, f.value || ""]));
+    state.items.push({ ...it, values, at: s, st: it.ok ? "ready" : "error", result: null, fresh: true });
+    added++;
+  }
+  // ไฟล์ที่เพิ่มไม่อยู่ในแท็บที่เปิด -> สลับไปแท็บของไฟล์นั้น
+  const slots = [...addedSlots].map(slotDef).filter(Boolean);
+  if (slots.length && !slots.some(slotVisible) && slots[0].mode) saveOptions({ mode: slots[0].mode });
+  slots.filter((s) => slotVisible(s) && !slotOn(s)).forEach((s) => offSlots.add(s));
+  render();
+  const off = [...offSlots][0];
+  if (off) toast(`มี${off.title} — ติ๊ก “${off.toggle ? off.toggle.label : off.gate}” เพื่อแปลงด้วย`, "info");
+  else if (added) toast(`เพิ่ม ${added} ไฟล์`);
+  else if (list.length) toast("ไฟล์อยู่ในรายการแล้ว", "alert");
+}
+
+function statusHtml(it) {
+  if (it.st === "ready" && !fieldsReady(it)) return `<span class="status warn">${icon("alert", 15)}${esc(it.fields_status || "กรอกข้อมูลให้ครบ")}</span>`;
+  if (it.st === "busy") return `<span class="status busy">${SPIN}กำลังแปลง</span>`;
+  if (it.st === "done") return it.result.notes.length
+    ? `<span class="status warn">${icon("alert", 15)}เสร็จ มีหมายเหตุ</span>`
+    : `<span class="status done">${icon("check", 15)}เสร็จแล้ว</span>`;
+  if (it.st === "error") return `<span class="status error">${icon("alert", 15)}${it.result ? "ไม่สำเร็จ" : "ใช้ไม่ได้"}</span>`;
+  return `<span class="status ready">${companion(it) ? "พร้อมแนบ" : "พร้อมแปลง"}</span>`;
+}
+
+function rowHtml(it) {
+  const hint = it.ok ? slotDef(it.slot) : null;     // ช่องที่ไฟล์นี้ควรอยู่
+  const previews = it.st === "done" ? [] : (it.outputs_preview || []).filter((p) => !p.requires || opt(p.requires));
+  const preview = it.ok && previews.length
+    ? `<div class="preview" title="ชื่อไฟล์ที่จะได้">${previews.map((p) => `<span>${esc(p.name)}.${p.ext || (fmt() === "both" ? "docx / .pdf" : fmt())}</span>`).join("")}</div>` : "";
+  const langPill = it.lang ? `<span class="lang ${esc(it.lang)}" title="${esc(it.lang_source || "")}">${esc(it.lang_label || it.lang.toUpperCase())}</span>` : "";
+  let notes = "";
+  if (it.st === "error") notes = `<div class="note err">${esc(it.result ? it.result.error : it.reason)}</div>`;
+  else if (it.result && it.result.notes.length) notes = it.result.notes.map((n) => `<div class="note">${esc(n)}</div>`).join("");
+  if (hint && hint.id !== it.at && it.st !== "done") {
+    notes += `<div class="note">${icon("alert", 14)}ไฟล์นี้เป็น${esc(hint.title)}<button data-move="${it.id}">ย้ายไปช่อง${esc(hint.title)}</button></div>`;
+  }
+  let actions = "";
+  const outs = it.st === "done" ? it.result.outputs || [] : [];
+  for (const o of outs) {
+    const k = o.label ? `<span class="k">${esc(o.label)}</span>` : "";
+    if (o.docx) actions += `<button class="chip-btn" data-open="${esc(o.docx)}" title="${esc(o.kind)} (Word)">${icon("word", 15)}${k}Word</button>`;
+    if (o.pdf) actions += `<button class="chip-btn" data-open="${esc(o.pdf)}" title="${esc(o.kind)} (PDF)">${icon("pdf", 15)}PDF</button>`;
+  }
+  if (it.ok && it.st !== "busy" && !state.busy && !companion(it)) {     // ดูตัวอย่างได้ทั้งก่อนและหลังแปลง
+    const ready = fieldsReady(it);
+    actions += `<button class="chip-btn pv" data-preview="${it.id}" ${ready ? "" : "disabled"} title="${ready ? "ดูหน้าตาเอกสารก่อนสร้างไฟล์" : esc(it.fields_status || "กรอกข้อมูลให้ครบก่อน")}">${icon("eye", 15)}ดูตัวอย่าง</button>`;
+  }
+  if (it.st === "done" && it.result.docx) actions += `<button class="chip-btn" data-reveal="${esc(it.result.docx)}" title="แสดงในโฟลเดอร์" aria-label="แสดงในโฟลเดอร์">${icon("folder", 15)}</button>`;
+  if (!state.busy) actions += `<button class="x-btn" data-remove="${it.id}" title="นำออก" aria-label="นำออก">${icon("x")}</button>`;
+  const multi = outs.length > 1 || outs.some((o) => o.label);
+  let form = "";
+  const fields = fieldsFor(it);
+  if (fields.length && it.ok && it.st !== "done" && it.st !== "busy") {
+    form = `<div class="enform"><div class="enform-h">${icon("info", 14)}${esc(it.fields_title || "กรอกข้อมูลก่อนแปลง — ช่องที่มี * ยังไม่ครบ")}</div>`
+      + fields.map((f) => {
+        const v = it.values[f.key] || "";
+        return `<label class="enrow${fieldValid(f, v) ? "" : " need"}"><span class="l">${esc(f.label)}</span>`
+          + (f.hint ? `<span class="th" title="${esc(f.hint)}">${esc(f.hint)}</span>` : "")
+          + `<input data-field="${it.id}" data-key="${esc(f.key)}" value="${esc(v)}" placeholder="${esc(f.placeholder || "")}" spellcheck="false"></label>`;
+      }).join("") + `</div>`;
+  }
+  return `<div class="row${it.fresh ? " fresh" : ""}${multi ? " multi" : ""}" data-row="${it.id}">
+    <div class="ficon${hint ? cls(hint.color) : " other"}">${icon(hint ? hint.icon : "file", 20)}</div>
+    <div style="min-width:0">
+      <div class="fname"><span class="n" title="${esc(it.folder ? it.folder + "\\" + it.name : it.name)}">${esc(it.name)}</span>${langPill}</div>
+      <div class="fsub" title="${esc(it.subtitle)}">${esc(it.subtitle)}</div>${it.subtitle2 ? `<div class="sub2">${esc(it.subtitle2)}</div>` : ""}${preview}${notes}${form}
+    </div>
+    <div class="status-wrap">${statusHtml(it)}</div>
+    <div class="actions">${actions}</div>
+  </div>`;
+}
+
+function render() {
+  for (const s of dt().slots) {
+    const list = mine().filter((x) => x.at === s.id);
+    const box = document.querySelector(`[data-files="${CSS.escape(s.id)}"]`);
+    if (!box) continue;
+    box.hidden = !list.length;
+    box.innerHTML = list.map(rowHtml).join("");
+  }
+  state.items.forEach((x) => (x.fresh = false));   // เล่นแอนิเมชันเฉพาะแถวที่เพิ่งเพิ่ม
+  renderPanel();
+}
+
+function summaryRows() {
+  const m = modeDef();
+  const rows = m && m.summary ? m.summary : dt().slots.filter(slotVisible).map((s) => ({ slot: s.id }));
+  return rows.map((r) => {
+    if (r.slot) {
+      const s = slotDef(r.slot);
+      if (!s) return "";
+      const on = slotOn(s);
+      return `<div class="${on ? "" : "dim"}"><span class="dot${cls(s.color)}">${icon(s.icon, 15)}</span>${esc(r.label || s.title)}<b>${on ? readyIn(s) + " ไฟล์" : esc(r.off || "ไม่ใช้")}</b></div>`;
+    }
+    const on = opt(r.option);
+    return `<div class="${on ? "" : "dim"}"><span class="dot${cls(r.color)}">${icon(r.icon || "check", 15)}</span>${esc(r.label)}<b>${esc(on ? r.on || "เปิด" : r.off || "ปิด")}</b></div>`;
+  }).join("");
+}
+
+function renderPanel() {
+  const d = dt();
+  document.querySelectorAll("[data-doctype]").forEach((b) => b.classList.toggle("on", b.dataset.doctype === d.id));
+  document.querySelectorAll("[data-count]").forEach((c) => {
+    const n = state.items.filter((x) => x.doctype === c.dataset.count && x.st === "ready").length;
+    c.hidden = !n || c.dataset.count === d.id;
+    c.textContent = n;
+  });
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.mode === mode()));
+  for (const s of d.slots) {
+    const el = document.querySelector(`[data-slot="${CSS.escape(s.id)}"]`);
+    if (!el) continue;
+    el.hidden = !slotVisible(s);
+    el.classList.toggle("off", !slotOn(s));
+    const note = el.querySelector("[data-gate-note]");
+    if (note) note.hidden = slotOn(s);
+    const pick = el.querySelector("[data-pick]");
+    if (pick) pick.disabled = !slotOn(s);
+  }
+  document.querySelectorAll("[data-toggle]").forEach((t) => (t.checked = opt(t.dataset.toggle)));
+
+  // จำนวนหนังสือแยกตามภาษา (เฉพาะไฟล์ที่จะถูกแปลงรอบนี้)
+  const todoNow = mine().filter((x) => x.st === "ready" && active(x) && !companion(x));
+  const th = todoNow.filter((x) => x.lang === "th").length, en = todoNow.filter((x) => x.lang === "en").length;
+  const langs = [th && `ไทย ${th}`, en && `อังกฤษ ${en}`].filter(Boolean).join(" · ");
+  $("sum").innerHTML = summaryRows()
+    + (langs ? `<div><span class="dot plain">${icon("info", 15)}</span>ภาษาหนังสือ<b>${esc(langs)}</b></div>` : "");
+  const total = todoNow.length;
+  $("runBtn").disabled = state.busy || !total;
+  $("runLabel").textContent = state.busy ? "กำลังแปลง…" : total ? `ปรับเอกสาร ${total} ไฟล์` : "ปรับเอกสาร";
+  $("progress").classList.toggle("on", state.busy);
+  $("folderBtn").hidden = !state.lastOutput;
+  $("clearBtn").hidden = !mine().length || state.busy;
+  const n = state.downloadsNew[d.id] || 0;
+  $("dlCount").textContent = n;
+  $("dlCount").hidden = !n;
+  renderSettings();
+}
+
+const fmt = () => (["pdf", "both"].includes(state.settings.format) ? state.settings.format : "docx");     // รูปแบบไฟล์ที่ส่งออก
+const FMT_LABEL = { docx: "Word", pdf: "PDF", both: "Word หรือ PDF" };
+
+function renderSettings() {
+  const s = state.settings;
+  for (const [id, f] of [["fmtDocx", "docx"], ["fmtPdf", "pdf"], ["fmtBoth", "both"]]) {
+    $(id).classList.toggle("on", fmt() === f);
+    $(id).setAttribute("aria-checked", fmt() === f);
+  }
+  const folder = s.dest === "folder" && s.outdir;
+  $("destSame").classList.toggle("on", !folder);
+  $("destFolder").classList.toggle("on", !!folder);
+  $("destPath").innerHTML = folder ? icon("folder", 15) + `<span>${esc(s.outdir)}</span>` : `<span>ไฟล์ที่ลากมาวางจะบันทึกใน Downloads</span>`;
+}
+
+async function saveSettings(patch) {
+  state.settings = { ...state.settings, ...patch };
+  render();
+  try { state.settings = (await api("/api/settings", patch)).settings; } catch (e) { toast(e.message, "alert"); }
+}
+// ตัวเลือกของประเภทเอกสารที่เปิดอยู่ (เช่น ติ๊กหนังสือขออนุมัติ, แท็บ)
+function saveOptions(patch) {
+  const id = dt().id;
+  const options = { ...state.settings.options, [id]: { ...opts(), ...patch } };
+  return saveSettings({ options });
+}
+
+function switchDoctype(id) {
+  if (id === dt().id || state.busy) return;
+  state.settings.doctype = id;
+  state.lastOutput = "";
+  renderWorkspace();
+  saveSettings({ doctype: id });
+  refreshDownloads();
+}
+
+async function refreshDownloads() {
+  const d = dt();
+  if (!d.downloads) return;
+  try {
+    const { count } = await api("/api/downloads_count?doctype=" + encodeURIComponent(d.id));
+    state.downloadsNew[d.id] = count;
+    renderPanel();
+  } catch (_) {}
+}
+
+// ---------- events ----------
+$("doctypes").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-doctype]");
+  if (b) switchDoctype(b.dataset.doctype);
+});
+$("tabs").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-mode]");
+  if (t) saveOptions({ mode: t.dataset.mode });
+});
+$("dlBtn").onclick = async () => {
+  try {
+    const { items } = await api("/api/downloads", { doctype: dt().id });
+    if (!items.length) return toast(dt().downloads.empty || "ไม่พบไฟล์ใหม่ใน Downloads", "alert");
+    addItems(items);
+  } catch (e) { toast(e.message, "alert"); }
+};
+$("clearBtn").onclick = () => {
+  const ids = mine().map((x) => x.id);
+  state.items = state.items.filter((x) => !ids.includes(x.id));
+  state.lastOutput = "";
+  render();
+  api("/api/remove", { ids }).catch(() => {});
+};
+$("docChecks").addEventListener("change", (e) => {
+  const t = e.target.closest("input[data-toggle]");
+  if (t) saveOptions({ [t.dataset.toggle]: t.checked });
+});
+$("fmtDocx").onclick = () => saveSettings({ format: "docx" });
+$("fmtPdf").onclick = () => saveSettings({ format: "pdf" });
+$("fmtBoth").onclick = () => saveSettings({ format: "both" });
+$("destSame").onclick = () => saveSettings({ dest: "same" });
+$("destFolder").onclick = async () => {
+  try {
+    const { path } = await api("/api/pick_folder", {});
+    if (path) saveSettings({ dest: "folder", outdir: path });
+  } catch (e) { toast(e.message, "alert"); }
+};
+$("folderBtn").onclick = () => api("/api/reveal", { path: state.lastOutput }).catch((e) => toast(e.message, "alert"));
+
+const main = document.querySelector("main");
+main.addEventListener("change", (e) => {
+  const t = e.target.closest("input[data-toggle]");
+  if (t) saveOptions({ [t.dataset.toggle]: t.checked });
+});
+main.addEventListener("input", (e) => {
+  const inp = e.target.closest("input[data-field]");
+  if (!inp) return;
+  const it = state.items.find((x) => x.id === inp.dataset.field);
+  if (!it) return;
+  it.values[inp.dataset.key] = inp.value;
+  if (it.st === "error" && it.ok) it.st = "ready";      // แก้ข้อมูลแล้วลองใหม่ได้
+  const f = (it.fields || []).find((x) => x.key === inp.dataset.key);
+  inp.closest(".enrow").classList.toggle("need", !!f && !fieldValid(f, inp.value));
+  const row = document.querySelector(`[data-row="${it.id}"] .status-wrap`);
+  if (row) row.innerHTML = statusHtml(it);
+  renderPanel();
+});
+main.addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  try {
+    if (b.dataset.pick) {
+      const s = slotDef(b.dataset.pick);
+      addItems((await api("/api/pick_files", { doctype: dt().id, pick: s.pick })).items, s.id);
+    } else if (b.dataset.remove) {
+      state.items = state.items.filter((x) => x.id !== b.dataset.remove);
+      render();
+      await api("/api/remove", { ids: [b.dataset.remove] });
+    } else if (b.dataset.move) {
+      const it = state.items.find((x) => x.id === b.dataset.move);
+      const s = slotDef(it.slot);
+      it.at = s.id;
+      if (!slotOn(s)) saveOptions({ [s.gate]: true });
+      else render();
+    } else if (b.dataset.open) await api("/api/open", { path: b.dataset.open });
+    else if (b.dataset.reveal) await api("/api/reveal", { path: b.dataset.reveal });
+    else if (b.dataset.preview) await openPreview(b.dataset.preview);
+  } catch (err) { toast(err.message, "alert"); }
+});
+
+// todo: รายการที่จะแปลง (รวมไฟล์แนบ) · format: "docx" | "pdf" (ไม่ระบุ = ตามตัวเลือกด้านขวา)
+async function convertItems(todo, format = fmt()) {
+  if (!todo.some((x) => !companion(x)) || state.busy) return;
+  state.busy = true;
+  todo.forEach((x) => (x.st = "busy"));
+  $("hint").textContent = "กำลังเปิด Microsoft Word แปลงไฟล์ อาจใช้เวลาสักครู่…";
+  render();
+  try {
+    const extra = Object.fromEntries(todo.filter((x) => (x.fields || []).length).map((x) => [x.id, x.values]));
+    const { dest, outdir } = state.settings;
+    const { results } = await api("/api/convert", {
+      doctype: dt().id, ids: todo.map((x) => x.id), extra, companions: todo.filter(companion).map((x) => x.id),
+      settings: { format, dest, outdir, options: { [dt().id]: opts() } },
+    });
+    let ok = 0, bad = 0;
+    for (const it of todo) {
+      const r = results[it.id];
+      if (!r || companion(it)) { it.st = "ready"; continue; }     // ไฟล์แนบใช้ซ้ำกับชุดถัดไปได้
+      it.result = r;
+      it.st = r.ok ? "done" : "error";
+      if (r.ok) { ok++; state.lastOutput = r.docx; } else bad++;
+    }
+    toast(bad ? `เสร็จ ${ok} ไฟล์ · ไม่สำเร็จ ${bad} ไฟล์` : `เสร็จเรียบร้อย ${ok} ไฟล์`, bad ? "alert" : "check");
+    $("hint").textContent = `กดปุ่ม ${FMT_LABEL[format] || "Word"} ในรายการเพื่อเปิดไฟล์`;
+  } catch (e) {
+    todo.forEach((x) => (x.st = "ready"));
+    toast("แปลงไม่สำเร็จ: " + e.message, "alert");
+    $("hint").textContent = "ใช้ Microsoft Word ในเครื่องแปลงไฟล์";
+  } finally {
+    state.busy = false;
+    render();
+    refreshDownloads();
+  }
+}
+$("runBtn").onclick = () => convertItems(mine().filter((x) => x.st === "ready" && active(x)));
+
+// ---------- ดูตัวอย่างเอกสาร: สร้าง PDF ชั่วคราวด้วย Word แล้วแสดงในหน้าต่างนี้ ----------
+let pvSeq = 0;
+function pvShow(page) {
+  $("pvFrame").hidden = false;
+  $("pvMsg").hidden = true;
+  $("pvFrame").src = `${page.url}?token=${encodeURIComponent(TOKEN)}#view=FitH&navpanes=0`;
+  [...$("pvTabs").children].forEach((b) => b.classList.toggle("on", b.dataset.url === page.url));
+}
+function pvMessage(html, err) {
+  $("pvFrame").hidden = true;
+  $("pvFrame").removeAttribute("src");
+  $("pvMsg").hidden = false;
+  $("pvMsg").className = "pv-msg" + (err ? " err" : "");
+  $("pvMsg").innerHTML = html;
+}
+function closePreview() {
+  pvSeq++;
+  $("pv").hidden = true;
+  $("pvFrame").removeAttribute("src");
+}
+async function openPreview(id) {
+  const it = state.items.find((x) => x.id === id);
+  if (!it) return;
+  const seq = ++pvSeq;
+  $("pvHint").textContent = it.st === "done"
+    ? "ไฟล์นี้สร้างแล้ว — ถ้าต้องการสร้างใหม่ ปิดหน้าต่างนี้แล้วกด “ปรับเอกสาร” (เขียนทับไฟล์เดิม — ถือเป็นฉบับปรับปรุง)"
+    : "ตรวจเอกสารแล้วปิดหน้าต่างนี้ กด “ปรับเอกสาร” เพื่อบันทึก — ใช้ไฟล์ที่สร้างไว้ตอนดูตัวอย่าง ไม่ต้องรอแปลงซ้ำ";
+  $("pv").hidden = false;
+  $("pvSub").textContent = it.name;
+  $("pvTabs").hidden = true;
+  $("pvNotes").innerHTML = "";
+  pvMessage(`${SPIN}<div>กำลังสร้างตัวอย่างด้วย Microsoft Word…</div><div style="font-size:12.5px">อาจใช้เวลาสักครู่</div>`);
+  $("pvClose").focus();
+  try {
+    const r = await api("/api/preview", { doctype: dt().id, id, options: opts(), companions: companionIds(),
+      extra: (it.fields || []).length ? it.values : {} });
+    if (seq !== pvSeq) return;           // ผู้ใช้ปิด/เปิดตัวอย่างอื่นไปแล้ว
+    if (!r.ok) return pvMessage(`${icon("alert", 28)}<div>${esc(r.error)}</div>`, true);
+    $("pvNotes").innerHTML = (r.notes || []).map((n) => `<div class="note">${icon("info", 14)}${esc(n)}</div>`).join("");
+    $("pvTabs").innerHTML = r.pages.map((p) =>
+      `<button data-url="${esc(p.url)}">${icon(/อนุมัติ/.test(p.kind) ? "approve" : "invite", 15)}${esc(p.label || p.kind)}</button>`).join("");
+    $("pvTabs").hidden = r.pages.length < 2;
+    pvShow(r.pages[0]);
+  } catch (e) {
+    if (seq === pvSeq) pvMessage(`${icon("alert", 28)}<div>สร้างตัวอย่างไม่สำเร็จ: ${esc(e.message)}</div>`, true);
+  }
+}
+$("pvTabs").onclick = (e) => {
+  const b = e.target.closest("button[data-url]");
+  if (b) pvShow({ url: b.dataset.url });
+};
+$("pvX").onclick = closePreview;
+$("pvClose").onclick = closePreview;
+$("pv").onclick = (e) => { if (e.target === $("pv")) closePreview(); };
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("pv").hidden) closePreview(); });
+
+// ---------- drag & drop: วางในช่องไหน เข้าช่องนั้น / วางนอกช่อง จัดตามที่ประเภทเอกสารแนะนำ ----------
+const isFileDrag = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+const zoneOf = (e) => {
+  const slot = e.target.closest?.(".slot");
+  return slot && !slot.classList.contains("off") ? slot.querySelector(".zone") : null;
+};
+let overZone = null;
+function setOver(z) {
+  if (overZone === z) return;
+  overZone?.classList.remove("over");
+  overZone = z;
+  z?.classList.add("over");
+}
+window.addEventListener("dragover", (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  const off = e.target.closest?.(".slot.off");
+  e.dataTransfer.dropEffect = off ? "none" : "copy";
+  setOver(zoneOf(e));
+});
+window.addEventListener("dragleave", (e) => { if (!e.relatedTarget) setOver(null); });
+window.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  const zone = zoneOf(e);
+  setOver(null);
+  if (state.busy || !dt().id) return;
+  if (dt().page) return toast(dt().drop_hint || "วางไฟล์ในกรอบของเครื่องมือ", "info");
+  const offSlot = e.target.closest?.(".slot.off");
+  if (offSlot) {
+    const s = slotDef(offSlot.dataset.slot);
+    return toast(`ติ๊ก “${s.toggle ? s.toggle.label : s.gate}” ก่อน จึงจะวางไฟล์ในช่องนี้ได้`, "info");
+  }
+  let files = [...e.dataTransfer.files].filter((f) => dt().accept.includes(ext(f.name)));
+  if (!files.length) return toast(dt().drop_hint || "รองรับไฟล์ " + dt().accept.join(" "), "alert");
+  // วางในช่อง: ใช้ขนาดสูงสุดของช่องนั้น (ถ้ากำหนด) / วางนอกช่อง: ใช้ของประเภทเอกสาร แล้วโปรแกรมตรวจช่องให้อีกครั้ง
+  const max = (zone && (slotDef(zone.dataset.zone) || {}).max_mb) || dt().max_mb;
+  const big = max ? files.filter((f) => f.size > max * 1048576) : [];
+  if (big.length) {      // ไม่ต้องอัปโหลดไฟล์ที่ใหญ่เกินกำหนด
+    toast(`${big[0].name} ขนาด ${(big[0].size / 1048576).toFixed(1)} MB เกินกำหนด (ไม่เกิน ${max} MB)`, "alert");
+    files = files.filter((f) => !big.includes(f));
+    if (!files.length) return;
+  }
+  const added = [];
+  for (const f of files) {
+    try { added.push((await uploadRaw(f)).item); }
+    catch (err) { toast(err.message, "alert"); }
+  }
+  addItems(added, zone ? zone.dataset.zone : undefined);
+});
+
+// ---------- theme ----------
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+$("themeBtn").onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  const dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", dark ? "light" : "dark"); } catch (_) {}
+};
+
+// ---------- อัปเดต (patch): เช็ก GitHub ตอนเปิดโปรแกรม — ไม่มีอินเทอร์เน็ตก็ใช้งานได้ตามปกติ ----------
+async function checkUpdate() {
+  try {
+    const u = await api("/api/update/check", {});
+    if (!u.available && u.error && !u.dev) {      // เช็กไม่ได้ — บอกให้รู้ แทนการเงียบ (เคยทำให้เครื่องที่ทำงานไม่รู้ว่ามีรุ่นใหม่)
+      $("updateTitle").textContent = "เช็กอัปเดตจาก GitHub ไม่ได้ — ถ้ามีรุ่นใหม่ ให้ใช้โฟลเดอร์ “อัปเดต version …” ที่ผู้ดูแลส่งให้";
+      $("updateNotes").innerHTML = `<li>${esc(u.error.slice(0, 160))}</li>`;
+      $("updateBtn").hidden = true;
+      $("updateBar").hidden = false;
+      fitToolPage();
+      return;
+    }
+    if (!u.available) return;
+    $("updateTitle").textContent = `มีอัปเดตใหม่: version ${u.latest_version} (ตอนนี้ใช้ ${u.version}) — กดอัปเดตแล้วโปรแกรมจะเปิดใหม่เอง`;
+    $("updateNotes").innerHTML = u.changes.slice(0, 3).flatMap((c) => (c.items && c.items.length ? c.items : [c.text]))
+      .slice(0, 8).map((t) => `<li>${esc(t)}</li>`).join("");
+    $("updateBar").hidden = false;
+    fitToolPage();
+  } catch (_) {}
+}
+$("updateBtn").onclick = async () => {
+  if (state.busy) return toast("รอให้แปลงไฟล์เสร็จก่อน", "info");
+  const b = $("updateBtn");
+  b.disabled = true;
+  b.lastChild.textContent = "กำลังอัปเดต…";
+  try {
+    const r = await api("/api/update/apply", {});
+    $("updateTitle").textContent = r.relaunch
+      ? `อัปเดตเป็น version ${r.version} แล้ว — กำลังเปิดโปรแกรมใหม่ ปิดหน้าต่างนี้ได้เลย`
+      : `อัปเดตเป็น version ${r.version} แล้ว — เปิดโปรแกรมใหม่เพื่อใช้รุ่นล่าสุด`;
+    $("updateNotes").innerHTML = r.pip_error ? `<li>ติดตั้งไลบรารีไม่สำเร็จ: ${esc(r.pip_error)} — รัน ติดตั้ง.bat</li>` : "";
+    b.hidden = true;
+    if (r.relaunch) setTimeout(() => window.close(), 4000);
+  } catch (e) {
+    b.disabled = false;
+    b.lastChild.textContent = "อัปเดตเลย";
+    toast("อัปเดตไม่สำเร็จ: " + e.message, "alert");
+  }
+};
+
+// ---------- start ----------
+(async () => {
+  try {
+    const init = await api("/api/init");
+    state.settings = init.settings;
+    state.doctypes = init.doctypes;
+    state.downloadsNew = init.downloads_new || {};
+    if (init.version) { $("appVer").textContent = "v. " + init.version; $("appVer").hidden = false; }
+    const errs = Object.entries(init.load_errors || {});
+    const libs = init.missing_libs || [];
+    $("loadErr").hidden = !errs.length && !libs.length;
+    $("loadErr").innerHTML = [
+      ...(libs.length ? [`${icon("alert", 14)}เครื่องนี้ยังไม่ได้ติดตั้งไลบรารี ${esc(libs.join(", "))} — อ่าน PDF และแนบตารางสอนไม่ได้ `
+        + `· แก้: เปิด “ติดตั้ง.bat” อีกครั้ง หรือรันคำสั่ง <code>"${esc(init.python)}" -m pip install --user ${esc(libs.join(" "))}</code> แล้วเปิดโปรแกรมใหม่`] : []),
+      ...errs.map(([k, v]) => `${icon("alert", 14)}โหลดประเภทเอกสาร “${esc(k)}” ไม่ได้: ${esc(v)}`),
+    ].join("<br>");
+    renderHub();
+    renderWorkspace();
+    render();
+    if (init.items.length) addItems(init.items);
+  } catch (e) {
+    render();
+    toast("เชื่อมต่อโปรแกรมไม่ได้: " + e.message, "alert");
+  }
+  setInterval(() => api("/api/ping", {}).catch(() => {}), 5000);
+  window.addEventListener("focus", refreshDownloads);
+  checkUpdate();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+# -*- coding: utf-8 -*-
+"""
+หนังสือจากคำสั่งสอบ: รูปแบบหน้ากระดาษ (Letter -> Word HTML)
+
+ใช้รูปแบบเดียวกับหนังสือของบัณฑิตวิทยาลัยในระบบนี้ (บฑ.31 / บฑกศ.39): TH Sarabun New 16pt, A4 ขอบ 2.54 ซม.,
+ภาษาไทยระยะบรรทัด exactly 18pt + กระจายแบบไทย, ภาษาอังกฤษระยะบรรทัด single,
+โลโก้กึ่งกลางคู่ที่อยู่ชิดขวา, ป้าย ที่/วันที่/เรื่อง/เรียน แท็บ 2 ซม., ลายมือชื่อที่แกน 75% (core.wordhtml.signature_block)
+ผู้ได้รับเชิญหลายคน = หลายฉบับในไฟล์เดียว ขึ้นหน้าใหม่ทุกฉบับ
+
+ยังไม่ได้วัดจากหนังสือที่เจ้าหน้าที่จัด — เมื่อได้ฉบับจริง ให้วัดด้วย tools/learn.py แล้วแก้ค่าในไฟล์นี้
+"""
+from core.text import NB
+from core.wordhtml import esc, font_css, lines_html, signature_block, wrap_document
+
+from .letter import Letter
+
+FONT = font_css("TH Sarabun New", 16)
+LH = {"th": "line-height:18.0pt;mso-line-height-rule:exactly;", "en": ""}
+TAB = "tab-stops:2.0cm;"
+TAB_SPAN = "<span style='mso-tab-count:1'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>"
+JUSTIFY = {"th": "text-align:justify;text-justify:inter-cluster;", "en": "text-align:justify;"}
+LOGO = (95, 93)
+SIGN_CENTER = 0.75
+LABELS = {"th": ("วันที่", "เรื่อง", "เรียน"), "en": ("", "Subject", "Dear")}
+
+
+def para(content: str, lang: str, style: str = "", align: str = "") -> str:
+    attr = f" align={align}" if align else ""
+    if align:
+        style = f"text-align:{align};" + style
+    lang_attr = " lang=TH" if lang == "th" else ""
+    return (f"<p class=MsoNormal{attr} style='{style}{LH[lang]}{TAB}'><span{lang_attr} style='{FONT}'>"
+            f"{content}<o:p></o:p></span></p>\n\n")
+
+
+def blank(lang: str, n: int = 1) -> list:
+    return [para("&nbsp;", lang) for _ in range(n)]
+
+
+def labeled(label: str, value: str, lang: str) -> str:
+    return para(esc(label) + TAB_SPAN + value, lang, style="margin-left:2.0cm;text-indent:-2.0cm;")
+
+
+def page_break() -> str:
+    return ("<p class=MsoNormal style='page-break-before:always;line-height:1.0pt;mso-line-height-rule:exactly'>"
+            "<span style='font-size:1.0pt'>&nbsp;</span></p>\n\n")
+
+
+def head_block(L: Letter, logo_src: str) -> str:
+    cell = "valign=top style='padding:0cm 0cm 0cm 0cm'"
+    w, h = LOGO
+    return ("<table class=MsoNormalTable border=0 cellspacing=0 cellpadding=0 width=\"100%\" "
+            "style='width:100.0%;border-collapse:collapse;mso-padding-alt:0cm 0cm 0cm 0cm'>\n<tr>\n"
+            f"<td width=\"25%\" {cell}>{para('&nbsp;', L.lang)}</td>\n"
+            f"<td width=\"30%\" {cell}>{para(f'<img width={w} height={h} src=\"{logo_src}\">', L.lang, align='center')}</td>\n"
+            f"<td width=\"45%\" {cell}>{para(lines_html(L.address), L.lang, align='right')}</td>\n"
+            "</tr>\n</table>\n\n")
+
+
+def letter_html(L: Letter, logo_src: str) -> list:
+    lg = L.lang
+    date_label, subj_label, to_label = LABELS[lg]
+    out = [head_block(L, logo_src)]
+    out += blank(lg)
+    out.append(para(esc(L.ref), lg))
+    if lg == "th":
+        out.append(para(date_label + TAB_SPAN + esc(L.date.replace(NB, " ")).replace("  ", "&nbsp;&nbsp;"), lg))
+        out.append(labeled(subj_label, esc(L.subject), lg))
+        out += blank(lg)
+        out.append(labeled(to_label, esc(L.to), lg))
+    else:
+        out.append(para(esc(L.date).replace(NB, "&nbsp;"), lg))
+        out += blank(lg)
+        out.append(para(f"<b>{esc(subj_label)}:</b> {esc(L.subject)}", lg))
+        out += blank(lg)
+        out.append(para(f"{esc(to_label)} {esc(L.to)},", lg))
+    for p in L.body:
+        out += blank(lg)
+        out.append(para(esc(p), lg, style=("text-indent:2.0cm;" if lg == "th" else "") + JUSTIFY[lg]))
+    if L.closing:
+        out += blank(lg)
+        out.append(para(esc(L.closing), lg, style="text-indent:2.0cm;" if lg == "th" else ""))
+    out += blank(lg)
+    lines = [L.sign_off, "", "", ""] + L.signature
+    out.append(signature_block(lines, "TH Sarabun New", thai=lg == "th", center=SIGN_CENTER, extra_style=LH[lg] + TAB))
+    if L.cc:
+        out += blank(lg)
+        out += [para(esc(x), lg) for x in L.cc]
+    return out
+
+
+def build_html(letters: list, logo_src: str) -> str:
+    out = []
+    for n, L in enumerate(letters):
+        if n:
+            out.append(page_break())
+        out += letter_html(L, logo_src)
+    return wrap_document(out)

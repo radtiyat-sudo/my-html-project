@@ -1,0 +1,12 @@
+{
+  "th": [
+    "(รองศาสตราจารย์ ดร. กภ.วรินทร์ กฤตยาเกียรณ)",
+    "รองคณบดีฝ่ายแผนและพัฒนาคุณภาพ",
+    "ปฏิบัติหน้าที่แทนคณบดีบัณฑิตวิทยาลัย"
+  ],
+  "en": [
+    "(Associate Professor Dr. Warin Krityakiarana)",
+    "Deputy Dean for Planning and Quality Assurance",
+    "Acting as Dean of the Faculty of Graduate Studies, Mahidol University"
+  ]
+}

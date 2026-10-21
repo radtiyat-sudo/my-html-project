@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+"""ทดสอบประเภทเอกสารที่มีหน้าจอของตัวเอง (page) — แยก / รวม PDF (ไม่ใช้อินเทอร์เน็ต)
+python -m unittest discover -s tests"""
+import base64
+import hashlib
+import re
+import sys
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+import app  # noqa: E402
+from core import registry  # noqa: E402
+
+WEB = ROOT / "doctypes" / "pdftools" / "web"
+VENDOR = ROOT / "web" / "vendor"
+
+
+class PdfToolsDocType(unittest.TestCase):
+    def test_registered_with_page(self):
+        d = registry.get("pdftools")
+        self.assertEqual(d.manifest()["page"], "index.html")
+        self.assertEqual(d.accept_exts(), set())          # hub ไม่รับไฟล์แทน — วางในกรอบของเครื่องมือ
+        self.assertNotIn("pdftools", registry.errors)
+
+    def test_word_doctypes_have_no_page(self):
+        """ประเภทที่สร้างหนังสือผ่าน Word ใช้หน้าจอช่องวางไฟล์ของ hub — ไม่มี page"""
+        for dt_id in ("bt31", "bgks39", "examletters"):
+            self.assertEqual(registry.get(dt_id).manifest()["page"], "")
+        for d in registry.all_doctypes():
+            if d.manifest()["page"]:
+                self.assertTrue((ROOT / "doctypes" / d.id / "web" / d.page).is_file(), d.id)
+
+    def test_offline_no_internet_references(self):
+        """ทำงานในเครื่องทั้งหมด: หน้าเครื่องมือห้ามโหลดสคริปต์/ฟอนต์/สไตล์จากอินเทอร์เน็ต"""
+        html = (WEB / "index.html").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"""(src|href)\s*=\s*["']https?://""", html))
+        self.assertIsNone(re.search(r"""(fetch|import)\s*\(\s*["']https?://""", html))
+        self.assertNotIn("googleapis", html)
+        self.assertIn("isEvalSupported: false", html)     # CVE-2024-4367
+
+    def test_libs_match_versions_file(self):
+        listed = dict(re.findall(r"^(\S+\.js)\s+\S+\s+sha384-(\S+)$", (VENDOR / "VERSIONS.txt").read_text(encoding="utf-8"), re.M))
+        self.assertEqual(set(listed), {"pdf.min.js", "pdf.worker.min.js", "pdf-lib.min.js", "jszip.min.js"})
+        for name, digest in listed.items():
+            actual = base64.b64encode(hashlib.sha384((VENDOR / name).read_bytes()).digest()).decode()
+            self.assertEqual(actual, digest, name)
+
+
+class ToolRoute(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def get(self, path, token=True):
+        url = self.base + path + (("&" if "?" in path else "?") + "token=" + app.TOKEN if token else "")
+        try:
+            with urllib.request.urlopen(url) as r:
+                return r.status, dict(r.headers), r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, dict(e.headers), e.read()
+
+    def test_needs_token(self):
+        self.assertEqual(self.get("/tool/pdftools/", token=False)[0], 403)
+
+    def test_page_served_with_token_and_csp(self):
+        code, headers, body = self.get("/tool/pdftools/")
+        self.assertEqual(code, 200)
+        self.assertIn(app.TOKEN.encode(), body)
+        self.assertNotIn(b"{{TOKEN}}", body)
+        csp = headers["Content-Security-Policy"]
+        self.assertIn("connect-src 'self'", csp)          # ส่งข้อมูลออกนอกเครื่องไม่ได้
+        self.assertIn("default-src 'none'", csp)
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+
+    def test_lib_served(self):
+        code, headers, body = self.get("/vendor/pdf-lib.min.js")
+        self.assertEqual(code, 200)
+        self.assertTrue(headers["Content-Type"].startswith("text/javascript"))
+        self.assertEqual(body, (VENDOR / "pdf-lib.min.js").read_bytes())
+
+    def test_cannot_leave_web_folder(self):
+        for p in ("/tool/pdftools/../../app.py", "/tool/pdftools/../__init__.py",
+                  "/tool/pdftools/%2e%2e/%2e%2e/app.py", "/vendor/VERSIONS.txt", "/vendor/../index.html", "/vendor/../../app.py"):
+            self.assertEqual(self.get(p)[0], 404, p)
+
+    def test_doctype_without_page(self):
+        self.assertEqual(self.get("/tool/bt31/")[0], 404)
+        self.assertEqual(self.get("/tool/nope/")[0], 404)
+
+
+if __name__ == "__main__":
+    unittest.main()

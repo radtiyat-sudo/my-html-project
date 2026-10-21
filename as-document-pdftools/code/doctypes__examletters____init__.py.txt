@@ -1,0 +1,129 @@
+# -*- coding: utf-8 -*-
+"""
+ประเภทเอกสาร: หนังสือจากคำสั่งสอบ — หนังสือเชิญ (ถึงผู้ได้รับเชิญ) และหนังสือขออนุมัติ (ถึงผู้บังคับบัญชา สำเนาถึงผู้ได้รับเชิญ)
+ย้ายมาจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script ให้ทำงานแบบเดียวกับ บฑ.31:
+อ่านคำสั่ง -> ช่องตรวจ/แก้ข้อมูลในแถวของไฟล์ -> Word HTML -> Word -> .docx / PDF
+
+    forms.py    แบบฟอร์ม บฑ.1 / บฑ.2 / บฑ.27 / บฑ.35 / บฑ.39 และการระบุแบบฟอร์มจากหัวเรื่องคำสั่ง
+    source.py   อ่านคำสั่ง (PDF มีชั้นข้อความ / .docx) — "ระบบไม่เดา": ไม่พบ = ช่องว่าง
+    fields.py   ช่องตรวจ/แก้ข้อมูลในหน้าจอ
+    letter.py   ถ้อยคำหนังสือไทย/อังกฤษ (ร่าง — ดูหัวไฟล์) + ชื่อไฟล์
+    layout.py   รูปแบบหน้ากระดาษ
+    data/signers.json  ผู้ลงนาม {"th": [...], "en": [...]}
+
+แท็บ = แบบฟอร์ม (ผู้ใช้เลือกได้ ระบบแนะนำแท็บจากหัวเรื่องคำสั่ง) · ภาษาและการสร้างหนังสือขออนุมัติเป็นตัวเลือกในแผงขวา
+บฑกศ.39 อยู่ในประเภทเอกสาร bgks39 แล้ว จึงไม่มีในประเภทนี้
+"""
+from pathlib import Path
+
+from core import render
+from core.doctype import DocType
+
+from . import layout, source
+from .fields import APPROVE, field_defs, initial_values
+from .forms import FORMS, SHORT
+from .letter import KINDS, make_letters, notes_for, output_stem
+
+ACCEPT = [".pdf", ".docx"]
+LANG_EN = "lang_en"
+ICONS = {"bt39": "form", "bt2": "cert", "bt27": "book", "bt35": "check", "bt1": "users"}
+COLORS = {"bt39": "blue", "bt2": "violet", "bt27": "amber", "bt35": "rose", "bt1": "green"}
+
+
+def slot(fid: str) -> dict:
+    f = FORMS[fid]
+    return {"id": fid, "mode": fid, "num": 1, "title": f"คำสั่ง {f['name'].split(' — ')[1]}",
+            "desc": f"{f['code']} — หนังสือเชิญ" + (" + หนังสือขออนุมัติ (ถ้าเปิดตัวเลือก)"),
+            "icon": ICONS[fid], "color": COLORS[fid], "accept": ACCEPT, "pick": "order", "pick_label": "เลือกไฟล์",
+            "zone_title": "ลากไฟล์คำสั่งมาวางที่นี่",
+            "zone_desc": "คำสั่ง PDF / Word (.docx) · ไฟล์สแกนที่ไม่มีชั้นข้อความต้องกรอกข้อมูลเอง"}
+
+
+class ExamLetters(DocType):
+    id = "examletters"
+    name = "หนังสือจากคำสั่งสอบ"
+    description = "หนังสือเชิญ / หนังสือขออนุมัติจากคำสั่งสอบ บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39 (ไทย / English) → Word หรือ PDF"
+    icon = "cert"
+    color = "violet"
+    order = 30
+    max_mb = 30
+    options = {"mode": "bt39", LANG_EN: False, APPROVE: False}
+    pickers = {"order": {"title": "เลือกไฟล์คำสั่งสอบ", "filters": [("คำสั่ง (PDF / Word)", "*.pdf *.docx"), ("ทุกไฟล์", "*.*")]}}
+    drop_hint = "รองรับคำสั่งสอบเป็นไฟล์ PDF หรือ Word (.docx)"
+    ui = {
+        "modes": [{"id": fid, "label": f"{FORMS[fid]['code']} {SHORT[fid]}",
+                   "icon": ICONS[fid], "color": COLORS[fid],
+                   "summary": [{"slot": fid}, {"option": APPROVE, "label": "หนังสือขออนุมัติ", "icon": "approve",
+                                               "color": "violet", "on": "สร้างด้วย", "off": "ไม่สร้าง"},
+                               {"option": LANG_EN, "label": "ภาษาของหนังสือ", "icon": "word", "color": "blue",
+                                "on": "English", "off": "ไทย"}]}
+                  for fid in sorted(FORMS, key=lambda x: FORMS[x]["order"])],
+        "slots": [slot(fid) for fid in sorted(FORMS, key=lambda x: FORMS[x]["order"])],
+        "checks": [
+            {"option": APPROVE, "label": "สร้างหนังสือขออนุมัติด้วย",
+             "desc": "ถึงผู้บังคับบัญชาของผู้ได้รับเชิญ สำเนาถึงผู้ได้รับเชิญ · หนังสือเชิญจะมี “ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว”"},
+            {"option": LANG_EN, "label": "หนังสือภาษาอังกฤษ (English)",
+             "desc": "ชื่อไฟล์ใช้ GR.xx · กรอกข้อมูลในช่องเป็นภาษาอังกฤษ"},
+        ],
+    }
+
+    def inspect(self, path: Path) -> dict:
+        path = Path(path)
+        if path.name.startswith(tuple(k[0] + " บฑ." for k in KINDS.values()) + tuple(k[0] + " GR." for k in KINDS.values())):
+            return {"ok": False, "reason": "เป็นไฟล์หนังสือที่สร้างแล้ว"}
+        try:
+            d = source.read(path)
+        except ImportError:
+            return {"ok": False, "reason": "อ่าน PDF ไม่ได้ — เครื่องนี้ยังไม่ได้ติดตั้งไลบรารี pymupdf (เปิด ติดตั้ง.bat อีกครั้ง)"}
+        except Exception as e:
+            return {"ok": False, "reason": f"อ่านไฟล์ไม่ได้ ({e})"}
+        form = d["form"] or "bt39"
+        values = initial_values(d)
+        found = sum(1 for k in ("student_name", "student_id", "program", "title", "exam_date") if d.get(k))
+        out = {"ok": True, "kind": "คำสั่ง " + (FORMS[d["form"]]["code"] if d["form"] else "(ระบุแบบฟอร์มไม่ได้ — เลือกแท็บเอง)"),
+               "subtitle": d["subject"] or "ไม่พบหัวเรื่องคำสั่ง",
+               "subtitle2": (f"อ่านได้ {found} จาก 5 ช่องหลัก · ผู้ได้รับเชิญ {sum(1 for k in values if k.endswith('_name') and k.startswith('inv'))} คน"
+                             if found else "ไม่พบข้อความในไฟล์ (อาจเป็นไฟล์สแกน) — กรอกข้อมูลเอง"),
+               "fields_title": "ตรวจสอบ / แก้ไขข้อมูล — ช่องที่ระบบอ่านได้เติมไว้ให้ตรวจ · ช่องว่างจะเป็นจุดไข่ปลาในหนังสือ (ระบบไม่เดา)",
+               "fields_status": "ตรวจข้อมูล",
+               "fields": field_defs(form, values),
+               "outputs_preview": [{"name": output_stem(form, "invite", "th", values["student_name"], path.stem)},
+                                   {"name": output_stem(form, "approve", "th", values["student_name"], path.stem),
+                                    "requires": APPROVE}]}
+        if d["form"]:
+            out["slot"] = d["form"]
+        return out
+
+    def convert(self, jobs: list, options: dict, pdf, extra: dict, log=lambda m: None) -> dict:
+        form = options.get("mode") if options.get("mode") in FORMS else "bt39"
+        lang = "en" if options.get(LANG_EN) else "th"
+        want = bool(options.get(APPROVE))
+        fmt = "both" if pdf == "both" else "pdf" if pdf else "docx"
+        kinds = ["invite", "approve"] if want else ["invite"]
+        entries, owners = [], []
+        for j in jobs:
+            values = dict(extra.get(j.id) or {})
+            if not values:                       # ไม่มีช่องกรอก (เช่น เรียกจากบรรทัดคำสั่ง) -> ค่าที่อ่านได้
+                values = initial_values(source.read(j.path))
+            notes = notes_for(form, lang, values, want)
+            for kind in kinds:
+                letters = make_letters(form, kind, lang, values, inform=want)
+                entries.append(dict(src=j.path, outdir=j.outdir, notes=list(notes) if kind == "invite" else [],
+                                    stem=output_stem(form, kind, lang, values.get("student_name", ""), Path(j.path).stem),
+                                    kind=KINDS[kind][0 if lang == "th" else 1],
+                                    build=lambda logo, ls=letters: layout.build_html(ls, logo)))
+                owners.append(j.id)
+        out = {j.id: {"ok": False, "error": "", "notes": [], "outputs": []} for j in jobs}
+        for jid, r in zip(owners, render.render(entries, fmt=fmt, log=log)):
+            o = out[jid]
+            o["notes"] += r["notes"]
+            if r["docx"] or r["pdf"] or r["doc"]:
+                o["outputs"].append({"kind": r["kind"], "label": r["kind"], "docx": r["docx"], "pdf": r["pdf"], "doc": r["doc"]})
+            elif r["error"]:
+                o["error"] = r["error"]
+        for o in out.values():
+            o["ok"] = bool(o["outputs"]) and not o["error"]
+        return out
+
+
+DOCTYPE = ExamLetters()

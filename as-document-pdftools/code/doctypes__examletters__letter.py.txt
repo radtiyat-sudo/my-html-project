@@ -1,0 +1,166 @@
+# -*- coding: utf-8 -*-
+"""
+หนังสือจากคำสั่งสอบ: แบบจำลองหนังสือ + ถ้อยคำ (ไทย/อังกฤษ) + ชื่อไฟล์
+
+⚠ ถ้อยคำในไฟล์นี้เป็น "ร่าง" ตามโครงหนังสือราชการของบัณฑิตวิทยาลัย (แบบเดียวกับ บฑ.31 / บฑกศ.39)
+  ยังไม่ได้เทียบกับแม่แบบที่เว็บ Apps Script ใช้ (เช่น "หนังสือเชิญ GR39 TH") — ทุกไฟล์ที่สร้างจึงมีหมายเหตุเตือน
+  เมื่อได้แม่แบบ/หนังสือที่เจ้าหน้าที่จัดแล้ว: แก้ข้อความใน TEXT ให้ตรงทุกตัวอักษร แล้วใส่ (แบบฟอร์ม, ภาษา) ใน VERIFIED
+
+ช่องที่ผู้ใช้เว้นว่าง = จุดไข่ปลา (BLANK) ให้เขียนเองในหนังสือ — ระบบไม่เดาข้อมูลแทน
+"""
+import datetime as dt
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from core.store import JsonFile
+from core.text import NB, THAI, clean, safe_stem
+
+from .forms import FORMS, WORKS, fill
+
+DATA = Path(__file__).resolve().parent / "data"
+SIGNERS = JsonFile(DATA / "signers.json")
+BLANK = "…………………………………"
+VERIFIED = set()          # {("bt39", "th"), ...} แบบที่ถ้อยคำตรงกับแม่แบบแล้ว (ไม่ต้องมีหมายเหตุ "ร่าง")
+DRAFT_NOTE = "ถ้อยคำหนังสือเป็นร่าง ยังไม่ได้เทียบกับแม่แบบของบัณฑิตวิทยาลัย — ตรวจก่อนใช้ (doctypes/examletters/letter.py)"
+
+MONTHS_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
+MONTHS_EN = ["January", "February", "March", "April", "May", "June",
+             "July", "August", "September", "October", "November", "December"]
+ADDRESS = {
+    "th": ["บัณฑิตวิทยาลัย งานบริการการศึกษา", "25/25 ถ.พุทธมณฑลสาย 4 ต.ศาลายา", "อ.พุทธมณฑล จ.นครปฐม 73170"],
+    "en": ["Faculty of Graduate Studies", "Mahidol University", "25/25 Phutthamonthon Sai 4 Road",
+           "Salaya, Nakhon Pathom 73170, Thailand"],
+}
+DEFAULT_SIGNERS = {"th": ["(ชื่อผู้ลงนาม)", "ตำแหน่ง", "ปฏิบัติหน้าที่แทนคณบดีบัณฑิตวิทยาลัย"],
+                   "en": ["(Signer's name)", "Position", "Acting as Dean of the Faculty of Graduate Studies, Mahidol University"]}
+KINDS = {"invite": ("หนังสือเชิญ", "Invitation"), "approve": ("หนังสือขออนุมัติ", "Approval Request")}
+
+
+@dataclass
+class Letter:
+    kind: str                         # invite | approve
+    lang: str                         # th | en
+    address: list
+    ref: str
+    date: str
+    subject: str
+    to: str
+    body: list = field(default_factory=list)
+    closing: str = ""
+    sign_off: str = ""
+    signature: list = field(default_factory=list)
+    cc: list = field(default_factory=list)
+
+
+def v(values: dict, key: str) -> str:
+    """ค่าที่ผู้ใช้ตรวจแล้ว — ว่าง = จุดไข่ปลา"""
+    return clean(values.get(key) or "") or BLANK
+
+
+def load_signers() -> dict:
+    s = SIGNERS.load({})
+    return {k: s.get(k) or DEFAULT_SIGNERS[k] for k in ("th", "en")}
+
+
+def invitees(values: dict) -> list:
+    """ดัชนีผู้ได้รับเชิญที่มีในช่องกรอก (inv1_, inv2_, ...)"""
+    return sorted({int(m[1]) for k in values for m in [re.match(r"inv(\d+)_", k)] if m})
+
+
+def text_th(form: str, kind: str, values: dict, i: int, inform: bool) -> dict:
+    f, work = FORMS[form], clean(values.get("work") or "")
+    task = fill(f["task_th"], work or BLANK)
+    who, org = v(values, f"inv{i}_name"), v(values, f"inv{i}_org")
+    role = clean(values.get(f"inv{i}_role") or "") or task
+    order = f" ตามคำสั่งบัณฑิตวิทยาลัย ที่ {v(values, 'order_no')}" if form != "bt1" or values.get("order_no") else ""
+    student = (f"{v(values, 'student_name')} รหัสประจำตัวนักศึกษา {v(values, 'student_id')} "
+               f"{v(values, 'program')}")
+    if f["exam"]:
+        event = (f"ด้วย {student} จะ{fill(f['event_th'], work or BLANK)}"
+                 + (f" เรื่อง “{v(values, 'title')}”" if form in ("bt39", "bt2") else "")
+                 + f" ในวันที่ {v(values, 'exam_date')} เวลา {v(values, 'exam_time')} น. ณ {v(values, 'exam_place')}")
+    else:
+        event = (f"ด้วย {student} ได้เสนอหัวข้อ{work or BLANK} เรื่อง “{v(values, 'title')}” "
+                 f"และขอแต่งตั้งอาจารย์ที่ปรึกษา{work or BLANK}")
+    if kind == "invite":
+        body = [event,
+                f"บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล พิจารณาแล้วเห็นว่าท่านเป็นผู้มีความรู้ ความสามารถ และประสบการณ์ "
+                f"จึงขอเรียนเชิญท่านเป็น{role}{order}"
+                + (" ทั้งนี้ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว" if inform else "")]
+        return dict(subject=f"ขอเรียนเชิญเป็น{task}", to=who, body=body,
+                    closing="จึงเรียนมาเพื่อโปรดพิจารณา และขอขอบพระคุณมา ณ โอกาสนี้", cc=[])
+    body = [event,
+            f"บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล จึงขออนุมัติให้ {who} {org} ซึ่งเป็นบุคลากรในสังกัดของท่าน "
+            f"เป็น{role}{order}"]
+    return dict(subject=f"ขออนุมัติให้บุคลากรในสังกัดเป็น{task}", to=v(values, f"inv{i}_boss"), body=body,
+                closing="จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ และขอขอบพระคุณมา ณ โอกาสนี้", cc=[f"สำเนาเรียน {who}"])
+
+
+def text_en(form: str, kind: str, values: dict, i: int, inform: bool) -> dict:
+    f, work = FORMS[form], clean(values.get("work") or "")
+    task = fill(f["task_en"], work) if work or "{work" not in f["task_en"] else f["task_en"].replace("{work_en}", BLANK)
+    who, org = v(values, f"inv{i}_name"), v(values, f"inv{i}_org")
+    role = clean(values.get(f"inv{i}_role") or "") or task
+    order = f" according to the Faculty of Graduate Studies Order No. {v(values, 'order_no')}" \
+        if form != "bt1" or values.get("order_no") else ""
+    student = (f"{v(values, 'student_name')}, Student ID {v(values, 'student_id')}, {v(values, 'program')}")
+    if f["exam"]:
+        event = (f"{student}, will take the {fill(f['event_en'], work) if work or '{work' not in f['event_en'] else BLANK}"
+                 + (f" entitled “{v(values, 'title')}”" if form in ("bt39", "bt2") else "")
+                 + f" on {v(values, 'exam_date')}, {v(values, 'exam_time')}, at {v(values, 'exam_place')}.")
+    else:
+        event = f"{student}, has proposed the {WORKS.get(work, BLANK)} entitled “{v(values, 'title')}”."
+    if kind == "invite":
+        body = [event,
+                f"In recognition of your expertise and experience, the Faculty of Graduate Studies, Mahidol University "
+                f"would like to invite you to serve as {role}{order}."
+                + (" Your supervisor has been informed." if inform else "")]
+        return dict(subject=f"Invitation to serve as {task}", to=who, body=body,
+                    closing="Thank you very much for your kind consideration.", cc=[])
+    body = [event,
+            f"The Faculty of Graduate Studies would like to request your approval for {who}, {org}, "
+            f"a member of your staff, to serve as {role}{order}."]
+    return dict(subject=f"Approval Request: Staff to serve as {task}", to=v(values, f"inv{i}_boss"), body=body,
+                closing="Thank you very much for your kind consideration.", cc=[f"cc: {who}"])
+
+
+def make_letters(form: str, kind: str, lang: str, values: dict, inform: bool, today=None) -> list:
+    today = today or dt.date.today()
+    signers = load_signers()[lang]
+    out = []
+    for i in invitees(values) or [1]:
+        t = (text_th if lang == "th" else text_en)(form, kind, values, i, inform)
+        if lang == "th":
+            out.append(Letter(kind=kind, lang="th", address=list(ADDRESS["th"]), ref="ที่ อว 78.02 /",
+                              date=f"{NB * 4} {MONTHS_TH[today.month - 1]} {today.year + 543}", subject=t["subject"],
+                              to=t["to"], body=t["body"], closing=t["closing"], sign_off="ขอแสดงความนับถือ",
+                              signature=list(signers), cc=t["cc"]))
+        else:
+            out.append(Letter(kind=kind, lang="en", address=list(ADDRESS["en"]), ref="Ref.No.78.02 /",
+                              date=f"{MONTHS_EN[today.month - 1]}{NB * 5}, {today.year}", subject=t["subject"],
+                              to=t["to"], body=t["body"], closing=t["closing"], sign_off="Sincerely yours,",
+                              signature=list(signers), cc=t["cc"]))
+    return out
+
+
+def notes_for(form: str, lang: str, values: dict, want_approve: bool) -> list:
+    """หมายเหตุหลังสร้าง: ร่างถ้อยคำ, ช่องที่ยังว่าง, ภาษาไทยในหนังสือภาษาอังกฤษ"""
+    notes = [] if (form, lang) in VERIFIED else [DRAFT_NOTE]
+    from .fields import field_defs    # หลีกเลี่ยง import วน
+    empty = [f["label"] for f in field_defs(form, values)
+             if not clean(values.get(f["key"]) or "") and (want_approve or not f["key"].endswith("_boss"))]
+    if empty:
+        notes.append("ช่องที่เว้นว่าง (เป็นจุดไข่ปลาในหนังสือ): " + ", ".join(empty))
+    if lang == "en":
+        thai = [k for k, x in values.items() if THAI.search(x or "")]
+        if thai:
+            notes.append("หนังสือภาษาอังกฤษยังมีข้อความภาษาไทยในช่อง: " + ", ".join(sorted(thai)))
+    return notes
+
+
+def output_stem(form: str, kind: str, lang: str, student_name: str, fallback: str) -> str:
+    code = FORMS[form]["code" if lang == "th" else "code_en"]
+    name = clean(student_name) or fallback
+    return safe_stem(f"{KINDS[kind][0]} {code} {name}")

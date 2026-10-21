@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>แยก / รวม PDF</title>
+<!-- เครื่องมือของประเภทเอกสาร pdftools — hub เปิดหน้านี้ในกรอบ (iframe) ที่ /tool/pdftools/
+     ทำงานในเครื่องทั้งหมด: ไลบรารีอยู่ใน web/vendor/ ของโปรแกรม (ใช้ร่วมกันทุกเครื่องมือ) ไม่โหลดอะไรจากอินเทอร์เน็ต ไม่ส่งไฟล์ไปที่ใด
+     (app.py ส่ง Content-Security-Policy ที่ห้ามหน้านี้ติดต่อที่อื่นนอกจากโปรแกรมในเครื่อง) -->
+<script>
+// ใช้โหมดสว่าง/มืดตามหน้าโปรแกรมหลัก (ปุ่มพระจันทร์)
+(function () {
+  function sync() {
+    var t = '';
+    try { t = parent.document.documentElement.dataset.theme || ''; } catch (e) {}
+    if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  }
+  sync();
+  try { new MutationObserver(sync).observe(parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="/vendor/tool.css?token={{TOKEN}}">
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <nav class="tool-tabs" aria-label="เลือกเครื่องมือ">
+      <button type="button" id="tabSplit" aria-pressed="true" aria-controls="splitPanel">แยกเอกสารรายคน</button>
+      <button type="button" id="tabMerge" aria-pressed="false" aria-controls="mergePanel">รวมไฟล์ PDF</button>
+    </nav>
+    <ol class="steps" aria-label="ขั้นตอน">
+      <li id="st1" aria-current="step"><b>1</b>เลือกไฟล์</li>
+      <li id="st2"><b>2</b>ตรวจสอบ</li>
+      <li id="st3"><b>3</b>ดาวน์โหลด</li>
+    </ol>
+  </div>
+  <p class="privacy"><span aria-hidden="true">🔒</span> ประมวลผลในเครื่องนี้ทั้งหมด — ไม่อัปโหลดไฟล์ ไม่ต้องใช้บัญชีออนไลน์ ไม่ต้องใช้อินเทอร์เน็ต</p>
+  <div id="splitPanel">
+
+  <!-- ขั้นที่ 1 -->
+  <section class="card" aria-labelledby="h-setup">
+    <fieldset id="setup">
+      <h2 id="h-setup">1. เลือกวิธีแยกและไฟล์ PDF</h2>
+      <div class="modes" role="radiogroup" aria-label="วิธีแยกไฟล์">
+        <label class="mode"><input type="radio" name="mode" value="id" checked>
+          <b>แยกตามรหัสนักศึกษา</b>
+          <span>หน้าที่มีรหัสเดียวกันรวมเป็นไฟล์เดียว เหมาะกับคนที่มีหลายหน้า</span></label>
+        <label class="mode"><input type="radio" name="mode" value="page">
+          <b>หน้าละ 1 ไฟล์</b>
+          <span>ทุกหน้าแยกเป็นไฟล์ของตัวเอง เหมาะกับไฟล์สแกนที่ต้องกรอกรหัสเอง</span></label>
+      </div>
+      <label class="check" id="autojoinWrap"><input type="checkbox" id="autojoin">
+        <span>หน้าที่ไม่พบรหัส ให้นับเป็น <b>หน้าต่อของคนก่อนหน้า</b> (ระบบจะทำเครื่องหมายให้ตรวจ)</span></label>
+
+      <div class="drop" id="drop">
+        <div class="icon" aria-hidden="true">📄</div>
+        <p><b>ลากไฟล์ PDF มาวางที่นี่</b> หรือ</p>
+        <button type="button" class="btn primary" id="pick">เลือกไฟล์ PDF รวม</button>
+        <small>PDF ไม่เกิน 30 MB / 300 หน้า • ระบบจะวิเคราะห์ให้ทันทีหลังเลือกไฟล์</small>
+        <input type="file" id="file" class="sr-only" accept="application/pdf,.pdf" tabindex="-1" aria-hidden="true">
+      </div>
+
+      <div class="file-chip" id="fileChip" hidden>
+        <span aria-hidden="true" style="font-size:24px">📄</span>
+        <div class="grow"><div class="name" id="fileName"></div><div class="meta" id="fileMeta"></div></div>
+        <button type="button" class="btn ghost sm" id="reanalyze">วิเคราะห์ใหม่</button>
+        <button type="button" class="btn ghost sm" id="change">เปลี่ยนไฟล์</button>
+        <button type="button" class="btn ghost sm" id="clear">↻ ล้างไฟล์ / เริ่มใหม่</button>
+      </div>
+    </fieldset>
+    <div id="status" class="status" role="status" aria-live="polite">กำลังโหลดเครื่องมือ…</div>
+    <progress id="progress" hidden aria-label="ความคืบหน้า"></progress>
+  </section>
+
+  <!-- ขั้นที่ 2 -->
+  <section class="card" id="reviewCard" hidden aria-labelledby="h-review">
+    <fieldset id="review">
+      <div class="card-head">
+        <h2 id="h-review">2. ตรวจสอบชื่อไฟล์และเลขหน้า</h2>
+        <div class="chips" id="summary" aria-live="polite"></div>
+      </div>
+      <p class="hint">แก้ไขในตารางได้ทันที • เลขหน้าพิมพ์แบบ <code>1-2,5</code> • ทุกหน้าต้องอยู่ในรายการเดียวเท่านั้น • ชื่อไฟล์ห้ามซ้ำ • กด Enter เพื่อไปแถวถัดไป</p>
+
+      <div class="pagemap-box">
+        <div class="pm-head">
+          <span>แผนผังหน้า — คลิกเพื่อดูหน้านั้น</span>
+          <span class="legend"><span><i class="ok"></i>เรียบร้อย</span><span><i class="review"></i>ควรตรวจ</span><span><i class="missing"></i>ยังไม่มีเจ้าของ</span><span><i class="dup"></i>ซ้ำหลายแถว</span></span>
+        </div>
+        <div class="pagemap" id="pagemap"></div>
+      </div>
+
+      <div class="toolbar">
+        <label class="check"><input type="checkbox" id="onlyIssues"><span>แสดงเฉพาะรายการที่ต้องแก้ / ควรตรวจ</span></label>
+        <button type="button" class="btn ghost sm" id="add">＋ เพิ่มรายการ</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>ชื่อไฟล์ (ไม่ต้องใส่ .pdf)</th><th>หน้า</th><th>สถานะ</th><th><span class="sr-only">จัดการ</span></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="emptyRows" hidden>ไม่มีรายการที่ต้องแก้ 🎉</div>
+      </div>
+
+      <div class="export-bar">
+        <div class="msg" id="exportHint" aria-live="polite"></div>
+        <button type="button" class="btn primary lg" id="export" aria-describedby="exportHint">สร้าง ZIP รายคน</button>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- ขั้นที่ 3 -->
+  <section class="card done" id="doneCard" hidden aria-labelledby="h-done" tabindex="-1">
+    <h2 id="h-done">✅ 3. สร้างไฟล์เรียบร้อย</h2>
+    <p id="doneText"></p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="restart">แยกไฟล์ใหม่</button>
+    </div>
+    <p class="foot">ไฟล์ถูกบันทึกลงโฟลเดอร์ดาวน์โหลดของเครื่องแล้ว • ใน ZIP มี <b>รายการไฟล์.csv</b> สำหรับตรวจทานหรือส่งต่อ • ไม่พบไฟล์? <a class="btn link" id="download" target="_self">ดาวน์โหลดอีกครั้ง</a></p>
+  </section>
+
+  </div>
+  <section class="card" id="mergePanel" hidden aria-labelledby="h-merge">
+    <fieldset id="mergeSetup">
+      <h2 id="h-merge">รวมไฟล์ PDF เป็นไฟล์เดียว</h2>
+      <p class="hint">เลือกหลายไฟล์พร้อมกัน หรือเพิ่มทีละชุด จัดลำดับไฟล์ แล้วดาวน์โหลด PDF รวมได้ทันที</p>
+      <div class="drop" id="mergeDrop">
+        <div class="icon" aria-hidden="true">📚</div>
+        <p><b>ลากไฟล์ PDF หลายไฟล์มาวางที่นี่</b> หรือ</p>
+        <button type="button" class="btn primary" id="mergePick">เลือก / เพิ่มไฟล์ PDF</button>
+        <small>เฉพาะ PDF • รวมไม่เกิน 30 MB / 600 หน้า / 100 ไฟล์ต่อชุด</small>
+        <input type="file" id="mergeFiles" class="sr-only" accept="application/pdf,.pdf" multiple tabindex="-1" aria-hidden="true">
+      </div>
+      <div class="toolbar" style="margin-top:18px"><b id="mergeSummary">ยังไม่มีไฟล์</b><button type="button" class="btn ghost sm" id="mergeClear">ล้างไฟล์ทั้งหมด</button></div>
+      <p class="hint">เรียงจากบนลงล่าง • รวมทุกหน้าของแต่ละไฟล์ตามลำดับเดิม • กด ↑ / ↓ เพื่อจัดลำดับ</p>
+      <ol class="merge-list" id="mergeList" aria-label="ลำดับไฟล์ที่จะรวม"></ol>
+      <label for="mergeName"><b>ชื่อไฟล์รวม</b></label>
+      <input type="text" id="mergeName" value="เอกสารรวม" maxlength="125" placeholder="เอกสารรวม" style="margin:8px 0 14px">
+      <div class="merge-actions"><button type="button" class="btn primary lg" id="mergeExport" disabled>รวมไฟล์และดาวน์โหลด PDF</button></div>
+    </fieldset>
+    <div id="mergeStatus" class="status" role="status" aria-live="polite">เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม</div>
+    <progress id="mergeProgress" hidden aria-label="ความคืบหน้าการรวมไฟล์"></progress>
+    <a id="mergeDownload" target="_self" hidden aria-hidden="true" tabindex="-1"></a>
+    <p class="foot">ประมวลผลในเครื่องนี้ ไม่ส่งเอกสารไปที่ใด • กดล้างไฟล์เมื่อเสร็จงาน • ไฟล์ที่ดาวน์โหลดแล้วจะยังอยู่ในเครื่องของคุณ</p>
+  </section>
+  <details class="card">
+    <summary>คำแนะนำและข้อจำกัด</summary>
+    <ul>
+      <li>ระบบค้นหารหัสรูปแบบ <code>6512345 CS/A</code> หรือ <code>6512345CS-A</code> (ตัวเลข 7 หลัก + รหัสสาขา + กลุ่ม) รองรับเลขไทย</li>
+      <li>ไฟล์สแกนที่ไม่มีชั้นข้อความ ระบบจะอ่านรหัสไม่ได้ (ไม่มี OCR) — เลือกโหมด “หน้าละ 1 ไฟล์” แล้วกรอกรหัสเอง โดยกด “ดู” เพื่อเปิดหน้านั้น</li>
+      <li>คนเดียวมีหลายหน้า: ใส่เลขหน้าไว้ในแถวเดียวกัน หรือกด “รวมขึ้น” เพื่อรวมกับแถวด้านบน</li>
+      <li>ยังไม่รองรับหลายคนในหน้าเดียว — หน้าเอกสารคงเดิมทั้งหน้า ไม่ครอป ไม่แก้ข้อความ</li>
+      <li>PDF ที่ตั้งรหัสผ่านหรือล็อกสิทธิ์: ให้เปิดแล้ว “พิมพ์เป็น PDF” (Print → Save as PDF) ก่อนนำมาใช้</li>
+      <li>รวมไฟล์: รองรับเฉพาะ PDF ไม่รองรับ Word / Excel / รูปภาพโดยตรง กรุณาแปลงเป็น PDF ก่อน</li>
+      <li>การรวมไฟล์คัดลอกหน้าเอกสารและภาพลายเซ็น ไม่รับประกันการคงแบบฟอร์มโต้ตอบ บุ๊กมาร์ก หรือไฟล์แนบภายใน PDF</li>
+      <li>PDF ที่เซ็นดิจิทัล: ไฟล์ที่แยกหรือรวมออกมาจะไม่คงสถานะการรับรองลายเซ็นดิจิทัล</li>
+      <li>ทำงานในเครื่องทั้งหมด ไม่ต้องใช้อินเทอร์เน็ตหรือบัญชีออนไลน์ — ไฟล์ผลลัพธ์บันทึกลงโฟลเดอร์ Downloads</li>
+    </ul>
+  </details>
+</main>
+
+<dialog id="viewer" aria-labelledby="vTitle">
+  <div class="v-head">
+    <button type="button" class="btn ghost sm" id="vPrev" aria-label="หน้าก่อนหน้า">‹ ก่อนหน้า</button>
+    <div class="grow"><div class="v-title" id="vTitle"></div><div class="v-owner" id="vOwner"></div></div>
+    <button type="button" class="btn ghost sm" id="vNext" aria-label="หน้าถัดไป">ถัดไป ›</button>
+    <button type="button" class="btn primary sm" id="vClose">ปิด</button>
+  </div>
+  <div class="v-body"><canvas id="canvas"></canvas></div>
+</dialog>
+
+<dialog id="confirmDlg" aria-labelledby="cMsg">
+  <p id="cMsg"></p>
+  <div class="actions">
+    <button type="button" class="btn ghost" id="cNo">ยกเลิก</button>
+    <button type="button" class="btn primary" id="cYes">ดำเนินการต่อ</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" class="btn link" id="toastUndo">เลิกทำ</button></div>
+
+<!-- ไลบรารีในเครื่อง (web/vendor — เวอร์ชันและ SHA-384 ใน web/vendor/VERSIONS.txt) -->
+<script src="/vendor/pdf.min.js?token={{TOKEN}}"></script>
+<script src="/vendor/pdf-lib.min.js?token={{TOKEN}}"></script>
+<script src="/vendor/jszip.min.js?token={{TOKEN}}"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const MAX_MB = 30, MAX_PAGES = 300, MAX_NAME = 120;
+// รหัส 7 หลัก + สาขา + "/" หรือ "-" + กลุ่ม เช่น 6512345 CS/A — ต่อท้ายด้วยอะไรก็ได้ที่ไม่ใช่ตัวอักษร/ตัวเลข
+const ID_PATTERN = /(?:^|[^0-9])(\d{7})\s*([A-Z]{2,12})\s*[\/\-]\s*([A-Z]{1,3})(?![A-Z0-9])/g;
+
+const state = { pdf: null, lib: null, fileName: '', fileSize: 0, zipURL: null, busy: false, edited: false, exported: false };
+let rows = [];          // [{id, tr, name, pages, st, note, level, cands}]
+let rowSeq = 0, lastCheck = null, checkQueued = false, undo = null, toastTimer = 0;
+
+/* ---------- utilities ---------- */
+const thaiDigits = s => String(s).replace(/[๐-๙]/g, c => String(c.charCodeAt(0) - 0x0E50));
+const tick = () => new Promise(r => setTimeout(r, 0));
+const fmtSize = b => b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+const mode = () => document.querySelector('input[name=mode]:checked').value;
+const pageCount = () => state.pdf ? state.pdf.numPages : 0;
+
+function identify(text) {
+  text = thaiDigits(text).toUpperCase();
+  return [...new Set([...text.matchAll(ID_PATTERN)].map(m => m[1] + ' ' + m[2] + '-' + m[3]))];
+}
+
+/** แปลง "1-3, 5" → [1,2,3,5] คืน {pages} หรือ {error} */
+function parsePages(value, count) {
+  const v = thaiDigits(value).replace(/[–—−~]/g, '-').replace(/[，、;]/g, ',').trim();
+  if (!v) return { error: 'กรอกเลขหน้า' };
+  const pages = [];
+  for (const raw of v.split(',')) {
+    const part = raw.trim();
+    if (!part) continue;
+    const m = part.match(/^(\d+)\s*(?:-\s*(\d+))?$/);
+    if (!m) return { error: 'อ่านเลขหน้า “' + part + '” ไม่ได้ (ตัวอย่าง 1-2,5)' };
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    if (b < a) return { error: 'ช่วง ' + part + ' กลับด้าน ควรเป็น ' + b + '-' + a };
+    if (a < 1 || b > count) return { error: 'เลขหน้าต้องอยู่ระหว่าง 1–' + count };
+    for (let n = a; n <= b; n++) pages.push(n);
+  }
+  if (!pages.length) return { error: 'กรอกเลขหน้า' };
+  const seen = new Set();
+  for (const p of pages) { if (seen.has(p)) return { error: 'หน้า ' + p + ' ซ้ำในแถวนี้' }; seen.add(p); }
+  return { pages };
+}
+
+/** [1,2,3,5] → "1-3,5" */
+function formatPages(pages) {
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    let j = i;
+    while (j + 1 < pages.length && pages[j + 1] === pages[j] + 1) j++;
+    out.push(j > i ? pages[i] + '-' + pages[j] : String(pages[i]));
+    i = j;
+  }
+  return out.join(',');
+}
+
+/** ตัด Additional Actions (/AA) ของหน้า เช่น JavaScript ที่รันเองตอนเปิดหน้า ไม่ให้ติดไปกับไฟล์ที่ส่งต่อ */
+function stripPageActions(page) {
+  page.node.delete(PDFLib.PDFName.of('AA'));
+  return page;
+}
+
+function cleanName(value) {
+  let s = String(value).normalize('NFC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\x7f]/g, '') // กันชื่อไฟล์หลอกตาด้วยอักขระกลับทิศ/มองไม่เห็น
+    .trim().replace(/\.pdf$/i, '')
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').replace(/\s+/g, ' ').slice(0, MAX_NAME)
+    .replace(/[. ]+$/g, '').trim();
+  if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s)) s += '_';
+  return s;
+}
+
+function setStatus(text, kind) { const s = $('status'); s.textContent = text; s.className = 'status' + (kind ? ' ' + kind : ''); }
+function setStep(n) {
+  [1, 2, 3].forEach(i => {
+    const li = $('st' + i);
+    li.classList.toggle('is-done', i < n);
+    if (i === n) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+  });
+}
+function progress(value, max) {
+  const p = $('progress');
+  if (value == null) { p.hidden = true; return; }
+  p.hidden = false; p.max = max; p.value = value;
+}
+function lock(on) {
+  state.busy = on;
+  $('setup').disabled = on || !libsReady;
+  $('review').disabled = on;
+  $('mergeSetup').disabled = on || !libsReady;
+  $('tabSplit').disabled = $('tabMerge').disabled = on;
+  document.body.style.cursor = on ? 'progress' : '';
+}
+
+function askConfirm(message, yes) {
+  const d = $('confirmDlg');
+  $('cMsg').textContent = message; $('cYes').textContent = yes || 'ดำเนินการต่อ';
+  return new Promise(resolve => {
+    const done = v => { d.close(); $('cYes').onclick = $('cNo').onclick = d.oncancel = null; resolve(v); };
+    $('cYes').onclick = () => done(true);
+    $('cNo').onclick = () => done(false);
+    d.oncancel = e => { e.preventDefault(); done(false); };
+    d.showModal(); $('cNo').focus();
+  });
+}
+
+function toast(message, onUndo) {
+  clearTimeout(toastTimer);
+  $('toastMsg').textContent = message;
+  $('toastUndo').hidden = !onUndo;
+  $('toastUndo').onclick = () => { $('toast').hidden = true; onUndo && onUndo(); };
+  $('toast').hidden = false;
+  toastTimer = setTimeout(() => { $('toast').hidden = true; undo = null; }, 6000);
+}
+
+/* ---------- download state ---------- */
+function invalidateZip() {
+  if (state.zipURL) URL.revokeObjectURL(state.zipURL);
+  state.zipURL = null; state.exported = false;
+  $('download').removeAttribute('href');
+  if (!$('doneCard').hidden) { $('doneCard').hidden = true; setStep(2); }
+}
+
+function resetAll() {
+  invalidateZip();
+  rows = []; $('rows').replaceChildren(); $('pagemap').replaceChildren();
+  $('reviewCard').hidden = true; state.edited = false; lastCheck = null;
+  setStep(state.pdf ? 2 : 1);
+}
+
+/* ---------- open file ---------- */
+async function loadFile(f) {
+  if (!f || state.busy) return;
+  if (rows.length && state.edited && !state.exported &&
+      !(await askConfirm('มีการแก้ไขในตารางที่ยังไม่ได้สร้าง ZIP ต้องการเปิดไฟล์ใหม่และทิ้งการแก้ไขหรือไม่?', 'เปิดไฟล์ใหม่'))) return;
+  lock(true);
+  resetAll();
+  setStatus('กำลังเปิด ' + f.name + ' …');
+  try {
+    if (f.size > MAX_MB * 1048576) throw Error('ไฟล์ใหญ่ ' + fmtSize(f.size) + ' เกินกำหนด ' + MAX_MB + ' MB\nลองแบ่งไฟล์ หรือบีบอัด PDF ก่อน');
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    if (new TextDecoder('latin1').decode(bytes.subarray(0, 1024)).indexOf('%PDF-') < 0) throw Error('ไฟล์นี้ไม่ใช่ PDF (อาจเปลี่ยนนามสกุลมา)');
+    if (state.pdf) { await state.pdf.destroy(); }
+    state.pdf = null; state.lib = null; $('fileChip').hidden = true; $('drop').hidden = false;
+
+    let pdf;
+    try { pdf = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false, enableXfa: false }).promise; }
+    catch (e) {
+      if (e && e.name === 'PasswordException') throw Error('PDF นี้ตั้งรหัสผ่านไว้\nเปิดไฟล์ด้วยรหัสผ่านแล้ว “พิมพ์เป็น PDF” เพื่อได้สำเนาที่ไม่มีรหัส');
+      throw Error('ไฟล์อาจเสียหายหรืออ่านไม่ได้ (' + (e && e.message || e) + ')');
+    }
+    if (pdf.numPages > MAX_PAGES) { await pdf.destroy(); throw Error('ไฟล์มี ' + pdf.numPages + ' หน้า เกินกำหนด ' + MAX_PAGES + ' หน้า\nกรุณาแบ่งไฟล์ก่อน'); }
+    let lib;
+    try { lib = await PDFLib.PDFDocument.load(bytes, { updateMetadata: false }); }
+    catch (e) {
+      await pdf.destroy();
+      if (/encrypt/i.test(e && e.message)) throw Error('PDF นี้ถูกล็อกสิทธิ์ (เข้ารหัส) จึงแยกหน้าไม่ได้\nเปิดไฟล์แล้ว “พิมพ์เป็น PDF” ก่อนนำมาใช้');
+      throw Error('เตรียมไฟล์สำหรับแยกหน้าไม่ได้ (' + (e && e.message || e) + ')');
+    }
+    state.pdf = pdf; state.lib = lib; state.fileName = f.name; state.fileSize = f.size;
+    $('fileName').textContent = f.name;
+    $('fileMeta').textContent = pdf.numPages + ' หน้า • ' + fmtSize(f.size);
+    $('fileChip').hidden = false; $('drop').hidden = true;
+  } catch (e) {
+    setStatus('เปิดไฟล์ไม่ได้: ' + e.message, 'error');
+    lock(false); setStep(1);
+    return;
+  }
+  lock(false);
+  await analyze();
+}
+
+/* ---------- analyse ---------- */
+async function analyze() {
+  if (!state.pdf || state.busy) return;
+  if (rows.length && state.edited && !(await askConfirm('การวิเคราะห์ใหม่จะแทนที่การแก้ไขในตารางทั้งหมด ต้องการดำเนินการต่อหรือไม่?', 'วิเคราะห์ใหม่'))) return;
+  lock(true); resetAll();
+  const n = pageCount(), m = mode(), autoJoin = m === 'id' && $('autojoin').checked;
+  const groups = [], byID = new Map(), seen = new Map();
+  let last = null, manual = 0, joined = 0, noText = 0;
+  try {
+    for (let p = 1; p <= n; p++) {
+      progress(p - 1, n); setStatus('กำลังอ่านหน้า ' + p + ' / ' + n + ' …');
+      let ids = [], readErr = false;
+      try {
+        const page = await state.pdf.getPage(p);
+        const tc = await page.getTextContent();
+        const text = tc.items.map(x => x.str || '').join(' ');
+        if (!text.trim()) noText++;
+        ids = identify(text);
+        page.cleanup();
+      } catch (e) { readErr = true; }
+
+      if (ids.length === 1) {
+        const id = ids[0];
+        if (m === 'id') {
+          const g = byID.get(id);
+          if (g) {
+            if (g.pages[g.pages.length - 1] !== p - 1) { g.level = 'warn'; g.note = 'รหัสนี้พบในหน้าที่ไม่ติดกัน • โปรดตรวจ'; }
+            g.pages.push(p); last = g;
+          } else {
+            last = { name: id, pages: [p], note: 'พบรหัสอัตโนมัติ', level: 'ok' };
+            groups.push(last); byID.set(id, last);
+          }
+        } else {
+          const k = (seen.get(id) || 0) + 1; seen.set(id, k);
+          groups.push(k > 1
+            ? { name: id + '_' + k, pages: [p], note: 'รหัสซ้ำกับหน้าก่อน เติม _' + k + ' ให้ • โปรดตรวจ', level: 'warn' }
+            : { name: id, pages: [p], note: 'พบรหัสอัตโนมัติ', level: 'ok' });
+        }
+      } else if (autoJoin && last && !ids.length && !readErr) {
+        last.pages.push(p); last.level = 'warn';
+        last.note = 'รวมหน้า ' + formatPages(last.pages.slice(1)) + ' ที่ไม่พบรหัสเป็นหน้าต่อ • โปรดตรวจ';
+        joined++;
+      } else {
+        manual++; last = null;
+        groups.push({
+          name: '', pages: [p], level: 'need', cands: ids,
+          note: readErr ? 'อ่านข้อความหน้านี้ไม่ได้ • กด “ดู” แล้วกรอกเอง'
+            : ids.length ? 'พบหลายรหัสในหน้าเดียว • เลือกรหัสที่ถูกต้อง'
+            : 'ไม่พบรหัส • กด “ดู” แล้วกรอกเอง'
+        });
+      }
+      if (p % 10 === 0) await tick();
+    }
+  } catch (e) {
+    progress(null); lock(false);
+    setStatus('วิเคราะห์ไม่สำเร็จ: ' + e.message, 'error');
+    return;
+  }
+  progress(null);
+  buildPageMap(n);
+  for (const g of groups) addRow(g);
+  $('reviewCard').hidden = false; setStep(2);
+  lock(false);
+  runCheck();
+
+  const lines = ['อ่านครบ ' + n + ' หน้า ได้ ' + groups.length + ' รายการ'];
+  if (joined) lines.push('• รวมหน้าที่ไม่พบรหัสเป็นหน้าต่อ ' + joined + ' หน้า (ทำเครื่องหมาย “ควรตรวจ”)');
+  if (manual) lines.push('• ต้องกรอกรหัสเอง ' + manual + ' รายการ');
+  if (noText === n) lines.push('ไฟล์นี้ไม่มีชั้นข้อความ (น่าจะเป็นภาพสแกน) — แนะนำโหมด “หน้าละ 1 ไฟล์” แล้วกรอกรหัสเอง');
+  else if (m === 'id' && manual > 0 && !autoJoin && manual >= groups.length / 3) lines.push('ถ้าคนหนึ่งมีหลายหน้าและหน้าถัดไปไม่มีรหัส ลองเปิดตัวเลือก “นับเป็นหน้าต่อของคนก่อนหน้า” แล้ววิเคราะห์ใหม่');
+  setStatus(lines.join('\n'), manual || joined || noText === n ? 'warn' : 'ok');
+  const first = rows.find(r => r.level === 'need');
+  (first ? first.name : $('h-review')).focus({ preventScroll: true });
+  $('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---------- rows ---------- */
+const ROW_HTML = '<td class="no"></td>' +
+  '<td class="c-name"><input type="text" class="in-name" autocomplete="off" spellcheck="false"></td>' +
+  '<td class="c-pages"><input type="text" class="in-pages" inputmode="numeric" autocomplete="off" spellcheck="false"></td>' +
+  '<td class="st"></td>' +
+  '<td class="c-act"><button type="button" class="btn ghost sm" data-a="view">ดู</button> ' +
+  '<button type="button" class="btn ghost sm" data-a="merge" title="รวมหน้าของแถวนี้เข้ากับแถวด้านบน">รวมขึ้น</button> ' +
+  '<button type="button" class="btn ghost sm danger" data-a="del">ลบ</button></td>';
+
+function addRow(g, index) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = ROW_HTML;
+  const r = { id: ++rowSeq, tr, name: tr.querySelector('.in-name'), pages: tr.querySelector('.in-pages'), st: tr.querySelector('.st'),
+    note: g.note || '', level: g.level || 'ok', cands: g.cands || [] };
+  r.st.id = 'st-' + r.id;
+  r.name.value = g.name || '';
+  r.pages.value = g.pagesText != null ? g.pagesText : formatPages(g.pages || []);
+  r.name.placeholder = g.pages && g.pages.length ? 'ระบุรหัส/ชื่อ (หน้า ' + formatPages(g.pages) + ')' : 'ระบุรหัส/ชื่อ';
+  r.pages.placeholder = 'เช่น 1-2,5';
+  for (const i of [r.name, r.pages]) {
+    i.setAttribute('aria-describedby', r.st.id);
+    i.addEventListener('input', () => edited(r));
+    i.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const next = rows[rows.indexOf(r) + (e.shiftKey ? -1 : 1)];
+      if (next) (i === r.name ? next.name : next.pages).focus();
+    });
+  }
+  tr.querySelector('[data-a=view]').onclick = () => {
+    const p = parsePages(r.pages.value, pageCount());
+    openViewer(p.pages ? p.pages[0] : 1);
+  };
+  tr.querySelector('[data-a=merge]').onclick = () => mergeUp(r);
+  tr.querySelector('[data-a=del]').onclick = () => removeRow(r, true);
+  if (index == null || index >= rows.length) { rows.push(r); $('rows').append(tr); }
+  else { rows.splice(index, 0, r); $('rows').insertBefore(tr, rows[index + 1].tr); }
+  return r;
+}
+
+function edited(r) {
+  state.edited = true;
+  if (r && r.level !== 'ok' && r.level !== 'need') r.level = 'edited';
+  invalidateZip(); queueCheck();
+}
+
+function removeRow(r, withUndo) {
+  const i = rows.indexOf(r);
+  if (i < 0) return;
+  rows.splice(i, 1); r.tr.remove();
+  if (withUndo) {
+    undo = { r, i };
+    toast('ลบแถว ' + (r.name.value.trim() || 'หน้า ' + r.pages.value) + ' แล้ว', () => {
+      if (!undo) return;
+      const { r: u, i: at } = undo; undo = null;
+      if (at >= rows.length) { rows.push(u); $('rows').append(u.tr); }
+      else { rows.splice(at, 0, u); $('rows').insertBefore(u.tr, rows[at + 1].tr); }
+      edited(); u.name.focus();
+    });
+  }
+  edited();
+}
+
+function mergeUp(r) {
+  const i = rows.indexOf(r);
+  if (i < 1) return;
+  const prev = rows[i - 1], n = pageCount();
+  const a = parsePages(prev.pages.value, n), b = parsePages(r.pages.value, n);
+  prev.pages.value = !a.error && !b.error
+    ? formatPages([...new Set([...a.pages, ...b.pages])].sort((x, y) => x - y))
+    : [prev.pages.value, r.pages.value].map(s => s.trim()).filter(Boolean).join(',');
+  if (!prev.name.value.trim() && r.name.value.trim()) prev.name.value = r.name.value;
+  prev.note = 'รวมหน้าจากแถวด้านล่างแล้ว'; prev.level = 'edited';
+  removeRow(r, false);
+  toast('รวมเข้ากับแถว ' + i + ' แล้ว');
+  prev.pages.focus();
+}
+
+/* ---------- validation ---------- */
+function queueCheck() {
+  if (checkQueued) return;
+  checkQueued = true;
+  requestAnimationFrame(() => { checkQueued = false; runCheck(); });
+}
+
+function validate() {
+  const n = pageCount(), owners = new Map(), names = new Map();
+  const res = rows.map((r, i) => {
+    const x = { r, no: i + 1, errors: [], name: cleanName(r.name.value), pages: [], pageErr: false };
+    if (!x.name) x.errors.push(r.name.value.trim() ? 'ชื่อไฟล์ใช้ไม่ได้' : 'กรอกรหัส/ชื่อไฟล์');
+    const p = parsePages(r.pages.value, n);
+    if (p.error) { x.errors.push(p.error); x.pageErr = true; } else x.pages = p.pages;
+    for (const pg of x.pages) (owners.get(pg) || owners.set(pg, []).get(pg)).push(x);
+    if (x.name) { const k = x.name.toLowerCase(); (names.get(k) || names.set(k, []).get(k)).push(x); }
+    return x;
+  });
+  for (const list of names.values())
+    if (list.length > 1) for (const x of list) x.errors.push('ชื่อซ้ำกับแถว ' + list.filter(o => o !== x).map(o => o.no).join(', '));
+  const dupPages = new Map();
+  for (const [pg, list] of owners)
+    if (list.length > 1) for (const x of list) (dupPages.get(x) || dupPages.set(x, []).get(x)).push(pg);
+  for (const [x, pgs] of dupPages) x.errors.push('หน้า ' + formatPages(pgs.sort((a, b) => a - b)) + ' อยู่ในแถวอื่นด้วย');
+  const missing = [];
+  for (let p = 1; p <= n; p++) if (!owners.has(p)) missing.push(p);
+  const bad = res.filter(x => x.errors.length);
+  return { res, owners, missing, bad, ok: rows.length > 0 && !bad.length && !missing.length };
+}
+
+function runCheck() {
+  const v = lastCheck = validate();
+  const only = $('onlyIssues').checked;
+  let warn = 0, ready = 0, shown = 0;
+  v.res.forEach(x => {
+    const r = x.r, hasErr = x.errors.length > 0, isWarn = !hasErr && r.level === 'warn';
+    if (isWarn) warn++; else if (!hasErr) ready++;
+    r.tr.classList.toggle('is-err', hasErr);
+    r.tr.classList.toggle('is-warn', isWarn);
+    r.tr.querySelector('.no').textContent = x.no;
+    r.name.setAttribute('aria-label', 'ชื่อไฟล์ แถว ' + x.no);
+    r.pages.setAttribute('aria-label', 'เลขหน้า แถว ' + x.no);
+    r.name.setAttribute('aria-invalid', String(!x.name || x.errors.some(e => e.startsWith('ชื่อ'))));
+    r.pages.setAttribute('aria-invalid', String(x.pageErr || x.errors.some(e => e.startsWith('หน้า'))));
+    r.tr.querySelector('[data-a=merge]').disabled = x.no === 1;
+    r.tr.hidden = only && !hasErr && !isWarn;
+    if (!r.tr.hidden) shown++;
+
+    const frag = document.createDocumentFragment();
+    const msg = (cls, icon, text) => {
+      const d = document.createElement('div'); d.className = 'msg ' + cls;
+      const s = document.createElement('span'); s.setAttribute('aria-hidden', 'true'); s.textContent = icon;
+      d.append(s, document.createTextNode(text)); frag.append(d);
+    };
+    for (const e of x.errors) msg('e', '⛔', e);
+    if (r.note && (r.level !== 'need' || hasErr)) msg(r.level === 'warn' ? 'w' : 'o', r.level === 'warn' ? '⚠️' : 'ℹ️', r.note);
+    if (!hasErr) msg('o', '✓', 'พร้อม • ' + x.pages.length + ' หน้า' + (x.name !== r.name.value.trim() ? ' • บันทึกเป็น “' + x.name + '.pdf”' : ''));
+    if (r.cands.length && !r.name.value.trim()) {
+      const c = document.createElement('div'); c.className = 'cands';
+      for (const id of r.cands) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = id;
+        b.onclick = () => { r.name.value = id; edited(r); r.name.focus(); };
+        c.append(b);
+      }
+      frag.append(c);
+    }
+    r.st.replaceChildren(frag);
+  });
+  $('emptyRows').hidden = shown > 0 || !rows.length;
+
+  // แผนผังหน้า
+  const cells = $('pagemap').children;
+  for (let i = 0; i < cells.length; i++) {
+    const p = i + 1, list = v.owners.get(p) || [], c = cells[i];
+    const cls = !list.length ? 'missing' : list.length > 1 ? 'dup' : list[0].errors.length || list[0].r.level === 'warn' ? 'review' : '';
+    c.className = 'pg' + (cls ? ' ' + cls : '');
+    const who = list.map(x => 'แถว ' + x.no + (x.name ? ' ' + x.name : '')).join(', ');
+    c.title = 'หน้า ' + p + ' • ' + (who || 'ยังไม่อยู่ในรายการใด');
+    c.setAttribute('aria-label', c.title);
+  }
+
+  // สรุป
+  const chips = [['', 'ทั้งหมด ' + rows.length + ' รายการ'], ['ok', 'พร้อม ' + ready]];
+  if (warn) chips.push(['warn', 'ควรตรวจ ' + warn]);
+  if (v.bad.length) chips.push(['err', 'ต้องแก้ ' + v.bad.length]);
+  if (v.missing.length) chips.push(['err', 'หน้าที่ขาด ' + v.missing.length]);
+  $('summary').replaceChildren(...chips.map(([c, t]) => { const s = document.createElement('span'); s.className = 'chip ' + c; s.textContent = t; return s; }));
+
+  const h = $('exportHint'); h.replaceChildren();
+  if (!rows.length) { h.className = 'msg err'; h.textContent = 'ยังไม่มีรายการ'; }
+  else if (!v.ok) {
+    h.className = 'msg err';
+    const parts = [];
+    if (v.bad.length) parts.push('แก้ ' + v.bad.length + ' แถว (แถว ' + v.bad.slice(0, 5).map(x => x.no).join(', ') + (v.bad.length > 5 ? ' …' : '') + ')');
+    if (v.missing.length) parts.push('ขาดหน้า ' + formatPages(v.missing));
+    h.append('ยังสร้างไม่ได้: ' + parts.join(' • ') + ' ');
+    if (v.missing.length) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn link'; b.textContent = 'เพิ่มหน้าที่ขาดเป็นแถวใหม่';
+      b.onclick = addMissing; h.append(b);
+    }
+  } else {
+    h.className = 'msg ok';
+    h.textContent = '✓ ครบทุกหน้า พร้อมสร้าง ' + rows.length + ' ไฟล์' + (warn ? ' (มี ' + warn + ' รายการที่ควรตรวจ)' : '');
+  }
+  return v;
+}
+
+function addMissing() {
+  const v = lastCheck || validate();
+  for (const p of v.missing) addRow({ name: '', pages: [p], level: 'need', note: 'เพิ่มจากหน้าที่ขาด • กด “ดู” แล้วกรอกเอง' });
+  edited();
+  const first = rows.find(r => !r.name.value.trim());
+  if (first) first.name.focus();
+}
+
+function buildPageMap(n) {
+  const frag = document.createDocumentFragment();
+  for (let p = 1; p <= n; p++) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pg'; b.textContent = p;
+    b.onclick = () => openViewer(p);
+    frag.append(b);
+  }
+  $('pagemap').replaceChildren(frag);
+}
+
+/* ---------- export ---------- */
+async function exportZip() {
+  if (state.busy) return;
+  const v = runCheck();
+  if (!v.ok) {
+    setStatus('ยังสร้าง ZIP ไม่ได้ — ' + $('exportHint').textContent.replace('ยังสร้างไม่ได้: ', '').replace('เพิ่มหน้าที่ขาดเป็นแถวใหม่', '').trim(), 'error');
+    const first = v.bad[0];
+    if (first) { $('onlyIssues').checked = false; runCheck(); (first.errors.some(e => e.startsWith('ชื่อ') || e.startsWith('กรอกรหัส')) ? first.r.name : first.r.pages).focus(); }
+    else $('exportHint').scrollIntoView({ block: 'center' });
+    return;
+  }
+  const warn = v.res.filter(x => x.r.level === 'warn').length;
+  if (warn && !(await askConfirm('ยังมี ' + warn + ' รายการที่ระบบแนะนำให้ตรวจ (ไฮไลต์สีเหลือง) ต้องการสร้าง ZIP เลยหรือไม่?', 'สร้าง ZIP เลย'))) return;
+
+  lock(true); invalidateZip();
+  try {
+    const zip = new JSZip(), manifest = [['ลำดับ', 'ชื่อไฟล์', 'หน้าในไฟล์รวม', 'จำนวนหน้า']];
+    const jobs = v.res;
+    for (let i = 0; i < jobs.length; i++) {
+      const j = jobs[i];
+      progress(i, jobs.length); setStatus('กำลังสร้างไฟล์ ' + (i + 1) + ' / ' + jobs.length + ' — ' + j.name + '.pdf');
+      const out = await PDFLib.PDFDocument.create();
+      const copied = await out.copyPages(state.lib, j.pages.map(p => p - 1));
+      copied.forEach(p => out.addPage(stripPageActions(p)));
+      zip.file(j.name + '.pdf', await out.save());
+      manifest.push([String(j.no), j.name + '.pdf', formatPages(j.pages), String(j.pages.length)]);
+      await tick();
+    }
+    // กันสูตรใน Excel (CSV injection) และ escape เครื่องหมายคำพูด
+    const cell = s => '"' + (/^[\s]*[=+\-@|]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
+    zip.file('รายการไฟล์.csv', '﻿' + manifest.map(r => r.map(cell).join(',')).join('\r\n'));
+    setStatus('กำลังรวมเป็น ZIP …');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' }, m => progress(m.percent, 100));
+    state.zipURL = URL.createObjectURL(blob);
+    const a = $('download');
+    a.href = state.zipURL;
+    a.download = (cleanName(state.fileName) || 'ผลสอบ') + '_รายคน.zip';
+    $('doneText').textContent = 'ดาวน์โหลดแล้ว: PDF ' + jobs.length + ' ไฟล์ จาก ' + pageCount() + ' หน้า ขนาด ZIP ' + fmtSize(blob.size) + ' • ชื่อไฟล์ “' + a.download + '”';
+    $('doneCard').hidden = false; setStep(3);
+    state.exported = true;
+    setStatus('สร้าง ZIP เรียบร้อย', 'ok');
+    a.click();
+    $('doneCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('doneCard').focus({ preventScroll: true });
+  } catch (e) {
+    setStatus('สร้าง ZIP ไม่สำเร็จ: ' + (e && e.message || e), 'error');
+  } finally {
+    progress(null); lock(false);
+  }
+}
+
+/* ---------- page viewer ---------- */
+let viewPage = 1, renderTask = null, renderSeq = 0;
+async function openViewer(p) {
+  if (!state.pdf) return;
+  if (!$('viewer').open) $('viewer').showModal();
+  await showPage(p);
+}
+async function showPage(p) {
+  const n = pageCount();
+  viewPage = Math.min(Math.max(1, p), n);
+  const seq = ++renderSeq;
+  $('vTitle').textContent = 'หน้า ' + viewPage + ' / ' + n;
+  const list = lastCheck && lastCheck.owners.get(viewPage) || [];
+  $('vOwner').textContent = list.length ? 'อยู่ในแถว ' + list.map(x => x.no + (x.name ? ' (' + x.name + ')' : '')).join(', ') : 'ยังไม่อยู่ในรายการใด';
+  $('vPrev').disabled = viewPage <= 1; $('vNext').disabled = viewPage >= n;
+  if (renderTask) { renderTask.cancel(); renderTask = null; }
+  try {
+    const page = await state.pdf.getPage(viewPage);
+    if (seq !== renderSeq) return;
+    const base = page.getViewport({ scale: 1 });
+    const fit = Math.min(820, window.innerWidth * 0.94) - 28;
+    const vp = page.getViewport({ scale: Math.min(3, fit / base.width * (window.devicePixelRatio || 1)) });
+    const c = $('canvas');
+    c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    renderTask = page.render({ canvasContext: c.getContext('2d'), viewport: vp });
+    await renderTask.promise;
+  } catch (e) {
+    if (e && e.name === 'RenderingCancelledException') return;
+    $('vOwner').textContent = 'แสดงหน้านี้ไม่ได้: ' + (e && e.message || e);
+  }
+}
+$('vPrev').onclick = () => showPage(viewPage - 1);
+$('vNext').onclick = () => showPage(viewPage + 1);
+$('vClose').onclick = () => $('viewer').close();
+document.addEventListener('keydown', e => {
+  if (!$('viewer').open || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft' && viewPage > 1) { e.preventDefault(); showPage(viewPage - 1); }
+  if (e.key === 'ArrowRight' && viewPage < pageCount()) { e.preventDefault(); showPage(viewPage + 1); }
+});
+$('viewer').addEventListener('click', e => { if (e.target === $('viewer')) $('viewer').close(); });
+
+/* ---------- merge PDFs: local browser memory only ---------- */
+let mergeItems = [], mergeURL = null, mergeSeq = 0;
+const MERGE_MAX_BYTES = 30 * 1048576, MERGE_MAX_PAGES = 600, MERGE_MAX_FILES = 100;
+function mergeStatus(text, kind) {
+  $('mergeStatus').textContent = text;
+  $('mergeStatus').className = 'status' + (kind ? ' ' + kind : '');
+}
+function invalidateMerge() {
+  if (mergeURL) URL.revokeObjectURL(mergeURL);
+  mergeURL = null;
+  $('mergeDownload').hidden = true;
+  $('mergeDownload').removeAttribute('href');
+}
+function showTool(tool) {
+  if (state.busy) return;
+  const split = tool === 'split';
+  $('splitPanel').hidden = !split; $('mergePanel').hidden = split;
+  for (const [id, active] of [['tabSplit', split], ['tabMerge', !split]]) {
+    $(id).setAttribute('aria-pressed', String(active));
+  }
+  setStep(split ? (state.exported ? 3 : rows.length ? 2 : 1) : (mergeURL ? 3 : mergeItems.length ? 2 : 1));
+}
+function renderMergeList() {
+  const totalPages = mergeItems.reduce((n, f) => n + f.pages, 0);
+  const totalBytes = mergeItems.reduce((n, f) => n + f.size, 0);
+  $('mergeSummary').textContent = mergeItems.length ? mergeItems.length + ' ไฟล์ • ' + totalPages + ' หน้า • ' + fmtSize(totalBytes) : 'ยังไม่มีไฟล์';
+  $('mergeExport').disabled = mergeItems.length < 2;
+  $('mergeClear').disabled = !mergeItems.length;
+  const frag = document.createDocumentFragment();
+  mergeItems.forEach((item, i) => {
+    const li = document.createElement('li'); li.className = 'merge-item';
+    const order = document.createElement('span'); order.className = 'order'; order.textContent = String(i + 1);
+    const info = document.createElement('div'); info.className = 'grow';
+    const name = document.createElement('b'); name.textContent = item.name;
+    const meta = document.createElement('div'); meta.className = 'hint'; meta.textContent = item.pages + ' หน้า • ' + fmtSize(item.size);
+    info.append(name, meta);
+    const controls = document.createElement('div'); controls.className = 'controls';
+    const action = (text, label, disabled, fn) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = text;
+      b.setAttribute('aria-label', label + ' ' + item.name); b.disabled = disabled;
+      b.onclick = () => { if (state.busy) return; invalidateMerge(); fn(); renderMergeList(); setStep(mergeItems.length ? 2 : 1); mergeStatus(mergeItems.length ? 'รายการเปลี่ยนแล้ว ตรวจลำดับก่อนรวมไฟล์' : 'เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม'); };
+      controls.append(b);
+    };
+    action('↑', 'เลื่อนขึ้น', i === 0, () => { [mergeItems[i - 1], mergeItems[i]] = [mergeItems[i], mergeItems[i - 1]]; });
+    action('↓', 'เลื่อนลง', i === mergeItems.length - 1, () => { [mergeItems[i], mergeItems[i + 1]] = [mergeItems[i + 1], mergeItems[i]]; });
+    action('ลบ', 'ลบไฟล์', false, () => { mergeItems.splice(i, 1); });
+    li.append(order, info, controls); frag.append(li);
+  });
+  $('mergeList').replaceChildren(frag);
+}
+async function addMergeFiles(files) {
+  if (state.busy || !libsReady || !files.length) return;
+  lock(true); invalidateMerge();
+  const errors = []; let added = 0;
+  const prog = $('mergeProgress'); prog.hidden = false; prog.max = files.length;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]; prog.value = i;
+      mergeStatus('กำลังตรวจไฟล์ ' + (i + 1) + '/' + files.length + ' — ' + f.name);
+      try {
+        if (mergeItems.length >= MERGE_MAX_FILES) throw Error('ครบขีดจำกัด 100 ไฟล์แล้ว');
+        if (f.size > MAX_MB * 1048576) throw Error('ขนาดไฟล์เกิน 30 MB');
+        if (mergeItems.reduce((n, x) => n + x.size, 0) + f.size > MERGE_MAX_BYTES) throw Error('ขนาดรวมจะเกิน 30 MB');
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        if (!new TextDecoder('latin1').decode(bytes.subarray(0, 1024)).includes('%PDF-')) throw Error('ไม่ใช่ PDF กรุณาแปลงไฟล์เป็น PDF ก่อน');
+        const doc = await PDFLib.PDFDocument.load(bytes, { updateMetadata: false });
+        const pages = doc.getPageCount();
+        if (!pages) throw Error('ไม่มีหน้าเอกสาร');
+        if (mergeItems.reduce((n, x) => n + x.pages, 0) + pages > MERGE_MAX_PAGES) throw Error('จำนวนหน้ารวมจะเกิน 600 หน้า');
+        mergeItems.push({ id: ++mergeSeq, name: f.name, size: f.size, pages, doc }); added++;
+      } catch (e) {
+        errors.push(f.name + ': ' + (/encrypt|password/i.test(e.message) ? 'PDF เข้ารหัส/มีรหัสผ่าน กรุณาใช้สำเนาที่ปลดรหัสแล้ว' : e.message));
+      }
+      await tick();
+    }
+    renderMergeList(); setStep(mergeItems.length ? 2 : 1);
+    mergeStatus('เพิ่มได้ ' + added + ' ไฟล์ • ในรายการมี ' + mergeItems.length + ' ไฟล์' + (errors.length ? '\nไฟล์ที่ไม่ได้เพิ่ม (' + errors.length + '):\n' + errors.join('\n') : '\nตรวจลำดับก่อนกดรวมไฟล์'), errors.length ? 'warn' : 'ok');
+  } finally { prog.hidden = true; lock(false); }
+}
+async function exportMergedPdf() {
+  if (state.busy || mergeItems.length < 2) return;
+  const name = cleanName($('mergeName').value);
+  if (!name) { mergeStatus('กรุณาตั้งชื่อไฟล์รวม', 'error'); $('mergeName').focus(); return; }
+  lock(true); invalidateMerge();
+  const prog = $('mergeProgress'); prog.hidden = false; prog.max = mergeItems.length;
+  try {
+    const out = await PDFLib.PDFDocument.create();
+    for (let i = 0; i < mergeItems.length; i++) {
+      const item = mergeItems[i];
+      mergeStatus('กำลังรวมไฟล์ ' + (i + 1) + '/' + mergeItems.length + ' — ' + item.name); prog.value = i;
+      const pages = await out.copyPages(item.doc, item.doc.getPageIndices());
+      pages.forEach(p => out.addPage(stripPageActions(p)));
+      await tick();
+    }
+    const bytes = await out.save();
+    mergeURL = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = $('mergeDownload'); a.href = mergeURL; a.download = name + '.pdf';
+    mergeStatus('รวมสำเร็จ ' + mergeItems.length + ' ไฟล์ → ' + out.getPageCount() + ' หน้า • ' + fmtSize(bytes.length) + '\nเริ่มดาวน์โหลดอัตโนมัติแล้ว • ตรวจไฟล์ได้ที่รายการดาวน์โหลดของเบราว์เซอร์', 'ok');
+    setStep(3); a.click();
+  } catch (e) { invalidateMerge(); mergeStatus('รวมไฟล์ไม่สำเร็จ: ' + e.message, 'error'); }
+  finally { prog.hidden = true; lock(false); }
+}
+$('tabSplit').onclick = () => showTool('split');
+$('tabMerge').onclick = () => showTool('merge');
+$('mergePick').onclick = () => $('mergeFiles').click();
+$('mergeFiles').onchange = () => { const files = Array.from($('mergeFiles').files); $('mergeFiles').value = ''; addMergeFiles(files); };
+$('mergeClear').onclick = () => {
+  if (state.busy) return;
+  invalidateMerge(); mergeItems = []; $('mergeFiles').value = ''; $('mergeName').value = 'เอกสารรวม';
+  renderMergeList(); setStep(1); mergeStatus('ล้างรายการแล้ว • เลือก PDF อย่างน้อย 2 ไฟล์เพื่อเริ่มรวม');
+};
+$('mergeName').addEventListener('input', () => { invalidateMerge(); setStep(mergeItems.length ? 2 : 1); });
+$('mergeExport').onclick = exportMergedPdf;
+['dragenter', 'dragover'].forEach(t => $('mergeDrop').addEventListener(t, e => { e.preventDefault(); if (!state.busy) $('mergeDrop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => $('mergeDrop').addEventListener(t, () => $('mergeDrop').classList.remove('over')));
+$('mergeDrop').addEventListener('drop', e => { e.preventDefault(); addMergeFiles(Array.from(e.dataTransfer.files)); });
+// ยกเลิกลิงก์ดาวน์โหลดชั่วคราวเมื่อออกจากหน้า ไม่มีการเก็บประวัติหรือใช้ localStorage
+window.addEventListener('pagehide', () => { invalidateMerge(); if (state.zipURL) URL.revokeObjectURL(state.zipURL); });
+
+/* ---------- wiring ---------- */
+$('pick').onclick = () => $('file').click();
+$('change').onclick = () => $('file').click();
+$('file').onchange = () => { const f = $('file').files[0]; $('file').value = ''; loadFile(f); };
+$('reanalyze').onclick = () => analyze();
+$('add').onclick = () => { const r = addRow({ name: '', pagesText: '', level: 'need', note: 'รายการเพิ่มเอง' }); edited(); r.name.focus(); };
+$('export').onclick = exportZip;
+$('onlyIssues').onchange = runCheck;
+async function startOver() {
+  if (state.busy) return;
+  if (rows.length && state.edited && !state.exported &&
+      !(await askConfirm('ล้างไฟล์และการแก้ไขทั้งหมดที่ยังไม่ได้สร้าง ZIP หรือไม่?', 'ล้างและเริ่มใหม่'))) return;
+  if (state.pdf) { await state.pdf.destroy(); state.pdf = null; state.lib = null; }
+  resetAll(); setStep(1);
+  $('fileChip').hidden = true; $('drop').hidden = false;
+  setStatus('พร้อมใช้งาน • เลือกไฟล์ PDF รวม');
+  window.scrollTo({ top: 0, behavior: 'smooth' }); $('pick').focus();
+}
+$('restart').onclick = startOver;
+$('clear').onclick = startOver;
+const syncMode = () => {
+  $('autojoinWrap').hidden = mode() !== 'id';
+  if (rows.length) setStatus('เปลี่ยนวิธีแยกแล้ว — กด “วิเคราะห์ใหม่” เพื่อใช้วิธีนี้', 'warn');
+};
+document.querySelectorAll('input[name=mode]').forEach(i => i.addEventListener('change', syncMode));
+$('autojoin').addEventListener('change', () => { if (rows.length) setStatus('เปลี่ยนตัวเลือกแล้ว — กด “วิเคราะห์ใหม่” เพื่อใช้ตัวเลือกนี้', 'warn'); });
+
+// ลากวางไฟล์ (กันเบราว์เซอร์เปิด PDF ทับหน้านี้เมื่อวางพลาดนอกกรอบ)
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); if (!state.busy) drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+drop.addEventListener('drop', e => { e.preventDefault(); if (!state.busy && libsReady) loadFile(e.dataTransfer.files[0]); });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+window.addEventListener('beforeunload', e => {
+  if ((rows.length && !state.exported) || (mergeItems.length && !mergeURL)) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ---------- init ---------- */
+let libsReady = false;
+lock(false);
+syncMode();
+if (window.pdfjsLib && window.PDFLib && window.JSZip) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js?token={{TOKEN}}';
+  libsReady = true;
+  setStatus('พร้อมใช้งาน • เลือกไฟล์ PDF รวม');
+} else {
+  setStatus('โหลดเครื่องมืออ่าน PDF ไม่สำเร็จ — ไฟล์ในโฟลเดอร์ web/vendor อาจหายไป ให้ติดตั้ง/อัปเดตโปรแกรมใหม่', 'error');
+}
+lock(false);
+</script>
+</body>
+</html>

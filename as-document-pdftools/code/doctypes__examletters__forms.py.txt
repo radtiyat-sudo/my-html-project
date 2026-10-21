@@ -1,0 +1,68 @@
+# -*- coding: utf-8 -*-
+"""
+หนังสือจากคำสั่งสอบ: แบบฟอร์มที่รองรับ (ย้ายมาจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script)
+
+    รหัส   ชื่อแบบฟอร์ม                                    คำในหัวเรื่องคำสั่งที่ใช้ระบุแบบฟอร์ม
+    bt39  บฑ.39 สอบโครงร่างวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ   โครงร่าง
+    bt2   บฑ.2  สอบวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ          สอบวิทยานิพนธ์ / สอบสารนิพนธ์ / สอบการค้นคว้าอิสระ / สอบปากเปล่า
+    bt27  บฑ.27 สอบประมวลความรู้                               ประมวลความรู้
+    bt35  บฑ.35 สอบวัดคุณสมบัติ                                วัดคุณสมบัติ
+    bt1   บฑ.1  อาจารย์ที่ปรึกษาวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ  อาจารย์ที่ปรึกษา
+
+บฑกศ.39 (ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์) อยู่ในประเภทเอกสาร bgks39 แล้ว — ไม่ซ้ำที่นี่
+
+ข้อความใน {work} / {work_en} = ชนิดผลงานของนักศึกษา (WORKS) ซึ่งอ่านจากคำสั่งหรือผู้ใช้กรอก
+"""
+import re
+
+SHORT = {"bt39": "สอบโครงร่าง", "bt2": "สอบวิทยานิพนธ์", "bt27": "ประมวลความรู้", "bt35": "วัดคุณสมบัติ",
+         "bt1": "อาจารย์ที่ปรึกษา"}          # ชื่อสั้นบนแท็บ
+WORKS = {"วิทยานิพนธ์": "Thesis", "สารนิพนธ์": "Thematic Paper", "การค้นคว้าอิสระ": "Independent Study"}
+
+FORMS = {
+    "bt39": dict(code="บฑ.39", code_en="GR.39", order=1, exam=True,
+                 name="บฑ.39 — สอบโครงร่างวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
+                 task_th="กรรมการสอบโครงร่าง{work}", task_en="{work_en} Proposal Examination Committee",
+                 event_th="สอบโครงร่าง{work}", event_en="{work_en} proposal examination",
+                 keys=(r"โครงร่าง",)),
+    "bt2": dict(code="บฑ.2", code_en="GR.2", order=2, exam=True,
+                name="บฑ.2 — สอบวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
+                task_th="กรรมการสอบ{work}", task_en="{work_en} Examination Committee",
+                event_th="สอบ{work}", event_en="{work_en} examination",
+                keys=(r"สอบ\s*(?:ปากเปล่า|วิทยานิพนธ์|สารนิพนธ์|การค้นคว้าอิสระ)",)),
+    "bt27": dict(code="บฑ.27", code_en="GR.27", order=3, exam=True,
+                 name="บฑ.27 — สอบประมวลความรู้",
+                 task_th="กรรมการสอบประมวลความรู้", task_en="Comprehensive Examination Committee",
+                 event_th="สอบประมวลความรู้", event_en="comprehensive examination",
+                 keys=(r"ประมวลความรู้",)),
+    "bt35": dict(code="บฑ.35", code_en="GR.35", order=4, exam=True,
+                 name="บฑ.35 — สอบวัดคุณสมบัติ",
+                 task_th="กรรมการสอบวัดคุณสมบัติ", task_en="Qualifying Examination Committee",
+                 event_th="สอบวัดคุณสมบัติ", event_en="qualifying examination",
+                 keys=(r"วัดคุณสมบัติ",)),
+    "bt1": dict(code="บฑ.1", code_en="GR.1", order=5, exam=False,
+                name="บฑ.1 — อาจารย์ที่ปรึกษาวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
+                task_th="อาจารย์ที่ปรึกษา{work}", task_en="{work_en} Advisor",
+                event_th="", event_en="",
+                keys=(r"อาจารย์ที่ปรึกษา",)),
+}
+# ลำดับการตรวจหัวเรื่อง: โครงร่างก่อน (หัวเรื่องสอบโครงร่างมีคำว่า "สอบวิทยานิพนธ์" อยู่ด้วยได้)
+DETECT_ORDER = ("bt39", "bt27", "bt35", "bt2", "bt1")
+
+
+def detect(subject: str) -> str:
+    """แบบฟอร์มจากหัวเรื่องของคำสั่ง ("เรื่อง แต่งตั้ง...") — ไม่ตรงแบบใด = "" (ให้ผู้ใช้เลือกแท็บเอง)"""
+    for fid in DETECT_ORDER:
+        if any(re.search(k, subject) for k in FORMS[fid]["keys"]):
+            return fid
+    return ""
+
+
+def work_of(text: str) -> str:
+    """ชนิดผลงาน (วิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ) ที่พบก่อนในข้อความ — ไม่พบ = "" """
+    hits = [(m.start(), w) for w in WORKS for m in [re.search(w, text)] if m]
+    return min(hits)[1] if hits else ""
+
+
+def fill(template: str, work: str) -> str:
+    return template.replace("{work}", work).replace("{work_en}", WORKS.get(work, "")).strip()

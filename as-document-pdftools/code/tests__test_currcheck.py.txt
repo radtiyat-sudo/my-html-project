@@ -1,0 +1,127 @@
+# -*- coding: utf-8 -*-
+"""ทดสอบประเภทเอกสาร "ตรวจโครงสร้างหลักสูตร" — ที่เก็บข้อมูลในเครื่องและเส้นทาง /api/tool (ไม่ใช้อินเทอร์เน็ต)
+ตรรกะการอ่าน/ตรวจอยู่ใน JavaScript ของ web/index.html (คัดลอกจากเว็บเดิม) — ทดสอบผ่านหน้าโปรแกรม
+python -m unittest discover -s tests"""
+import csv
+import json
+import os
+import re
+import sys
+import tempfile
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+import app  # noqa: E402
+from core import registry  # noqa: E402
+
+WEB = ROOT / "doctypes" / "currcheck" / "web"
+
+
+class Store(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = os.environ.get("AS_DOCUMENT_DATA")
+        os.environ["AS_DOCUMENT_DATA"] = self.tmp.name
+        self.d = registry.get("currcheck")
+
+    def tearDown(self):
+        if self.env is None:
+            os.environ.pop("AS_DOCUMENT_DATA", None)
+        else:
+            os.environ["AS_DOCUMENT_DATA"] = self.env
+        self.tmp.cleanup()
+
+    def test_save_list_get_delete_book(self):
+        data = json.dumps({"parserVersion": 8, "name": "หลักสูตรทดสอบ", "courses": []}, ensure_ascii=False)
+        cid = self.d.tool_api("saveCurriculum", [{"key": "SCBT/M", "name": "หลักสูตรทดสอบ", "data": data}])
+        self.assertRegex(cid, r"^[0-9a-f]{8}$")
+        lst = self.d.tool_api("listCurricula", [])
+        self.assertEqual([(x["id"], x["key"]) for x in lst], [(cid, "SCBT/M")])
+        c = self.d.tool_api("getCurriculum", [cid])
+        self.assertEqual((c["name"], c["savedId"]), ("หลักสูตรทดสอบ", cid))
+        self.d.tool_api("deleteCurriculum", [cid])
+        self.assertEqual(self.d.tool_api("listCurricula", []), [])
+
+    def test_bad_ids_and_functions(self):
+        for bad in ("../../app", "x", "", None, "ABCDEF12"):
+            with self.assertRaises(ValueError):
+                self.d.tool_api("getCurriculum", [bad])
+        with self.assertRaises(ValueError):
+            self.d.tool_api("__init__", [])
+        with self.assertRaises(ValueError):
+            self.d.tool_api("saveCurriculum", [{"data": "not json"}])
+
+    def test_save_result_csv(self):
+        r = {"studentId": "6812345", "programKey": "SCBT/M", "name": "=HYPERLINK(\"x\")", "program": "ทดสอบ", "book": "เล่ม",
+             "verdict": "fail", "form": {"บังคับ": {"study": 6, "transfer": 0}},
+             "total": {"required": 30, "study": 15, "transfer": 0},
+             "groups": [{"label": "หมวดวิชาบังคับ", "required": 9, "got": 6, "status": "ขาด 3", "missing": ["SCBT 503"]}],
+             "courses": [{"code": "SCBT503", "cat": "บังคับ"}], "note": "-ทดสอบ"}
+        self.d.tool_api("saveResult", [r])
+        self.d.tool_api("saveResult", [r])
+        f = Path(self.tmp.name) / "currcheck" / "ผลการตรวจโครงสร้าง.csv"
+        rows = list(csv.reader(f.open(encoding="utf-8-sig")))
+        self.assertEqual(len(rows), 3)                          # หัวตาราง 1 ครั้ง + 2 ผล
+        row = dict(zip(rows[0], rows[1]))
+        self.assertEqual(row["ผลตรวจ"], "ยังไม่ครบ")
+        self.assertEqual(row["บังคับ (เรียน)"], "6")
+        self.assertEqual(row["วิชาที่ยังขาด"], "SCBT 503")
+        self.assertTrue(row["ชื่อ-สกุล"].startswith("'="))     # กันสูตร Excel
+        self.assertTrue(row["หมายเหตุ"].startswith("'-"))
+
+
+class Page(unittest.TestCase):
+    def test_registered_page(self):
+        d = registry.get("currcheck")
+        self.assertEqual(d.manifest()["page"], "index.html")
+
+    def test_offline(self):
+        html = (WEB / "index.html").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"""(src|href)\s*=\s*["']https?://""", html))
+        self.assertNotIn("google.script", html.replace("แทน google.script.run", ""))
+        self.assertIn("isEvalSupported: false", html)
+        self.assertIn("/vendor/pdf.min.js", html)
+
+
+class Route(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        os.environ["AS_DOCUMENT_DATA"] = cls.tmp.name
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        os.environ.pop("AS_DOCUMENT_DATA", None)
+        cls.tmp.cleanup()
+
+    def post(self, path, body, token=True):
+        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", **({"X-Token": app.TOKEN} if token else {})})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_tool_api(self):
+        self.assertEqual(self.post("/api/tool/currcheck", {"fn": "listCurricula", "args": []}), (200, {"result": []}))
+        self.assertEqual(self.post("/api/tool/currcheck", {"fn": "listCurricula"}, token=False)[0], 403)
+        self.assertEqual(self.post("/api/tool/bt31", {"fn": "listCurricula"})[0], 500)      # ไม่มีหน้าเครื่องมือ
+        code, body = self.post("/api/tool/currcheck", {"fn": "os.system", "args": ["x"]})
+        self.assertEqual(code, 500)
+        self.assertIn("ไม่รู้จักคำสั่ง", body["error"])
+
+
+if __name__ == "__main__":
+    unittest.main()
