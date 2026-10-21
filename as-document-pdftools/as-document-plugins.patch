@@ -1,7 +1,7 @@
 From 2762927d45af69cadd5f8036190fef92b222b2c6 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 04:12:53 +0000
-Subject: [PATCH 1/2] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
+Subject: [PATCH 1/3] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
  =?UTF-8?q?=E0=B8=A1=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97?=
  =?UTF-8?q?=E0=B9=80=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20?=
  =?UTF-8?q?=E0=B9=81=E0=B8=A2=E0=B8=81=20/=20=E0=B8=A3=E0=B8=A7=E0=B8=A1?=
@@ -1713,7 +1713,7 @@ index c019fa4..74ed236 100644
 From ea1339571d255623bfb63080f36d22d7c6bf7554 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 04:27:02 +0000
-Subject: [PATCH 2/2] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
+Subject: [PATCH 2/3] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
  =?UTF-8?q?=E0=B8=A1=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97?=
  =?UTF-8?q?=E0=B9=80=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20?=
  =?UTF-8?q?=E0=B8=AB=E0=B8=99=E0=B8=B1=E0=B8=87=E0=B8=AA=E0=B8=B7=E0=B8=AD?=
@@ -2687,6 +2687,2506 @@ index 74ed236..054f0f1 100644
  };
  const fieldValid = (f, v) => (CHECKS[f.check] || CHECKS.required)(v);
  const fieldsFor = (it) => (it.fields || []).filter((f) => !f.requires || opt(f.requires));
+-- 
+2.43.0
+
+
+From 2ff9ebc81fa21276174bfa43083aea0bed59536e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 07:07:31 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
+ =?UTF-8?q?=E0=B8=A1=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97?=
+ =?UTF-8?q?=E0=B9=80=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20?=
+ =?UTF-8?q?=E0=B8=95=E0=B8=A3=E0=B8=A7=E0=B8=88=E0=B9=82=E0=B8=84=E0=B8=A3?=
+ =?UTF-8?q?=E0=B8=87=E0=B8=AA=E0=B8=A3=E0=B9=89=E0=B8=B2=E0=B8=87=E0=B8=AB?=
+ =?UTF-8?q?=E0=B8=A5=E0=B8=B1=E0=B8=81=E0=B8=AA=E0=B8=B9=E0=B8=95=E0=B8=A3?=
+ =?UTF-8?q?=20(=E0=B8=A2=E0=B9=89=E0=B8=B2=E0=B8=A2=E0=B8=88=E0=B8=B2?=
+ =?UTF-8?q?=E0=B8=81=E0=B9=80=E0=B8=A7=E0=B9=87=E0=B8=9A=20Apps=20Script?=
+ =?UTF-8?q?=20=E2=80=94=20=E0=B8=95=E0=B8=A3=E0=B8=A3=E0=B8=81=E0=B8=B0?=
+ =?UTF-8?q?=E0=B8=84=E0=B8=87=E0=B9=80=E0=B8=94=E0=B8=B4=E0=B8=A1)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- doctypes/currcheck: หน้าจอ + ตรรกะอ่านเล่ม มคอ.2 / โครงสร้างของนักศึกษา / ตรวจ คัดลอกจากเว็บเดิมทั้งชุด
+  เปลี่ยนเฉพาะ: ไลบรารีในเครื่อง, ปิด eval ของ pdf.js (CVE-2024-4367), บันทึกเล่มหลักสูตรและผลตรวจเป็นไฟล์ในเครื่อง
+  (%LOCALAPPDATA%/as-document/currcheck — ผลการตรวจโครงสร้าง.csv) แทน Google Sheet
+- hub: POST /api/tool/<รหัส> -> DocType.tool_api() ให้หน้าเครื่องมือบันทึกข้อมูลในเครื่อง
+- ย้ายไลบรารีไป web/vendor (+ tool.css) ใช้ร่วมกันทุกเครื่องมือ ส่งที่ /vendor/
+- tests/test_currcheck.py
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01YXfQ2RA7H6ZampdLjp4LUL
+---
+ HANDOFF.md                                    |   12 +-
+ README.md                                     |    5 +-
+ app.py                                        |   19 +-
+ core/doctype.py                               |    6 +
+ doctypes/README.md                            |   10 +-
+ doctypes/currcheck/__init__.py                |  178 +++
+ doctypes/currcheck/web/index.html             | 1361 +++++++++++++++++
+ doctypes/pdftools/__init__.py                 |    4 +-
+ doctypes/pdftools/web/index.html              |  229 +--
+ tests/test_currcheck.py                       |  127 ++
+ tests/test_pdftools.py                        |   22 +-
+ .../web/lib => web/vendor}/VERSIONS.txt       |    2 +-
+ .../web/lib => web/vendor}/jszip.min.js       |    0
+ .../web/lib => web/vendor}/pdf-lib.min.js     |    0
+ .../web/lib => web/vendor}/pdf.min.js         |    0
+ .../web/lib => web/vendor}/pdf.worker.min.js  |    0
+ web/vendor/tool.css                           |  213 +++
+ 17 files changed, 1945 insertions(+), 243 deletions(-)
+ create mode 100644 doctypes/currcheck/__init__.py
+ create mode 100644 doctypes/currcheck/web/index.html
+ create mode 100644 tests/test_currcheck.py
+ rename {doctypes/pdftools/web/lib => web/vendor}/VERSIONS.txt (73%)
+ rename {doctypes/pdftools/web/lib => web/vendor}/jszip.min.js (100%)
+ rename {doctypes/pdftools/web/lib => web/vendor}/pdf-lib.min.js (100%)
+ rename {doctypes/pdftools/web/lib => web/vendor}/pdf.min.js (100%)
+ rename {doctypes/pdftools/web/lib => web/vendor}/pdf.worker.min.js (100%)
+ create mode 100644 web/vendor/tool.css
+
+diff --git a/HANDOFF.md b/HANDOFF.md
+index c512e4d..36c629c 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -17,6 +17,7 @@
+ | **บฑ.31 / GR.31** หนังสือเชิญอาจารย์พิเศษ + หนังสือขออนุมัติต่อผู้บังคับบัญชา (ไทย/อังกฤษ) | `doctypes/bt31/` | ไฟล์ `Export (xx).doc` (`export.py`) · PDF หน้า บฑ.31 e-Form (`eform.py`) | `หนังสือเชิญ บฑ.31 <รหัสวิชา เช่น EGIT 503> <ตำแหน่ง ชื่ออาจารย์>.docx` / `หนังสือขออนุมัติ …` (อังกฤษใช้ `GR.31`) |
+ | **บฑกศ.39** หนังสือเชิญ / หนังสือขออนุมัติ ผู้ทำหน้าที่เพื่อให้ได้มาซึ่งหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระ | `doctypes/bgks39/` | ไฟล์ .docx ที่ระบบสร้าง (`source.py`) — เลือกแท็บหนังสือเชิญ/ขออนุมัติก่อน | `หนังสือเชิญ-บฑกศ.39 <ชื่อนักศึกษา>.docx` / `หนังสือขออนุมัติ-บฑกศ.39 …` |
+ | **หนังสือจากคำสั่งสอบ** บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39 (ไทย/อังกฤษ — ย้ายจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script) | `doctypes/examletters/` | คำสั่งสอบ PDF/.docx (`source.py`) → ช่องตรวจ/แก้ข้อมูล (`fields.py`, ว่าง = จุดไข่ปลา) — แท็บ = แบบฟอร์ม | `หนังสือเชิญ บฑ.39 <ชื่อนักศึกษา>.docx` / `หนังสือขออนุมัติ …` (อังกฤษ `GR.39`) — **ถ้อยคำยังเป็นร่าง** (หัวข้อ 8) |
++| **ตรวจโครงสร้างหลักสูตร** (ย้ายจากเว็บ Apps Script "ตรวจโครงสร้างหลักสูตร" — ตรรกะคงเดิม) | `doctypes/currcheck/` | หน้าจอของตัวเอง (`page`): PDF โครงสร้างของนักศึกษา + เล่ม มคอ.2 → ตรวจหมวด → สรุป | ผลตรวจ `ผลการตรวจโครงสร้าง.csv` + เล่มที่บันทึกไว้ ใน `%LOCALAPPDATA%\as-document\currcheck\` (แทน Google Sheet) |
+ | **แยก / รวม PDF** (ย้ายมาจากเว็บ Apps Script "ตัวช่วยจัดการเอกสาร") | `doctypes/pdftools/` | หน้าจอของตัวเอง (`web/index.html`, ประกาศด้วย `page`) — ไม่ใช้ Word/inspect/convert | ZIP ของ PDF รายคน + `รายการไฟล์.csv` / PDF รวมไฟล์เดียว (ลง Downloads) |
+ 
+ ## 2. โครงสร้างไฟล์
+@@ -25,6 +26,8 @@
+ ระบบปรับเอกสาร/
+ ├─ app.py                hub: HTTP server ในเครื่อง (127.0.0.1 + token) + เปิด Edge --app — ไม่มีกฎของเอกสารใด
+ ├─ web/index.html        หน้าโปรแกรม (HTML/CSS/JS ไฟล์เดียว ไม่มี build step) — สร้างหน้าจอจาก manifest ของแต่ละประเภท
++├─ web/vendor/           ไลบรารีที่หน้าเครื่องมือ (page) ใช้ร่วมกัน: pdf.js, pdf-lib, JSZip, tool.css — ในเครื่อง ไม่โหลดจากอินเทอร์เน็ต
++│                        (เวอร์ชัน/SHA-384 ใน VERSIONS.txt) ส่งที่ /vendor/<ไฟล์>?token=…
+ ├─ core/                 ส่วนกลางที่ทุกประเภทใช้ร่วมกัน
+ │  ├─ doctype.py         คลาส DocType = สัญญาระหว่าง hub กับประเภทเอกสาร (manifest / inspect / convert)
+ │  ├─ registry.py        ค้นหาประเภทเอกสารใน doctypes/ อัตโนมัติ (โหลดไม่ได้ = ข้ามและแจ้งเตือน)
+@@ -39,8 +42,8 @@
+ │  ├─ bgks39/          บฑกศ.39 ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์ (source.py อ่าน .docx, letter.py, layout.py)
+ │  ├─ examletters/       หนังสือจากคำสั่งสอบ (forms.py แบบฟอร์ม, source.py อ่านคำสั่ง, fields.py ช่องตรวจ/แก้,
+ │  │                     letter.py ถ้อยคำ+ชื่อไฟล์, layout.py, data/signers.json)
+-│  ├─ pdftools/          แยก / รวม PDF — ประเภทที่มีหน้าจอของตัวเอง (page): web/index.html + web/lib/ (pdf.js, pdf-lib, JSZip
+-│  │                     ในเครื่อง ไม่โหลดจากอินเทอร์เน็ต — เวอร์ชัน/SHA-384 ใน web/lib/VERSIONS.txt)
++│  ├─ currcheck/         ตรวจโครงสร้างหลักสูตร (page): web/index.html = หน้าจอ+ตรรกะจากเว็บเดิม, __init__.py = ที่เก็บข้อมูลในเครื่อง (tool_api)
++│  ├─ pdftools/          แยก / รวม PDF (page): web/index.html
+ │  └─ bt31/
+ │     ├─ __init__.py     DocType ของบฑ.31: ชื่อ, หน้าจอ (แท็บ Export/e-Form, ช่องเชิญ/ขออนุมัติ), ส่งต่อการอ่าน/แปลง
+ │     ├─ letter.py       แบบจำลอง Letter + กฎข้อความ (fix_text/fix_en) + ชื่อวิชาภาษาอังกฤษ + ชื่อไฟล์
+@@ -155,6 +158,8 @@ PDF บฑ.31 ──eform.read_pdf()──► dict ──build_letters_th/en()
+   `app.py` (`tool_file`) ส่งเฉพาะไฟล์ใน `doctypes/<รหัส>/web/` นามสกุล .html .js .css .png .svg ต้องมี token และแทน `{{TOKEN}}` ใน .html
+   พร้อม **Content-Security-Policy** (`TOOL_CSP`) ที่ห้ามหน้านั้นติดต่อที่อื่นนอกจากโปรแกรมในเครื่อง — ถึง PDF/ไลบรารีจะมีโค้ดแปลกปลอม
+   ก็ส่งข้อมูลออกอินเทอร์เน็ตไม่ได้ · หน้าในกรอบใช้โหมดสว่าง/มืดตาม hub (อ่าน `data-theme` ของหน้าหลัก)
++  · หน้าเรียกฟังก์ชันของประเภทตัวเองที่ `POST /api/tool/<รหัส>` `{"fn","args"}` → `DocType.tool_api()` (ต้องมี token;
++  ประเภทกำหนดรายชื่อฟังก์ชันที่อนุญาตเอง เช่น `currcheck.API`)
+ 
+ ## 7. การทดสอบที่ทำแล้ว
+ 
+@@ -174,6 +179,9 @@ PDF บฑ.31 ──eform.read_pdf()──► dict ──build_letters_th/en()
+   — ทุกไฟล์ที่สร้างมีหมายเหตุเตือนจนกว่าจะใส่ (แบบฟอร์ม, ภาษา) ใน `VERIFIED` · รูปแบบการอ่านคำสั่งใน `source.py` ทดสอบกับคำสั่งจำลอง
+   (ยังไม่มีคำสั่งจริง) — ได้คำสั่ง/หนังสือที่เจ้าหน้าที่จัดแล้วเมื่อใด ให้ทำตาม doctypes/README.md (เก็บใน `samples/` ห้าม commit)
+   · ผู้ได้รับเชิญ = กรรมการที่คำสั่งระบุว่า "ภายนอก/ผู้ทรงคุณวุฒิ" (ไม่พบ = 1 คน ให้กรอกเอง) — เพิ่มคนในหน้าจอไม่ได้
++- **currcheck**: ตรรกะทั้งหมดคัดลอกจากเว็บเดิม (ทดสอบผ่านหน้าโปรแกรมด้วยเล่ม/โครงสร้างจำลอง) — ยังไม่ได้ลองกับ PDF จริงของระบบทะเบียน
++  และเล่ม มคอ.2 จริงบนเครื่องนี้ · เล่มที่บันทึกในเว็บเดิม (Google Sheet) ไม่ได้ย้ายมา ให้นำเข้า PDF เล่มอีกครั้งแล้วติ๊ก "บันทึกเล่มนี้"
++  · ไฟล์ผลตรวจมีข้อมูลนักศึกษา เก็บนอกโฟลเดอร์โปรแกรม (`%LOCALAPPDATA%\as-document\currcheck\`) — ไม่ขึ้น GitHub ไม่ถูกแตะตอนอัปเดต
+ - **pdftools**: pdf.js 3.11.174 มีช่องโหว่ CVE-2024-4367 — ปิดด้วย `isEvalSupported: false` (และ CSP ห้าม eval อยู่แล้ว);
+   ทางแก้ถาวรคืออัปเกรดเป็น pdf.js 4.x (เป็น ES module ต้องปรับการโหลด) · อ่านรหัสนักศึกษาจากชั้นข้อความเท่านั้น (ไม่มี OCR)
+ 
+diff --git a/README.md b/README.md
+index db761ff..a391be9 100644
+--- a/README.md
++++ b/README.md
+@@ -9,6 +9,7 @@
+ | **บฑ.31 อาจารย์พิเศษ** | ปรับไฟล์ `Export (xx).doc` ที่ดาวน์โหลดจากระบบ (หนังสือเชิญ / หนังสือขออนุมัติอาจารย์พิเศษ ไทย/อังกฤษ) หรือสร้างหนังสือจาก PDF หน้า บฑ.31 (e-Form) ให้เป็นรูปแบบเดียวกับไฟล์ตัวอย่าง |
+ | **บฑกศ.39 ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์** | ปรับไฟล์ .docx ที่ระบบสร้าง (หนังสือเชิญ / หนังสือขออนุมัติ ผู้ทำหน้าที่เพื่อให้ได้มาซึ่งหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระ) — เลือกแท็บหนังสือเชิญหรือหนังสือขออนุมัติก่อนวางไฟล์ |
+ | **หนังสือจากคำสั่งสอบ** | วางคำสั่งสอบ (PDF/Word) ของ **บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39** → ตรวจ/แก้ข้อมูลที่ระบบอ่านได้ (ช่องที่ว่างจะเป็นจุดไข่ปลา ระบบไม่เดา) → หนังสือเชิญ และหนังสือขออนุมัติถึงผู้บังคับบัญชา (เลือกได้) ภาษาไทยหรืออังกฤษ — เลือกแท็บแบบฟอร์มให้ตรงกับคำสั่ง (ระบบแนะนำให้) |
++| **ตรวจโครงสร้างหลักสูตร** | วาง PDF "โครงสร้างหลักสูตร" ของนักศึกษา (ระบบทะเบียน) + เล่มหลักสูตร (มคอ.2) → ระบบจัดหมวดรายวิชาตามเล่มพร้อมหลักฐาน (หน้า/ข้อความในเล่ม) เปลี่ยนหมวดได้ → สรุปหน่วยกิตรายหมวด ตัวเลขสำหรับกรอกในระบบทะเบียน และวิชาที่ยังขาด → "ยืนยันผลตรวจ" บันทึกลงไฟล์ `ผลการตรวจโครงสร้าง.csv` ในเครื่อง (ปุ่ม "เปิดไฟล์ผลตรวจ") |
+ | **แยก / รวม PDF** | **แยก** PDF ผลสอบรวมเป็นไฟล์รายคนตามรหัสนักศึกษา (ตรวจ/แก้ชื่อและเลขหน้าได้ก่อน ได้ ZIP + รายการไฟล์.csv) หรือ **รวม** PDF หลายไฟล์เป็นไฟล์เดียว — ทำงานในเครื่อง ไม่ใช้ Word ไม่ต้องใช้อินเทอร์เน็ต ผลลัพธ์อยู่ใน Downloads |
+ 
+ **ติดตั้งบนเครื่องใหม่ด้วยคำสั่งเดียว** — กด `Win + R` วางคำสั่งนี้แล้ว Enter (ดาวน์โหลดจาก GitHub + ติดตั้งให้เอง):
+@@ -123,7 +124,9 @@ python fix_letters.py "Export (90).doc" "Export (91).doc" --pdf
+   - `doctypes/bt31/data/courses.json` — รายชื่อวิชา รหัส → ชื่อภาษาอังกฤษ
+   - `doctypes/bt31/data/translations.json` — คำแปลภาษาอังกฤษที่เคยกรอก (สร้างอัตโนมัติ)
+   - `doctypes/examletters/` — หนังสือจากคำสั่งสอบ: `data/signers.json` ผู้ลงนาม (ไทย `th` / อังกฤษ `en`)
+-  - `doctypes/pdftools/` — แยก / รวม PDF: หน้าจอ `web/index.html` และไลบรารีในเครื่อง `web/lib/`
++  - `doctypes/currcheck/` — ตรวจโครงสร้างหลักสูตร: หน้าจอ `web/index.html`
++  - `doctypes/pdftools/` — แยก / รวม PDF: หน้าจอ `web/index.html`
++- `web/vendor/` — ไลบรารีในเครื่องที่หน้าเครื่องมือใช้ร่วมกัน (pdf.js, pdf-lib, JSZip)
+   - `doctypes/_template/` — แม่แบบสำหรับเพิ่มประเภทใหม่
+ - `tools/learn.py` — วัดรูปแบบจากไฟล์ตัวอย่าง / เทียบผลลัพธ์กับตัวอย่าง (ใช้ตอนเพิ่มประเภทใหม่)
+ - `fix_letters.py`, `bt31.py` — บรรทัดคำสั่งของบฑ.31 (คงไว้ให้คำสั่งเดิมใช้ได้)
+diff --git a/app.py b/app.py
+index f49b338..c34633f 100644
+--- a/app.py
++++ b/app.py
+@@ -359,6 +359,8 @@ class Handler(BaseHTTPRequestHandler):
+                               {"Content-Disposition": f"inline; filename*=UTF-8''{quote(f.name)}"})
+         if url.path.startswith("/tool/"):
+             return self.tool_file(url.path)
++        if url.path.startswith("/vendor/"):
++            return self.static_file(WEB / "vendor", url.path[len("/vendor/"):])
+         if url.path == "/api/downloads_count":
+             return self._json({"count": len(new_in_downloads(q.get("doctype", [""])[0]))})
+         return self._json({"error": "not found"}, 404)
+@@ -372,9 +374,14 @@ class Handler(BaseHTTPRequestHandler):
+             return self._json({"error": "not found"}, 404)
+         if not d.page:
+             return self._json({"error": "not found"}, 404)
+-        root = (DOCTYPES_DIR / d.id / "web").resolve()
+-        f = (root / (parts[3] if len(parts) > 3 and parts[3] else d.page)).resolve()
+-        if root not in f.parents or not f.is_file() or f.suffix.lower() not in TOOL_TYPES:   # กันออกนอกโฟลเดอร์ web/
++        return self.static_file(DOCTYPES_DIR / d.id / "web", parts[3] if len(parts) > 3 and parts[3] else d.page)
++
++    def static_file(self, folder: Path, name: str):
++        """ไฟล์ของหน้าเครื่องมือ (เฉพาะใน folder นามสกุลใน TOOL_TYPES) พร้อม Content-Security-Policy
++        ใช้กับ /tool/<รหัส>/ (doctypes/<รหัส>/web) และ /vendor/ (web/vendor — ไลบรารีที่ทุกเครื่องมือใช้ร่วมกัน)"""
++        root = Path(folder).resolve()
++        f = (root / name).resolve()
++        if root not in f.parents or not f.is_file() or f.suffix.lower() not in TOOL_TYPES:   # กันออกนอกโฟลเดอร์
+             return self._json({"error": "not found"}, 404)
+         body = f.read_bytes()
+         if f.suffix.lower() == ".html":
+@@ -423,6 +430,12 @@ class Handler(BaseHTTPRequestHandler):
+         doctype = data.get("doctype") or ""
+         if path == "/api/ping":
+             return {"ok": True}
++        if path.startswith("/api/tool/"):          # หน้าเครื่องมือ (page) เรียกฟังก์ชันของประเภทเอกสารตัวเอง เช่น บันทึกข้อมูลในเครื่อง
++            d = registry.get(path[len("/api/tool/"):])
++            if not d.page:
++                raise ValueError("ประเภทเอกสารนี้ไม่มีหน้าเครื่องมือ")
++            with job():
++                return {"result": d.tool_api(str(data.get("fn") or ""), data.get("args") or [])}
+         if path == "/api/update/check":
+             return update.check()
+         if path == "/api/update/apply":
+diff --git a/core/doctype.py b/core/doctype.py
+index 0c81c79..56046e8 100644
+--- a/core/doctype.py
++++ b/core/doctype.py
+@@ -19,6 +19,8 @@ hub ไม่รู้จักรายละเอียดของเอก
+            และไม่เรียก inspect/convert (หน้านั้นทำงานเองทั้งหมดในหน้าต่างโปรแกรม เช่น doctypes/pdftools)
+            hub ส่งไฟล์ใน web/ ที่ /tool/<รหัส>/<ไฟล์>?token=… — ข้อความ {{TOKEN}} ในไฟล์ .html จะถูกแทนด้วย token
+            หน้าแบบนี้ถูกจำกัดด้วย Content-Security-Policy: ติดต่อได้เฉพาะโปรแกรมในเครื่อง (ห้ามโหลด/ส่งข้อมูลออกอินเทอร์เน็ต)
++           ไลบรารีที่ใช้ร่วมกัน (pdf.js, pdf-lib, JSZip, tool.css) อยู่ที่ /vendor/<ไฟล์>?token=… (web/vendor)
++           หน้าเรียกฟังก์ชันของประเภทตัวเองได้ที่ POST /api/tool/<รหัส> {"fn", "args"} -> tool_api() (เช่น บันทึกข้อมูลในเครื่อง)
+ 
+ ผล inspect(path) ต่อไฟล์ (แสดงเป็นแถวในหน้าจอก่อนแปลง):
+     ok, reason            อ่านได้/เหตุผลที่ใช้ไม่ได้
+@@ -95,6 +97,10 @@ class DocType:
+         pdf: True = ส่งออกเป็น PDF อย่างเดียว / False = Word (.docx) อย่างเดียว"""
+         raise NotImplementedError
+ 
++    def tool_api(self, fn: str, args: list):
++        """ประเภทที่มี page: ฟังก์ชันที่หน้าจอเรียกผ่าน POST /api/tool/<รหัส> — คืนค่าที่แปลงเป็น JSON ได้"""
++        raise ValueError("ไม่รู้จักคำสั่ง")
++
+     def preview(self, job: Job, options: dict, extra: dict, log=print, companions=()) -> dict:
+         """ตัวอย่างเอกสาร (ปุ่ม "ดูตัวอย่าง"): สร้าง PDF ลง job.outdir ซึ่งเป็นโฟลเดอร์ชั่วคราว
+         companions: ไฟล์ในช่อง companion (เช่นเอกสารแนบ) ที่ต้องใช้ประกอบ"""
+diff --git a/doctypes/README.md b/doctypes/README.md
+index a3c0ba6..647676f 100644
+--- a/doctypes/README.md
++++ b/doctypes/README.md
+@@ -107,10 +107,12 @@ python tools/release.py --push        # เผยแพร่ — เฉพา
+ 
+ 1. ใส่ `page = "index.html"` ในคลาส DocType และ `ui = {"modes": [], "slots": []}` (ไม่ต้องเขียน inspect/convert จริง)
+ 2. วางหน้าจอที่ `doctypes/<รหัส>/web/index.html` — ไฟล์ประกอบอยู่ใน `web/` เท่านั้น อ้างแบบ relative พร้อม token
+-   เช่น `<script src="lib/x.js?token={{TOKEN}}">` (hub แทน `{{TOKEN}}` ให้)
+-3. **ห้ามโหลดอะไรจากอินเทอร์เน็ต** — hub ส่ง Content-Security-Policy ที่บล็อกอยู่แล้ว ให้คัดลอกไลบรารีมาไว้ใน `web/lib/`
+-   แล้วจดเวอร์ชัน/SHA-384 (ดู `pdftools/web/lib/VERSIONS.txt`) · ใช้สี/โหมดมืดตาม hub (ดูส่วนหัวของ `pdftools/web/index.html`)
+-4. ผลลัพธ์ให้ดาวน์โหลดจากหน้าเว็บ (ลง Downloads) — ทดสอบ: `tests/test_pdftools.py` เป็นตัวอย่าง
++   เช่น `<script src="x.js?token={{TOKEN}}">` (hub แทน `{{TOKEN}}` ให้) — ไลบรารีที่ใช้ร่วมกันอยู่ที่ `/vendor/` (`web/vendor/`)
++3. **ห้ามโหลดอะไรจากอินเทอร์เน็ต** — hub ส่ง Content-Security-Policy ที่บล็อกอยู่แล้ว ให้คัดลอกไลบรารีมาไว้ในเครื่อง
++   (`web/vendor/` หรือโฟลเดอร์ web/ ของประเภทนั้น) แล้วจดเวอร์ชัน/SHA-384 (ดู `web/vendor/VERSIONS.txt`) · สไตล์กลาง `/vendor/tool.css`
++4. ต้องบันทึกข้อมูลในเครื่อง: เขียน `tool_api(fn, args)` ในคลาส (อนุญาตเฉพาะฟังก์ชันที่ตั้งใจ) แล้วหน้าเรียก `POST /api/tool/<รหัส>`
++   — ข้อมูลบุคคลให้เก็บนอกโฟลเดอร์โปรแกรม (ดู `currcheck/__init__.py`)
++5. ผลลัพธ์ให้ดาวน์โหลดจากหน้าเว็บ (ลง Downloads) — ทดสอบ: `tests/test_pdftools.py`, `tests/test_currcheck.py` เป็นตัวอย่าง
+ 
+ ## ปรับรูปแบบของประเภทที่มีอยู่แล้ว
+ 
+diff --git a/doctypes/currcheck/__init__.py b/doctypes/currcheck/__init__.py
+new file mode 100644
+index 0000000..6ae0076
+--- /dev/null
++++ b/doctypes/currcheck/__init__.py
+@@ -0,0 +1,178 @@
++# -*- coding: utf-8 -*-
++"""
++ตรวจโครงสร้างหลักสูตร — ย้ายมาจากเว็บ Apps Script "ตรวจโครงสร้างหลักสูตร" (ระบบสนับสนุนงานบริการการศึกษา)
++
++นำเข้า PDF "โครงสร้างหลักสูตร" ของนักศึกษา (ระบบทะเบียน) + เล่มหลักสูตร (มคอ.2) -> จัดหมวดรายวิชาตามเล่มพร้อมหลักฐาน
++(หน้าและข้อความในเล่ม) -> สรุปหน่วยกิตรายหมวด ตัวเลขสำหรับกรอกในระบบทะเบียน และวิชาที่ยังขาด
++
++    web/index.html   หน้าจอ + ตรรกะอ่าน/ตรวจทั้งหมด (คัดลอกจากเว็บเดิม ไม่เปลี่ยนกฎ: เกรดวิชาบังคับ ≥ B, วิชาเลือก ≥ C,
++                     วิทยานิพนธ์/สารนิพนธ์ยึดหน่วยกิตที่ลงทะเบียน, แผน ก1/ก2/ข, วิชาเอก, GRID = ภาษาอังกฤษ ฯลฯ)
++    __init__.py      ที่เก็บข้อมูลในเครื่อง แทน Google Sheet ของเว็บเดิม (tool_api — ชื่อฟังก์ชันเดียวกับ Code.gs เดิม)
++
++ข้อมูลเก็บที่ %LOCALAPPDATA%/as-document/currcheck/ (นอกโฟลเดอร์โปรแกรม — มีข้อมูลนักศึกษา จึงไม่อยู่ใน git
++และไม่ถูกแตะตอนอัปเดต):
++    curricula/<id>.json          เล่มหลักสูตรที่บันทึกไว้ (ผลการอ่านเล่ม ใช้ซ้ำได้โดยไม่ต้องนำเข้า PDF ใหม่)
++    ผลการตรวจโครงสร้าง.csv        ผลตรวจที่ยืนยันแล้ว (คอลัมน์เดียวกับชีตเดิม เปิดด้วย Excel ได้)
++"""
++import csv
++import getpass
++import io
++import json
++import os
++import re
++import subprocess
++import sys
++import uuid
++from datetime import datetime
++from pathlib import Path
++
++from core.doctype import DocType
++
++FORM_ROWS = ["ปรับพื้นฐาน", "แกน", "บังคับ", "เลือก", "วิทยานิพนธ์/สารนิพนธ์"]
++VERDICTS = {"pass": "ครบตามโครงสร้าง", "waiting": "รอผลการประเมิน", "fail": "ยังไม่ครบ"}
++RESULT_HEADERS = (["บันทึกเมื่อ", "ผู้ตรวจ", "รหัสนักศึกษา", "รหัสหลักสูตร", "ชื่อ-สกุล", "สาขาวิชา", "เล่มหลักสูตรที่ใช้", "ผลตรวจ"]
++                  + [f"{k} ({x})" for k in FORM_ROWS for x in ("เรียน", "โอน")]
++                  + ["รวม (เกณฑ์)", "รวม (เรียน)", "รวม (โอน)", "สรุปรายหมวด", "วิชาที่ยังขาด", "หมายเหตุ", "รายวิชา (JSON)", "เกณฑ์รายหมวด (JSON)"])
++ID_RE = re.compile(r"^[0-9a-f]{8}$")
++MAX_BOOK = 5 * 1048576              # ผลการอ่านเล่ม (JSON) ไม่เกิน 5 MB
++
++
++def store_dir() -> Path:
++    base = os.environ.get("AS_DOCUMENT_DATA") or os.path.join(os.environ.get("LOCALAPPDATA") or str(Path.home()), "as-document")
++    d = Path(base) / "currcheck"
++    (d / "curricula").mkdir(parents=True, exist_ok=True)
++    return d
++
++
++def results_file() -> Path:
++    return store_dir() / "ผลการตรวจโครงสร้าง.csv"
++
++
++def me() -> str:
++    try:
++        return getpass.getuser()
++    except Exception:
++        return ""
++
++
++def cell(v) -> str:
++    """ค่าใน CSV: กันสูตร Excel (ขึ้นต้นด้วย = + - @ |) — ตัวเลขล้วนไม่ต้องกัน"""
++    s = "" if v is None else str(v)
++    return "'" + s if re.match(r"^\s*[=+\-@|]", s) and not re.fullmatch(r"-?\d+(\.\d+)?", s) else s
++
++
++def book_path(cid: str) -> Path:
++    if not ID_RE.match(str(cid or "")):
++        raise ValueError("รหัสเล่มหลักสูตรไม่ถูกต้อง")
++    return store_dir() / "curricula" / f"{cid}.json"
++
++
++# ---------- ฟังก์ชันที่หน้าจอเรียก (ชื่อเดียวกับ Code.gs เดิม) ----------
++def listCurricula():
++    out = []
++    for f in (store_dir() / "curricula").glob("*.json"):
++        try:
++            d = json.loads(f.read_text(encoding="utf-8"))
++        except (OSError, ValueError):
++            continue
++        out.append({"id": d.get("id", f.stem), "key": d.get("key", ""), "name": d.get("name", ""),
++                    "savedAt": d.get("savedAt", ""), "_t": d.get("savedIso", "")})
++    out.sort(key=lambda x: x.pop("_t"), reverse=True)
++    return out
++
++
++def getCurriculum(cid):
++    try:
++        d = json.loads(book_path(cid).read_text(encoding="utf-8"))
++    except OSError:
++        raise ValueError("ไม่พบเล่มหลักสูตร id " + str(cid))
++    c = json.loads(d["data"])
++    c["savedId"] = d["id"]
++    return c
++
++
++def saveCurriculum(p):
++    if not isinstance(p, dict) or not isinstance(p.get("data"), str) or not p["data"]:
++        raise ValueError("ไม่มีข้อมูลเล่มหลักสูตร")
++    if len(p["data"]) > MAX_BOOK:
++        raise ValueError("ข้อมูลเล่มหลักสูตรใหญ่เกินไป")
++    json.loads(p["data"])                       # ต้องเป็น JSON ที่อ่านได้
++    cid = uuid.uuid4().hex[:8]
++    now = datetime.now()
++    # เก็บแต่ละฉบับแยกกัน (เหมือนเว็บเดิม) ป้องกันเล่มต่างปีของสาขาเดียวกันถูกทับ
++    book_path(cid).write_text(json.dumps({"id": cid, "key": str(p.get("key") or "")[:40], "name": str(p.get("name") or "")[:300],
++                                          "savedAt": now.strftime("%d/%m/%Y %H:%M"), "savedIso": now.isoformat(),
++                                          "by": me(), "data": p["data"]}, ensure_ascii=False), encoding="utf-8")
++    return cid
++
++
++def deleteCurriculum(cid):
++    book_path(cid).unlink(missing_ok=True)
++    return True
++
++
++def saveResult(r):
++    if not isinstance(r, dict):
++        raise ValueError("ไม่มีผลตรวจ")
++    total = r.get("total") or {}
++    form = r.get("form") or {}
++    groups = r.get("groups") or []
++    row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), me(), r.get("studentId", ""), r.get("programKey", ""),
++           r.get("name", ""), r.get("program", ""), r.get("book", ""), VERDICTS.get(r.get("verdict"), r.get("verdict", ""))]
++    for k in FORM_ROWS:
++        s = form.get(k) or {}
++        row += [s.get("study", 0), s.get("transfer", 0)]
++    row += [total.get("required", ""), total.get("study", ""), total.get("transfer", ""),
++            "\n".join(f"{g.get('label', '')} {g.get('got', '')}/{'-' if g.get('required') is None else g.get('required')} {g.get('status', '')}"
++                      for g in groups),
++            ", ".join(m for g in groups for m in (g.get("missing") or [])),
++            r.get("note", ""), json.dumps(r.get("courses") or [], ensure_ascii=False)[:45000], json.dumps(form, ensure_ascii=False)]
++    f = results_file()
++    new = not f.exists()
++    buf = io.StringIO()
++    w = csv.writer(buf)
++    if new:
++        w.writerow(RESULT_HEADERS)
++    w.writerow([cell(v) for v in row])
++    with open(f, "a", encoding="utf-8-sig" if new else "utf-8", newline="") as out:
++        out.write(buf.getvalue())
++    return True
++
++
++def openResults():
++    """เปิดไฟล์ผลตรวจ (ยังไม่มี = เปิดโฟลเดอร์ที่เก็บ)"""
++    target = results_file() if results_file().exists() else store_dir()
++    if sys.platform.startswith("win"):
++        os.startfile(target)                    # noqa: S606 — ไฟล์ของโปรแกรมเอง
++    else:
++        subprocess.Popen(["xdg-open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    return str(target)
++
++
++API = {f.__name__: f for f in (listCurricula, getCurriculum, saveCurriculum, deleteCurriculum, saveResult, openResults)}
++
++
++class CurrCheck(DocType):
++    id = "currcheck"
++    name = "ตรวจโครงสร้างหลักสูตร"
++    description = "เทียบโครงสร้างหลักสูตรของนักศึกษากับเล่มหลักสูตร (มคอ.2) พร้อมหลักฐานหน้า/ข้อความในเล่ม — สรุปหน่วยกิตรายหมวดและวิชาที่ยังขาด"
++    icon = "book"
++    color = "amber"
++    order = 80
++    page = "index.html"
++    drop_hint = "วางไฟล์ในกรอบ “โครงสร้างของนักศึกษา” หรือ “เล่มหลักสูตรอ้างอิง” ของเครื่องมือ"
++    ui = {"modes": [], "slots": []}
++
++    def tool_api(self, fn: str, args: list):
++        if fn not in API:
++            raise ValueError("ไม่รู้จักคำสั่ง")
++        return API[fn](*(args or []))
++
++    def inspect(self, path):
++        return {"ok": False, "reason": "เครื่องมือนี้เปิดไฟล์ในหน้าของตัวเอง"}
++
++    def convert(self, jobs, options, pdf, extra, log=print):
++        return {j.id: {"ok": False, "error": "เครื่องมือนี้ทำงานในหน้าของตัวเอง", "notes": [], "outputs": []} for j in jobs}
++
++
++DOCTYPE = CurrCheck()
+diff --git a/doctypes/currcheck/web/index.html b/doctypes/currcheck/web/index.html
+new file mode 100644
+index 0000000..94c0838
+--- /dev/null
++++ b/doctypes/currcheck/web/index.html
+@@ -0,0 +1,1361 @@
++<!DOCTYPE html>
++<html lang="th">
++<head>
++<meta charset="utf-8">
++<meta name="referrer" content="no-referrer">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<!-- ย้ายมาจากเว็บ Apps Script "ตรวจโครงสร้างหลักสูตร" — ตรรกะการอ่าน/ตรวจคงเดิมทุกบรรทัด
++     ต่างจากเดิม: ไลบรารีอยู่ในเครื่อง (/vendor) และบันทึกเล่มหลักสูตร/ผลตรวจเป็นไฟล์ในเครื่อง (doctypes/currcheck/__init__.py)
++     แทน Google Sheet — ไม่ต้องใช้บัญชีออนไลน์ ไม่ต้องใช้อินเทอร์เน็ต -->
++<title>ตรวจโครงสร้างหลักสูตร</title>
++<script src="/vendor/pdf.min.js?token={{TOKEN}}"></script>
++<style>
++  :root{
++    --bg:#f4f6fb; --card:#fff; --ink:#1b2333; --mute:#5f6b7f; --faint:#8a94a6; --line:#e3e7ef; --line2:#d3d9e4;
++    --pri:#2f55c6; --pri-ink:#fff; --pri-soft:#eaf0ff; --pri-line:#c9d6fb;
++    --ok:#147a4b; --ok-bg:#e6f6ee; --ok-line:#b7e2cb;
++    --bad:#b42318; --bad-bg:#fdeceb; --bad-line:#f4c1bc;
++    --warn:#8a5300; --warn-bg:#fff4dc; --warn-line:#f2d79a;
++    --info-bg:#eef4ff;
++  }
++  *{box-sizing:border-box}
++  html,body{margin:0}
++  body{font-family:Sarabun,"TH Sarabun New","Leelawadee UI",Tahoma,system-ui,sans-serif;font-size:15px;color:var(--ink);background:var(--bg);line-height:1.5}
++  button,input,select,textarea{font:inherit;color:inherit}
++  .wrap{max-width:1120px;margin:4px auto 24px;padding:0 2px}
++  .shell{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05);overflow:hidden}
++  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:22px 24px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
++  .top h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.2px}
++  .top p{margin:2px 0 0;color:var(--mute);font-size:14px}
++  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--pri-soft);color:var(--pri);border:1px solid var(--pri-line);border-radius:10px;padding:6px 12px;font-size:13px;font-weight:600}
++  .pill a{color:inherit}
++  .body{padding:20px 24px 26px}
++  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
++  .tab{border:1px solid var(--line2);background:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;color:var(--mute);font-weight:500}
++  .tab[aria-selected=true]{background:var(--pri-soft);border-color:var(--pri-line);color:var(--pri);font-weight:700}
++  .tab:disabled{opacity:.45;cursor:not-allowed}
++  .card{border:1px solid var(--line);border-radius:14px;padding:18px;background:#fff;margin-bottom:16px}
++  .card h2{font-size:17px;margin:0 0 12px;font-weight:700}
++  .card h3{font-size:15px;margin:0 0 8px;font-weight:700}
++  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
++  .drop{border:1.5px dashed var(--line2);border-radius:12px;padding:16px;background:#fafbfe;transition:.15s}
++  .drop.over{border-color:var(--pri);background:var(--pri-soft)}
++  .drop .lbl{font-weight:600;margin-bottom:8px}
++  .file{display:flex;align-items:center;gap:10px;border:1px solid var(--line2);border-radius:10px;background:#fff;padding:6px;cursor:pointer}
++  .file span.btn{background:var(--ink);color:#fff;border-radius:7px;padding:5px 12px;font-weight:600;white-space:nowrap}
++  .file span.name{color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++  .hint{color:var(--faint);font-size:13px;margin-top:6px}
++  .stat{margin-top:10px;font-size:14px}
++  .stat b{font-weight:700}
++  .muted{color:var(--mute)}
++  .small{font-size:13px}
++  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
++  .spacer{flex:1}
++  .btn{border:1px solid var(--line2);background:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
++  .btn:hover{background:#f6f8fc}
++  .btn.primary{background:var(--pri);border-color:var(--pri);color:var(--pri-ink)}
++  .btn.primary:hover{filter:brightness(1.05)}
++  .btn:disabled{opacity:.5;cursor:not-allowed}
++  .btn.sm{padding:4px 10px;font-size:13px;border-radius:8px}
++  select.inp,input.inp,textarea.inp{border:1px solid var(--line2);border-radius:10px;padding:7px 10px;background:#fff}
++  textarea.inp{width:100%;min-height:80px}
++  .tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid transparent}
++  .t-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
++  .t-bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-line)}
++  .t-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
++  .t-info{background:var(--pri-soft);color:var(--pri);border-color:var(--pri-line)}
++  .t-mute{background:#f1f3f7;color:var(--mute);border-color:var(--line)}
++  .note{border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px;border:1px solid}
++  .note.warn{background:var(--warn-bg);border-color:var(--warn-line);color:#5c3a00}
++  .note.info{background:var(--info-bg);border-color:var(--pri-line);color:#23377a}
++  .note.bad{background:var(--bad-bg);border-color:var(--bad-line);color:#7a1a12}
++  .note.ok{background:var(--ok-bg);border-color:var(--ok-line);color:#0e5535}
++  tr.grade-low>td{background:#fff0f0;color:#a31515}
++  tr.grade-low .code,tr.grade-low .sub{color:#a31515}
++  .chip.grade-low{background:#fdeceb;color:#b42318;border-color:#f4c1bc}
++  .student-editor{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
++  .student-editor.hidden{display:none}
++  .student-editor>label{display:flex;flex-direction:column;gap:6px;min-width:0;font-weight:600}
++  .student-editor .inp{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;font-weight:400}
++  .student-editor textarea{resize:vertical;min-height:76px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
++  .checks{display:grid;gap:8px;margin-top:6px}
++  .check{display:flex;gap:10px;align-items:flex-start}
++  .check .ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;margin-top:1px}
++  .ic.ok{background:var(--ok-bg);color:var(--ok)} .ic.bad{background:var(--bad-bg);color:var(--bad)}
++  table{border-collapse:collapse;width:100%}
++  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
++  th{font-size:13px;color:var(--mute);font-weight:600;background:#f8f9fc;position:sticky;top:0;z-index:1}
++  td.n,th.n{text-align:center}
++  th{white-space:nowrap}
++  #sumTbl{min-width:680px} #courseTbl{min-width:560px} #missTbl{min-width:560px}
++  .verdict{flex-wrap:wrap}
++  #sumTbl td:nth-child(2),#sumTbl td:nth-child(3),#sumTbl td:nth-child(4){white-space:nowrap}
++  tr:last-child td{border-bottom:0}
++  .tbl{border:1px solid var(--line);border-radius:12px;overflow:auto}
++  .code{font-weight:700;letter-spacing:.2px}
++  .sub{color:var(--mute);font-size:13px}
++  .flags{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
++  .cat{border:1px solid var(--line2);border-radius:9px;padding:5px 8px;font-weight:600;background:#fff;min-width:130px;cursor:pointer}
++  .cat.k-ปรับพื้นฐาน{background:#f2f3f6;color:#3b4252}
++  .cat.k-แกน{background:#f3ecff;color:#5b2b9e;border-color:#ddc9fb}
++  .cat.k-บังคับ{background:#e9f0ff;color:#1f4e9c;border-color:#c3d4f6}
++  .cat.k-เลือก{background:#e7f6ee;color:#157347;border-color:#bfe3cf}
++  .cat.k-วิทยานิพนธ์,.cat.k-สารนิพนธ์{background:#fff1e3;color:#9a4a00;border-color:#f3d2ad}
++  .cat.k-ภาษาอังกฤษ{background:#e8f7fa;color:#0b6475;border-color:#b9e1ea}
++  .cat.k-รอตรวจสอบ{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-line)}
++  tr.flag td{background:#fffcf3}
++  .verdict{display:flex;gap:12px;align-items:center;border-radius:14px;padding:14px 18px;margin-bottom:16px;border:1px solid}
++  .verdict .big{font-size:18px;font-weight:700}
++  .verdict.pass{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
++  .verdict.fail{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad)}
++  .verdict.waiting{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
++  .form{display:grid;grid-template-columns:auto 58px auto auto 58px auto auto 58px auto;gap:6px 8px;align-items:center;color:#2233aa;font-size:14px}
++  .form .l{text-align:right}
++  .box{border:1px solid #9aa3b2;border-radius:3px;height:28px;display:grid;place-items:center;color:var(--ink);font-weight:700;background:#fff}
++  .box[data-copy]{cursor:copy}
++  .box[data-copy]:hover{background:var(--pri-soft)}
++  .chip{display:inline-block;border:1px solid var(--line2);border-radius:6px;padding:0 7px;margin:2px 4px 2px 0;font-size:13px;background:#fff}
++  .chip.miss{border-color:var(--bad-line);background:var(--bad-bg);color:var(--bad)}
++  .chip.out{border-color:var(--warn-line);background:var(--warn-bg)}
++  dialog{border:0;border-radius:16px;padding:0;max-width:640px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(16,24,40,.25)}
++  dialog::backdrop{background:rgba(20,28,45,.35)}
++  .dlg-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
++  .dlg-b{padding:16px 20px;max-height:70vh;overflow:auto}
++  .quote{border-left:3px solid var(--pri);background:#f7f9ff;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0 14px;font-size:14px}
++  .quote .pg{font-size:12px;color:var(--faint);margin-bottom:4px}
++  mark{background:#ffe58f;border-radius:3px;padding:0 2px}
++  .ev-sec{font-size:13px;font-weight:700;color:var(--mute);margin-top:4px}
++  details summary{cursor:pointer;color:var(--mute);font-size:13px}
++  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:10px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
++  .toast.show{opacity:1}
++  .hidden{display:none!important}
++  .mapgrid{display:grid;grid-template-columns:1fr auto auto;gap:6px 10px;align-items:center;font-size:14px;margin-top:8px}
++  @media (max-width:760px){
++    .grid2{grid-template-columns:1fr}
++    .top,.body{padding-left:16px;padding-right:16px}
++    .form{grid-template-columns:auto 46px auto auto 46px auto auto 46px auto;font-size:12px}
++    th,td{padding:8px}
++    .cat{min-width:110px}
++  }
++  @media print{
++    body{background:#fff}.wrap{margin:0;max-width:none}.shell{border:0;box-shadow:none}
++    .tabs,.noprint,button,.top .pill{display:none!important}
++    section[data-step]{display:block!important}
++    section[data-step="1"]{display:none!important}
++  }
++</style>
++</head>
++<body>
++<div class="wrap">
++<div class="shell">
++  <div class="top">
++    <div>
++      <h1>ตรวจโครงสร้างหลักสูตร</h1>
++      <p>จัดหมวดรายวิชาจากเล่มหลักสูตร พร้อมหลักฐานอ้างอิง</p>
++    </div>
++    <div class="row noprint" style="flex-wrap:wrap;justify-content:flex-end"><div class="pill" id="topPill">ยังไม่ได้นำเข้าไฟล์</div><button class="btn" id="btnRefresh" type="button" title="ล้างข้อมูลบนหน้าจอและเริ่มตรวจใหม่ ไม่ลบผลที่บันทึกไว้">↻ ล้างไฟล์ / เริ่มใหม่</button></div>
++  </div>
++  <div class="body">
++    <div class="tabs" role="tablist">
++      <button class="tab" role="tab" data-go="1" aria-selected="true">1 · นำเข้าไฟล์</button>
++      <button class="tab" role="tab" data-go="2" disabled>2 · ตรวจหมวดวิชา</button>
++      <button class="tab" role="tab" data-go="3" disabled>3 · สรุปและส่งออก</button>
++    </div>
++
++    <!-- ===== ขั้นที่ 1 ===== -->
++    <section data-step="1">
++      <div class="grid2">
++        <div class="card">
++          <h2>โครงสร้างของนักศึกษา</h2>
++          <div class="drop" id="dropStu">
++            <div class="lbl">PDF ที่ยังไม่ได้เลือกหมวดวิชา</div>
++            <label class="file"><span class="btn">เลือกไฟล์</span><span class="name" id="nameStu">ไม่ได้เลือกไฟล์ใด</span>
++              <input type="file" id="fileStu" accept="application/pdf,.pdf" hidden></label>
++            <div class="hint">ไฟล์หน้า “โครงสร้างหลักสูตร” ของนักศึกษาจากระบบทะเบียน · ลากไฟล์มาวางได้</div>
++          </div>
++          <div class="stat" id="statStu"></div>
++          <div id="studentEditor" class="hidden student-editor" style="margin-top:12px">
++            <div class="hint">ข้อมูลด้านล่างอ่านจากไฟล์ให้อัตโนมัติ แก้ไขเฉพาะเมื่อระบบอ่านคลาดเคลื่อน</div>
++            <label>รหัสนักศึกษา<input class="inp studentField" data-field="studentId" id="editStudentId"></label>
++            <label>รหัสสาขา<input class="inp studentField" data-field="programKey" id="editProgramKey"></label>
++            <label>ชื่อ–สกุล<input class="inp studentField" data-field="name" id="editStudentName"></label>
++            <label>หลักสูตร<textarea class="inp studentField" data-field="program" id="editProgram" rows="2"></textarea></label>
++            <label>แผนการศึกษา<input class="inp studentField" data-field="plan" id="editPlan"></label>
++          </div>
++          <details class="noprint" style="margin-top:8px"><summary>อ่าน PDF ไม่ได้? วางข้อความแทน</summary>
++            <textarea class="inp" id="txtStu" placeholder="คัดลอกทั้งหน้าจากระบบทะเบียนมาวาง"></textarea>
++            <button class="btn sm" id="btnTxtStu" type="button">อ่านข้อความ</button></details>
++        </div>
++        <div class="card">
++          <h2>เล่มหลักสูตรอ้างอิง</h2>
++          <div class="drop" id="dropBook">
++            <div class="lbl">PDF ที่ระบุหมวดและรายวิชา (มคอ.2)</div>
++            <label class="file"><span class="btn">เลือกไฟล์</span><span class="name" id="nameBook">ไม่ได้เลือกไฟล์ใด</span>
++              <input type="file" id="fileBook" accept="application/pdf,.pdf" hidden></label>
++            <div class="hint">อ่านโครงสร้างหลักสูตรและรายวิชา รองรับรหัสไทย (ทพทห ๕๓๑) และอังกฤษ (DTOP 531)</div>
++          </div>
++          <div class="row hidden" id="savedRow" style="margin-top:10px">
++            <span class="small muted">หรือใช้เล่มที่บันทึกไว้</span>
++            <select class="inp" id="savedSel" style="flex:1;min-width:0"></select>
++          </div>
++          <div class="stat" id="statBook"></div>
++          <details class="noprint" style="margin-top:8px"><summary>อ่าน PDF ไม่ได้? วางข้อความแทน</summary>
++            <textarea class="inp" id="txtBook" placeholder="คัดลอกตั้งแต่ข้อ 3.1.2 ถึงรายวิชาทั้งหมด"></textarea>
++            <button class="btn sm" id="btnTxtBook" type="button">อ่านข้อความ</button></details>
++        </div>
++      </div>
++
++      <div class="card hidden" id="mapCard">
++        <h3>หมวดในเล่ม → ช่องในระบบทะเบียน</h3>
++        <div class="small muted">ระบบจับคู่ให้อัตโนมัติ แก้ได้ถ้าหลักสูตรนี้ใช้ช่องต่างออกไป</div>
++        <div class="mapgrid" id="mapGrid"></div>
++        <label class="row small" style="margin-top:10px"><input type="checkbox" id="chkSaveBook"> บันทึกเล่มนี้ไว้ใช้ครั้งต่อไป</label>
++      </div>
++
++      <div class="card hidden" id="majorCard">
++        <h2>วิชาเอกของนักศึกษา</h2>
++        <p class="hint">เล่มนี้แยกวิชาบังคับตามวิชาเอก ระบุเอกได้ถ้าทราบ หรือให้ระบบจับคู่จากรายวิชาในไฟล์ วิชาแกนและวิชาเลือกตรวจตามเล่มตามปกติ</p>
++        <label for="majorSelect">สาขาวิชาเอก (TH)</label>
++        <select class="inp" id="majorSelect" style="display:block;width:100%;margin-top:8px"><option value="">— ตรวจอัตโนมัติจากรายวิชาในไฟล์ —</option></select>
++        <div class="hint" id="majorHint" role="status"></div>
++      </div>
++      <div class="card" id="matchCard">
++        <h2>ตรวจว่าตรงหลักสูตรก่อนเริ่ม</h2>
++        <div id="matchBody" class="muted">นำเข้าไฟล์ทั้งสองไฟล์ ระบบจะแสดงชื่อหลักสูตร แผน และรหัสวิชาที่อ่านได้จากทั้งสองไฟล์ ให้เจ้าหน้าที่ยืนยัน</div>
++      </div>
++      <div class="row">
++        <span class="small muted" id="step1Hint">ระบบอ่านไฟล์ในเครื่องของคุณ ไม่ได้อัปโหลดไฟล์ไปที่ใด</span>
++        <span class="spacer"></span>
++        <button class="btn primary" id="btnToStep2" data-go="2" type="button" disabled>ดูรายละเอียดรายวิชา →</button>
++      </div>
++    </section>
++
++    <!-- ===== ขั้นที่ 2 ===== -->
++    <section data-step="2" class="hidden">
++      <div class="card">
++        <div class="row">
++          <div>
++            <div style="font-weight:700;font-size:16px" id="s2Title"></div>
++            <div class="sub" id="s2Sub"></div>
++          </div>
++          <span class="spacer"></span>
++          <span class="tag t-warn" id="s2Badge">รอเจ้าหน้าที่ทบทวน</span>
++        </div>
++      </div>
++      <div id="s2Notes"></div>
++      <div class="card" style="padding:0">
++        <div class="row" style="padding:14px 16px 10px">
++          <div>
++            <h3 style="margin:0">หมวดที่อ่านได้จากเล่มหลักสูตร</h3>
++            <div class="sub">GRID ที่ไม่มีในเล่ม → ภาษาอังกฤษ · รหัสที่ไม่มีในเล่มและไม่มีเกรดตัวอักษร → รอตรวจสอบ · เปลี่ยนหมวดได้ทุกรายวิชา</div>
++          </div>
++          <span class="spacer"></span>
++          <label class="small muted">แสดง
++            <select class="inp" id="filterSel">
++              <option value="all">รายวิชาทั้งหมด</option>
++              <option value="flag">ต้องตรวจสอบ</option>
++              <option value="out">ไม่พบในเล่ม</option>
++            </select></label>
++        </div>
++        <div class="tbl" style="border:0;border-top:1px solid var(--line);border-radius:0 0 14px 14px">
++          <table id="courseTbl"></table>
++        </div>
++      </div>
++      <div class="row">
++        <button class="btn" data-go="1" type="button">← นำเข้าไฟล์</button>
++        <span class="spacer"></span>
++        <button class="btn primary" data-go="3" type="button">สรุปและส่งออก →</button>
++      </div>
++    </section>
++
++    <!-- ===== ขั้นที่ 3 ===== -->
++    <section data-step="3" class="hidden">
++      <div id="verdict"></div>
++      <div class="card">
++        <h2>สรุปหน่วยกิตตามหมวด</h2>
++        <div class="tbl"><table id="sumTbl"></table></div>
++      </div>
++      <div id="s3Notes"></div>
++      <div class="card">
++        <h2>ตัวเลขสำหรับกรอกในระบบทะเบียน</h2>
++        <div class="form" id="formBox"></div>
++        <div class="hint noprint">คลิกที่ตัวเลขเพื่อคัดลอก</div>
++      </div>
++      <div class="card" id="missCard">
++        <h2>วิชาในเล่มที่ยังไม่พบในโครงสร้างของนักศึกษา</h2>
++        <div class="small muted" style="margin-bottom:8px">ถ้าวิชาใดได้รับการเทียบโอน/ยกเว้น ให้ติ๊ก “โอน” ระบบจะนับเข้าช่องโอน</div>
++        <div class="tbl"><table id="missTbl"></table></div>
++      </div>
++      <div class="card">
++        <h2>หมายเหตุเจ้าหน้าที่</h2>
++        <input class="inp" id="note" style="width:100%" placeholder="ระบุเหตุผลกรณีแก้หมวด / รายวิชานอกเล่ม">
++        <div class="small muted" style="margin-top:8px" id="s3Status"></div>
++        <div class="row noprint" style="margin-top:12px">
++          <button class="btn" data-go="2" type="button">← กลับไปตรวจรายวิชา</button>
++          <span class="spacer"></span>
++          <button class="btn" type="button" id="btnResults" title="ไฟล์ผลการตรวจโครงสร้าง.csv (เปิดด้วย Excel)">เปิดไฟล์ผลตรวจ</button>
++          <button class="btn" type="button" id="btnPrint">พิมพ์ / PDF</button>
++          <button class="btn" id="btnNext" type="button">ตรวจคนถัดไป</button>
++          <button class="btn primary" id="btnConfirm" type="button">ยืนยันผลตรวจ</button>
++        </div>
++        <div class="small muted" style="margin-top:10px" id="engLine"></div>
++      </div>
++    </section>
++  </div>
++</div>
++</div>
++
++<dialog id="evDlg">
++  <div class="dlg-h"><div><div class="code" id="evCode"></div><div class="sub" id="evName"></div></div>
++    <button class="btn sm" type="button" id="evClose">ปิด</button></div>
++  <div class="dlg-b" id="evBody"></div>
++</dialog>
++<div class="toast" id="toast" role="status"></div>
++
++<script>
++/* ===== ตัวอ่านเล่มหลักสูตร + โครงสร้างของนักศึกษา และตัวตรวจ (ใช้ได้ทั้งเบราว์เซอร์และ node) ===== */
++var FORM_ROWS = ['ปรับพื้นฐาน', 'แกน', 'บังคับ', 'เลือก', 'วิทยานิพนธ์/สารนิพนธ์'];
++var CAT_LIST = ['ปรับพื้นฐาน', 'แกน', 'บังคับ', 'เลือก', 'วิทยานิพนธ์', 'สารนิพนธ์', 'ภาษาอังกฤษ', 'รอตรวจสอบ'];
++var GROUP_CATS = ['ปรับพื้นฐาน', 'แกน', 'บังคับ', 'เลือก', 'วิทยานิพนธ์', 'สารนิพนธ์'];
++var THESIS_CATS = ['วิทยานิพนธ์', 'สารนิพนธ์'];
++var NOCREDIT_CATS = ['ปรับพื้นฐาน', 'ภาษาอังกฤษ', 'รอตรวจสอบ']; // ไม่นับหน่วยกิตในโครงสร้าง
++var FAIL_GRADES = ['F', 'U', 'W', 'AU'];
++var PENDING_GRADES = ['', 'X', 'IP', 'I'];
++var TRANSFER_GRADES = ['T', 'TR', 'TC'];
++
++function formRowOf(cat) {
++  if (THESIS_CATS.indexOf(cat) >= 0) return 'วิทยานิพนธ์/สารนิพนธ์';
++  return FORM_ROWS.indexOf(cat) >= 0 ? cat : '';
++}
++function thaiDigits(s) {
++  return String(s == null ? '' : s).replace(/[๐-๙]/g, function (d) { return '๐๑๒๓๔๕๖๗๘๙'.indexOf(d); });
++}
++// ตัดสระบน/ล่าง วรรณยุกต์ ช่องว่าง — ให้จับคำได้แม้ข้อความจาก PDF เพี้ยน
++function normTh(s) {
++  return thaiDigits(cleanPdfText(s)).replace(/[ัิ-ฺ็-๎]/g, '').replace(/\s+/g, '');
++}
++function normCode(s) { return thaiDigits(s || '').replace(/\s+/g, '').toUpperCase(); }
++function isPass(g) { return /^(?:A|B\+?|C\+?|D\+?|S|P|T|TR|TC)$/.test(g); }
++function gradeMeetsCategory(grade, cat) {
++  var points = { A: 4, 'B+': 3.5, B: 3, 'C+': 2.5, C: 2, 'D+': 1.5, D: 1, F: 0 };
++  if (cat !== 'บังคับ' && cat !== 'เลือก') return isPass(grade);
++  if (TRANSFER_GRADES.indexOf(grade) >= 0) return true;
++  if (!(grade in points)) return false;
++  return points[grade] >= (cat === 'บังคับ' ? 3 : 2);
++}
++function gradeBelowCategory(grade, cat) {
++  return /^(A|B\+?|C\+?|D\+?|F)$/.test(grade) && (cat === 'บังคับ' || cat === 'เลือก') && !gradeMeetsCategory(grade, cat);
++}
++function isPending(g) { return PENDING_GRADES.indexOf(g) >= 0; }
++function thesisCatByCredits(cr) { return cr === 6 ? 'สารนิพนธ์' : 'วิทยานิพนธ์'; }
++
++var GROUP_KEYS = [
++  { key: 'ปรบพนฐาน', label: 'หมวดวิชาปรับพื้นฐาน', cat: 'ปรับพื้นฐาน' },
++  { key: 'พนฐาน', label: 'หมวดวิชาพื้นฐาน', cat: 'แกน' },
++  { key: 'แกน', label: 'หมวดวิชาแกน', cat: 'แกน' },
++  { key: 'บงคบ', label: 'หมวดวิชาบังคับ', cat: 'บังคับ' },
++  { key: 'เลอก', label: 'หมวดวิชาเลือก', cat: 'เลือก' },
++  { key: 'วทยานพนธ', label: 'วิทยานิพนธ์', cat: 'วิทยานิพนธ์' },
++  { key: 'สารนพนธ', label: 'สารนิพนธ์', cat: 'สารนิพนธ์' },
++  { key: 'การศกษาอสระ', label: 'การศึกษาอิสระ', cat: 'สารนิพนธ์' },
++  { key: 'การคนควาอสระ', label: 'การค้นคว้าอิสระ', cat: 'สารนิพนธ์' }
++];
++var HEAD_RE = new RegExp('^(?:\\(?\\d{1,2}[\\).]|[กขคง][\\).]|\\d(?:\\.\\d+)+)?(?:หมวด|กลม)?(?:รายวชา|วชา)?(' +
++  GROUP_KEYS.map(function (g) { return g.key; }).join('|') + ')');
++function groupFromLine(line) {
++  if (/^\s*(?:\(?\d+(?:\.\d+)*\)?[.)]?\s*)?Core Courses?\b/i.test(line)) return GROUP_KEYS[2];
++  if (/^\s*(?:\(?\d+\)?[.)]?\s*)?(?:Thematic Paper|Independent Study)\b/i.test(line)) return GROUP_KEYS[6];
++  var en = line.match(/^\s*(?:\(?\d+(?:\.\d+)*\)?[.)]?\s*)?(Required Courses?|Elective Courses?|Thesis)\b/i);
++  if (en) return GROUP_KEYS[ /required/i.test(en[1]) ? 3 : /elective/i.test(en[1]) ? 4 : 5 ];
++  var m = normTh(line).match(HEAD_RE);
++  if (!m) return null;
++  var suffix = normTh(line).slice(m[0].length);
++  if (suffix && !/^(?:จานวน|ไมนอยกวา|หนวยกต|แผน|[0-9(:：–—-])/.test(suffix)) return null;
++  for (var i = 0; i < GROUP_KEYS.length; i++) if (GROUP_KEYS[i].key === m[1]) return GROUP_KEYS[i];
++  return null;
++}
++var CREDIT_RE = /(\d+(?:\.\d)?)\s*\(\s*\d+\s*[-–—−]\s*\d+\s*[-–—−]\s*\d+\s*\)/;
++
++// หารหัสวิชาในบรรทัด: อังกฤษ (DTOP 531) และไทย (ทพทห ๕๓๑ — อักษรไทยล้วนไม่มีสระ)
++function findCodes(t) {
++  t = thaiDigits(t);
++  var out = [], m;
++  var en = /(^|[^A-Za-z])([A-Z]{3,4})\s*(\d{3})(?!\d)/g;
++  while ((m = en.exec(t))) out.push({ script: 'en', prefix: m[2], num: m[3], idx: m.index + m[1].length, len: m[0].length - m[1].length });
++  var th = /(^|[\s*(\[])([ก-ฮ]{2,5})\s*(\d{3})(?![\d\/.-])/g;
++  while ((m = th.exec(t))) out.push({ script: 'th', prefix: m[2], num: m[3], idx: m.index + m[1].length, len: m[0].length - m[1].length });
++  return out.sort(function (a, b) { return a.idx - b.idx; });
++}
++
++// แยกบรรทัดพร้อมเลขหน้า (ข้อความจาก pdfToText มีบรรทัด @@PAGE n@@ คั่นหน้า)
++function splitPages(text) {
++  var page = 1, out = [];
++  String(text || '').split(/\r?\n/).forEach(function (raw) {
++    var m = raw.match(/^@@PAGE (\d+)@@$/);
++    if (m) { page = +m[1]; return; }
++    out.push({ raw: raw.trim(), t: thaiDigits(raw).trim(), page: page });
++  });
++  return out;
++}
++function normalizePlan(value) {
++  var rawPlan = thaiDigits(value || '');
++  if (/(?:แผน|Plan)?\s*1\.2\b/i.test(rawPlan)) return 'ก2';
++  if (/(?:แผน|Plan)?\s*1\.1\b/i.test(rawPlan)) return 'ก1';
++  if (/(?:แผน|Plan)\s*2\s*(?:แบบ)?(?:วิชาชีพ|Professional)/i.test(rawPlan)) return 'ข';
++  var t = thaiDigits(value || '').replace(/\s+/g, '').replace(/แผนการศึกษา|แผน|PLAN/gi, '').toUpperCase();
++  if (/^(?:ก(?:แบบก)?|A)\(?1\)?$/.test(t) || t === '1' || t === 'A(A1)') return 'ก1';
++  if (/^(?:ก(?:แบบก)?|A)\(?2\)?$/.test(t) || t === '2' || t === 'A(A2)') return 'ก2';
++  if (/^(?:ข|B)$/.test(t)) return 'ข';
++  return t;
++}
++function plansInLine(t) {
++  t = thaiDigits(t);
++  var modern = [], mm, modernRe = /(?:แผน|Plan)\s*(1\.[12]|2(?![.0-9]))(?=\s|$|[),])/gi;
++  while ((mm = modernRe.exec(t))) { var modernPlan = mm[1] === '1.1' ? 'ก1' : mm[1] === '1.2' ? 'ก2' : 'ข'; if (modern.indexOf(modernPlan) < 0) modern.push(modernPlan); }
++  if (modern.length) return modern;
++  var out = [], re = /(?:Plan\s*A\s*\(?A?\s*([12])\)?|แผน\s*ก\s*(?:แบบ\s*ก\s*)?([12])|Plan\s*(B)\b|แผน\s*(ข))/gi, m;
++  while ((m = re.exec(thaiDigits(t)))) { var p = m[1] || m[2] ? 'ก' + (m[1] || m[2]) : 'ข'; if (out.indexOf(p) < 0) out.push(p); }
++  return out;
++}
++function planOfLine(t) { var p = plansInLine(t); return p.length === 1 ? p[0] : null; }
++
++function cleanPdfText(s) {
++  return String(s || '').normalize('NFC').replace(/[\u200B\uFEFF]/g, '')
++    .replace(/\uF710/g, 'ั').replace(/\uF70E/g, '์').replace(/\uF70A/g, '่').replace(/\uF70B/g, '้').replace(/\uF70C/g, '๊').replace(/\uF70D/g, '๋')
++    .replace(/([ก-๙])\s+([ัิีึืุู็่้๊๋์])/g, '$1$2');
++}
++// Repair only known Thai structural keywords from legacy PDF font encodings.
++function normalizeBookKeywords(text) {
++  return String(text).replace(/หน[PGH]วยกิต/g, 'หน่วยกิต')
++    .replace(/โครงสร[NQ]าง(?:ของ)?หลักสูตร/g, 'โครงสร้างหลักสูตร')
++    .replace(/ไม[PG]น[$N]อยกว[PG]า/g, 'ไม่น้อยกว่า')
++    .replace(/วิทยานิพนธ[?W]/g, 'วิทยานิพนธ์')
++    .replace(/การค[$N]นคว[$N]าอิสระ/g, 'การค้นคว้าอิสระ');
++}
++// Rejoin code columns only when a prefix is immediately followed by its number.
++function prepareBookText(text) {
++  var lines = normalizeBookKeywords(cleanPdfText(text)).split(/\r?\n/);
++  for (var i = 0; i < lines.length; i++) {
++    var a = lines[i].trim().replace(/^\*+\s*/, '');
++    if (/^(?:[A-Z]{3,4}|[ก-ฮ]{2,5})$/.test(a)) {
++      var j = i + 1;
++      while (j < lines.length && !lines[j].trim()) j++;
++      var next = (lines[j] || '').trim().replace(/^\*+\s*/, '');
++      var k = j + 1; while (k < lines.length && !lines[k].trim()) k++;
++      var h = k + 1; while (h < lines.length && !lines[h].trim()) h++;
++      if (/^[ก-ฮ]{2,5}$/.test(a) && /^[A-Z]{3,4}$/.test(next) && /^[๐-๙0-9]{3}$/.test((lines[k] || '').trim()) && /^[๐-๙0-9]{3}$/.test((lines[h] || '').trim())) {
++        lines[i] = a + ' ' + lines[k].trim(); lines[j] = next + ' ' + lines[h].trim(); lines[k] = ''; lines[h] = '';
++      } else if (/^[๐-๙0-9]{3}$/.test(next)) { lines[i] = a + ' ' + next; lines[j] = ''; }
++    }
++  }
++  return lines.filter(function(x) { return x.trim(); }).join('\n');
++}
++
++/** อ่านเล่มหลักสูตร (มคอ.2) */
++function parseCurriculum(text) {
++  var L = splitPages(prepareBookText(text));
++  var res = { parserVersion: 8, name: '', plan: '', year: '', totalRequired: null, totalEvidence: null, groups: [], plans: {}, planOrder: [],
++    planTotals: {}, courses: [], prefixes: {}, diag: {} };
++  var all = L.map(function (l) { return l.t; }).join('\n');
++  var m, i;
++  if ((m = all.match(/(หลักสูตร\S*บัณฑิต\s*สาขาวิชา\s*\S+)/))) res.name = m[1].replace(/\s+/g, ' ');
++  if ((m = all.match(/หลักสูตร(?:ใหม่|ปรับปรุง)\s*พ\.\s*ศ\.\s*(\d{4})/)) || (m = all.match(/ความเห็นชอบ[^\n]*?พ\.\s*ศ\.\s*(\d{4})/))) res.year = m[1];
++
++  var iStruct = -1, iCourses = -1, iEnd = L.length;
++  for (i = 0; i < L.length; i++) {
++    var n = normTh(L[i].t);
++    if (/curriculum structure/i.test(L[i].t) && iStruct < 0) iStruct = i;
++    if (/courses in the curriculum|^\d(?:\.\d+)*\s+Courses of the Program/i.test(L[i].t) && iCourses < 0) iCourses = i;
++    if (iCourses >= 0 && /research projects? of the program|Definition of Course Codes/i.test(L[i].t)) { iEnd = i; break; }
++    if (iStruct < 0 && /โครงสรางหลกสตร/.test(n) && !/ความหมาย/.test(n)) iStruct = i;
++    else if (iCourses < 0 && /^(?:\d(?:\.\d+)*)?รายวชา(?:ใน|ของ)?หลกสตร$|^\d(?:\.\d+)+รายวชา/.test(n)) iCourses = i;
++    else if (iCourses >= 0 && i > iCourses + 3 && /^(3\.1\.4|3\.1\.5|3\.1\.6|3\.2)|^\d(?:\.\d+)*โครงการวจย|^\d(?:\.\d+)*ความหมายของรหสวชา|^\d(?:\.\d+)*แผนการศกษา|^\d(?:\.\d+)*คาอธบายรายวชา/.test(n)) { iEnd = i; break; }
++  }
++  var sStart = iStruct >= 0 ? iStruct : 0;
++  var sEnd = iCourses >= 0 ? iCourses : L.length;
++  var cStart = iCourses >= 0 ? iCourses : sStart;
++
++  function findGroup(label) { return res.groups.filter(function (x) { return x.label === label; })[0]; }
++  function addGroup(g) { if (!findGroup(g.label)) res.groups.push({ label: g.label, cat: g.cat }); }
++
++  // 1) หน่วยกิตที่กำหนดของแต่ละหมวด แยกตามแผน (ข้อ 3.1.2)
++  var plan = 'default', columns = [];
++  res.planNames = {};
++  for (i = sStart; i < sEnd; i++) {
++    var t = L[i].t, pl = planOfLine(t), headerPlans = plansInLine(t);
++    // A heading containing only plan labels defines table column order.
++    var headerOnly = t.replace(/^หมวดวิชา\s*/, '').replace(/(?:Plan\s*A\s*\(?A?\s*[12]\)?|แผน\s*ก\s*(?:แบบ\s*ก\s*)?[12]|Plan\s*B\b|แผน\s*ข)/gi, '').replace(/[\s,|/()–—-]/g, '') === '';
++    if (headerOnly && headerPlans.length > 1) { columns = headerPlans; continue; }
++    if (pl && headerOnly) columns = [];
++    var tableGroup = groupFromLine(t);
++    var totalLine = /^(?:Total|รวม)/i.test(t);
++    if (columns.length > 1 && (tableGroup || totalLine)) {
++      var valuesText = t.replace(/^\s*\(?\d+\)?[.)]?\s*/, '');
++      var values = [], cell;
++      var cells = /(?:^|\s)([0-9]+(?:\.[0-9]+)?)(?:\s*(?:credits?|หน่วยกิต))?(?=\s|$)|(?:^|\s)[-–—](?=\s|$)/gi;
++      while ((cell = cells.exec(valuesText))) values.push(cell[1] == null ? 0 : +cell[1]);
++      if (values.length === columns.length) {
++        columns.forEach(function(pk, n) {
++          if (!res.plans[pk]) { res.plans[pk] = []; res.planOrder.push(pk); }
++          if (totalLine) { res.planTotals[pk] = values[n]; if (res.totalRequired == null) res.totalRequired = values[n]; }
++          else { addGroup(tableGroup); res.plans[pk].push({ label: tableGroup.label, required: values[n], atLeast: /not less than|ไม่น้อยกว่า/i.test(t), evidence: {page:L[i].page,line:L[i].raw} }); }
++        });
++      } else res.planTableUncertain = true;
++      continue;
++    }
++    if (pl) { if (/^(?:แผน|Plan)\s*(?:1\.[12]|2)(?:\s|$)/i.test(t)) res.planNames[pl] = t; plan = pl; if (res.planOrder.indexOf(pl) < 0 && !/^\s*$/.test(pl)) {} }
++    var nn = normTh(t);
++    var tot = nn.match(/จานวนหนวยกตรวมตลอดหลกสตร(?:ไมนอยกวา)?(\d+)/) || nn.match(/^รวม(?:ตลอดหลกสตร|ทงสน)?(?:ไมนอยกวา)?(\d+)หนวยกต$/);
++    if (!tot) tot = t.match(/Total\s+(?:not less than\s+)?(\d+)\s*credits/i);
++    if (tot) {
++      if (res.totalRequired == null) { res.totalRequired = +tot[1]; res.totalEvidence = { page: L[i].page, line: L[i].raw }; }
++      if (!/ตลอดหลกสตร/.test(nn) && res.planTotals[plan] == null) res.planTotals[plan] = +tot[1];
++    }
++    var g = groupFromLine(t);
++    if (!g || findCodes(t).length) continue;
++    var cm = nn.match(/(\d+)หนวยกต/) || t.match(/(\d+)\s*credits/i);
++    if (!cm && g) { var tail = t; for (var q = i + 1; q < Math.min(i + 4, sEnd); q++) { if (groupFromLine(L[q].t)) break; tail += ' ' + L[q].t; } cm = normTh(tail).match(/(\d+)หนวยกต/) || tail.match(/(\d+)\s*credits/i); }
++    if (!cm) continue;
++    if (!res.plans[plan]) { res.plans[plan] = []; res.planOrder.push(plan); }
++    if (!res.plans[plan].some(function (x) { return x.label === g.label; })) {
++      res.plans[plan].push({ label: g.label, required: +cm[1], atLeast: /ไมนอยกวา/.test(nn) || /not less than/i.test(t), evidence: { page: L[i].page, line: L[i].raw } });
++      addGroup(g);
++    }
++  }
++
++  // 2) รายวิชาในแต่ละหมวด (ข้อ 3.1.3) — จับคู่บรรทัดรหัสไทย/อังกฤษที่เลขเดียวกันเป็นวิชาเดียว
++  var coursePlan = '', major = '', cur = null, curHead = null, lastCredit = null, lastCreditLine = null, seen = {};
++  for (i = cStart; i < iEnd; i++) {
++    var line = L[i].t;
++    if (/For Plan\s*1\.[12]/i.test(line)) {coursePlan = normalizePlan((line.match(/Plan\s*1\.[12]/i)||[''])[0]);cur = coursePlan === 'ก1' ? GROUP_KEYS[5] : null; curHead = {page:L[i].page,line:L[i].raw}; major=''; if(cur) addGroup(cur); continue;}
++    var trackHeading = line.match(/^(?:\(?\d+(?:\.\d+)*\)?[.)]?\s*)?(?:รายวิชาบังคับกลุ่มความเชี่ยวชาญด้าน|กลุ่มวิชาเลือกเฉพาะด้าน)(.+)$/);
++    if (trackHeading) {
++      major = trackHeading[1].trim();
++      if (L[i+1] && /^(?:วัฒนธรรม|บริหาร)/.test(L[i+1].t) && !findCodes(L[i+1].t).length) major += L[++i].t;
++      continue;
++    }
++    var majorHeading = line.match(/^(?:วิชาเอก\s*|(?:\d+(?:\.\d+)*[.)]\s*)?Major in\s+)(.+)$/i);
++    if (majorHeading) { major = majorHeading[1].trim(); continue; }
++    var codes = findCodes(line);
++    if (cur && /\beither\b.*\bor\b/i.test(line) && codes.length >= 2) {
++      res.choiceSets = res.choiceSets || [];
++      res.choiceSets.push({group:cur.label,codes:codes.map(function(c) {return c.prefix+c.num;}),count:1,evidence:{page:L[i].page,line:L[i].raw}});
++      continue;
++    }
++    // Mentions in explanatory paragraphs are not course definitions.
++    if (codes.length && !/^[\s*]*$/.test(line.slice(0,codes[0].idx))) continue;
++    var g2 = codes.length ? null : groupFromLine(line);
++    if (g2 && res.courses.length && /^(?:Thesis|Independent Study|Thematic Paper)$/i.test(line.trim()) && i - res.courses[res.courses.length-1].lineNo <= 2) g2 = null;
++    if (g2) { major = ''; cur = g2; curHead = { page: L[i].page, line: L[i].raw }; lastCredit = null; addGroup(g2); continue; }
++    var cr = line.match(CREDIT_RE);
++    if (cr && !codes.length) { var prev = res.courses[res.courses.length - 1]; if (prev && prev.group === (cur && cur.label) && prev.credits == null) { prev.credits = +cr[1]; prev.evidence.lines.push(L[i].raw); } else { lastCredit = +cr[1]; lastCreditLine = L[i].raw; } }
++    if (!cur) continue;
++    codes.forEach(function (c, ci) {
++      var key = c.prefix + c.num;
++      var rest = line.slice(c.idx + c.len, ci + 1 < codes.length ? codes[ci + 1].idx : undefined);
++      var name = rest.replace(CREDIT_RE, '').trim();
++      var last = res.courses[res.courses.length - 1];
++      if (last && last.num === c.num && last.group === cur.label && last.major === major && i - last.lineNo <= 5 && !last[c.script === 'en' ? 'codeEn' : 'codeTh']) {
++        if (c.script === 'en') { last.codeEn = key; last.prefixEn = c.prefix; last.nameEn = name; last.code = key; }
++        else { last.codeTh = key; last.prefixTh = c.prefix; last.nameTh = name; }
++        if (last.credits == null && cr) last.credits = +cr[1];
++        last.evidence.lines.push(L[i].raw); last.lineNo = i;
++        seen[key] = 1;
++        return;
++      }
++      if (seen[key]) return;
++      seen[key] = 1;
++      var b = { key: key, code: key, num: c.num, codeEn: '', codeTh: '', prefixEn: '', prefixTh: '', nameEn: '', nameTh: '',
++        credits: cr ? +cr[1] : lastCredit, major: major, plan: coursePlan, group: cur.label, lineNo: i,
++        evidence: { page: L[i].page, heading: curHead, lines: (cr || !lastCreditLine ? [] : [lastCreditLine]).concat([L[i].raw]) } };
++      if (c.script === 'en') { b.codeEn = key; b.prefixEn = c.prefix; b.nameEn = name; }
++      else { b.codeTh = key; b.prefixTh = c.prefix; b.nameTh = name; }
++      res.courses.push(b);
++      lastCredit = null; lastCreditLine = null;
++    });
++  }
++  res.courses.forEach(function (b) {
++    b.key = b.codeEn || b.codeTh; b.code = b.key;
++    b.display = b.codeEn ? b.codeEn.replace(/^([A-Z]+)/, '$1 ') : b.codeTh.replace(/^([ก-ฮ]+)/, '$1 ');
++    b.name = b.nameEn || b.nameTh;
++    var p = b.prefixEn || b.prefixTh; res.prefixes[p] = (res.prefixes[p] || 0) + 1;
++    delete b.lineNo;
++  });
++
++  var majorPrefixes = {};
++  res.courses.forEach(function(b) { if (!b.major || !res.groups.some(function(g) {return g.label === b.group && g.cat === 'บังคับ';})) return;
++    var list = majorPrefixes[b.prefixEn] = majorPrefixes[b.prefixEn] || []; if (list.indexOf(b.major)<0) list.push(b.major);
++  });
++  res.courses.forEach(function(b) { if (!b.major && res.groups.some(function(g) {return g.label === b.group && THESIS_CATS.indexOf(g.cat)>=0;}) && (majorPrefixes[b.prefixEn] || []).length===1) b.major = majorPrefixes[b.prefixEn][0]; });
++  // แผนเริ่มต้น / ข้อมูลประกอบ
++  if (!res.planOrder.length && res.groups.length) { res.plans['default'] = []; res.planOrder.push('default'); }
++  var mPlan = all.match(/แผน\s*ก\s*แบบ\s*ก\s*(\d)/);
++  res.plan = res.planOrder.filter(function (p) { return p !== 'default'; }).join(', ') || (mPlan ? 'ก' + mPlan[1] : '');
++  var trackMinimum = normTh(all).match(/เลอกเรยนรายวชาในกลมความเชยวชาญทสนใจไมนอยกวา(\d+)หนวยกต/);
++  if (trackMinimum) res.trackElectiveMinimum = +trackMinimum[1];
++  res.diag = { chars: all.replace(/\s/g, '').length, lines: L.length, pages: L.length ? L[L.length - 1].page : 0,
++    codes: L.reduce(function (a, l) { return a + findCodes(l.t).length; }, 0),
++    headings: L.filter(function (l) { return groupFromLine(l.t); }).length, struct: iStruct >= 0, courseHead: iCourses >= 0 };
++  return res;
++}
++
++// หมวดและเกณฑ์ที่ใช้กับนักศึกษา (ตามแผนการศึกษา)
++function groupsForPlan(curr, plan) {
++  var wanted = normalizePlan(plan), keys = curr.planOrder || [], named = keys.filter(function(k) { return k !== 'default'; });
++  var pk = curr.plans && curr.plans[wanted] ? wanted : named.length === 0 ? 'default' : (!wanted && named.length === 1 ? named[0] : null);
++  var req = pk && curr.plans && curr.plans[pk] || [];
++  var unmatched = pk == null;
++  return { plan: pk === 'default' ? wanted : pk || wanted, planName: curr.planNames && curr.planNames[pk] || '', unmatched: unmatched,
++    total: (curr.planTotals && curr.planTotals[pk]) || curr.totalRequired,
++    groups: curr.groups.filter(function(g) { return !req.length || req.some(function(r) {return r.label === g.label;}); }).map(function(g) {
++      var r = req.filter(function(r) { return r.label === g.label; })[0] || {};
++      return {label:g.label,cat:g.cat,required:r.required == null ? null : r.required,atLeast:!!r.atLeast,evidence:r.evidence || null};
++    }) };
++}
++function curriculumMajors(curr) {
++  var out = []; (curr.courses || []).forEach(function(b) { if (b.major && out.indexOf(b.major) < 0) out.push(b.major); });
++  return out;
++}
++function selectMajor(curr, tr) {
++  var majors = [];
++  curr.courses.forEach(function(b) { if (b.major && majors.indexOf(b.major) < 0) majors.push(b.major); });
++  if (majors.length < 2) return {major:majors[0] || '',ambiguous:false};
++  var codes = {}; tr.rows.forEach(function(r) { codes[normCode(r.code)] = true; });
++  var thesis = curr.courses.filter(function(b) { return b.major && (codes[b.codeEn] || codes[b.codeTh]) && curr.groups.some(function(g) { return g.label === b.group && THESIS_CATS.indexOf(g.cat) >= 0; }); });
++  var unique = []; thesis.forEach(function(b) {if(unique.indexOf(b.major)<0) unique.push(b.major);});
++  if (unique.length === 1) return {major:unique[0],ambiguous:false,source:'รหัสวิทยานิพนธ์ที่ตรงกับเล่ม'};
++  if (unique.length > 1) return {major:'',ambiguous:true};
++  var scores = majors.map(function(m) { return {major:m,score:curr.courses.filter(function(b) {return b.major === m && (codes[b.codeEn] || codes[b.codeTh]) && curr.groups.some(function(g) {return g.label === b.group && g.cat === 'บังคับ';});}).length}; }).sort(function(a,b){return b.score-a.score;});
++  return scores[0].score > 0 && scores[0].score > scores[1].score ? {major:scores[0].major,ambiguous:false,source:'รายวิชาบังคับที่ตรงกับเล่ม'} : {major:'',ambiguous:true};
++}
++
++function needsMajor(curr, gp) { return curr.courses.some(function(b) { return b.major && gp.groups.some(function(g) { return g.label === b.group && g.cat === 'บังคับ' && g.required !== 0; }); }); }
++function courseForPlan(b, gp) {
++  var g = gp.groups.filter(function(g) { return g.label === b.group; })[0];
++  if (!g || g.required === 0 || (b.plan && gp.plan && b.plan !== gp.plan)) return false;
++  if (b.major && g.cat !== 'เลือก' && gp.major && b.major !== gp.major) return false;
++  if (THESIS_CATS.indexOf(g.cat) >= 0 && g.required != null) return b.credits === g.required;
++  return true;
++}
++
++// จับคู่รหัสวิชาของนักศึกษากับเล่ม: ตรงทั้งรหัส หรือเลข 3 หลักตรงกัน (531 ↔ 531)
++function buildMatcher(curr, stu) {
++  var exact = {};
++  curr.courses.forEach(function(b) { [b.codeEn, b.codeTh].filter(Boolean).forEach(function(code) { (exact[normCode(code)] = exact[normCode(code)] || []).push(b); }); });
++  return function(code) {
++    var candidates = exact[normCode(code)] || [];
++    if (!candidates.length) return null;
++    return { b: candidates[0], how: candidates.length === 1 ? 'exact' : 'ambiguous', candidates: candidates };
++  };
++}
++
++
++/** อ่านไฟล์โครงสร้างหลักสูตร/ผลการเรียนของนักศึกษา */
++function parseTranscript(text) {
++  var L = splitPages(cleanPdfText(text)).filter(function(l) { return l.t; });
++  var out = { studentId: '', programKey: '', name: '', program: '', programEn: '', plan: '', criteria: '', rows: [], warnings: [] };
++  function field(re) {
++    for (var i = 0; i < L.length; i++) {
++      var m = L[i].t.match(re); if (!m) continue;
++      var value = L[i].t.slice(m[0].length).trim();
++      if (!value && L[i+1]) value = L[i+1].t;
++      return value;
++    }
++    return '';
++  }
++  var id = field(/^รหัส\s*นักศึกษา\s*[:：]?\s*/).match(/^(\d{7,12})(?:\s+([A-Z]{3,6}\/\w+))?/);
++  if (id) { out.studentId = id[1]; out.programKey = id[2] || ''; }
++  out.name = field(/^ชื่อ\s*[-–—]?\s*สกุล\s*[:：]?\s*/);
++  out.program = field(/^สาขาวิชา\s*[:：]?\s*/);
++  out.programEn = (L.map(function(l) {return l.t;}).filter(function(t) { return /^MASTER OF|^DOCTOR OF PHILOSOPHY/i.test(t); })[0] || '');
++  out.plan = normalizePlan(field(/^(?:แผนการศึกษา|Study Plan|Plan)\s*[:：]?\s*/));
++  out.criteria = (field(/^เกณฑ์?\s*[:：]?\s*/).match(/\d{4}/) || [''])[0];
++  for (var i = 0; i < L.length; i++) {
++    var term = L[i].t.match(/^(\d{4}\/\d)\b/); if (!term) continue;
++    var block = L[i].t.slice(term[0].length).trim(), page = L[i].page, j = i+1;
++    while (j < L.length && !/^\d{4}\/\d\b/.test(L[j].t) && !/^โครงสร้างหลักสูตร|^ข้อม[ูุ]ลการลงทะเบียน|^Invoice|^\(index-|^\(login/.test(L[j].t)) { block += '\n' + L[j].t; j++; }
++    var codes = findCodes(block); if (!codes.length) continue;
++    var code = codes[0], rest = block.slice(code.idx + code.len).replace(/เลือก\s*หมวดวิชา/g, '').trim();
++    var m = rest.match(/(?:^|[ \t])(\d+(?:\.\d+)?)[ \t]*(A|B\+?|C\+?|D\+?|F|S|U|P|W|IP|I|AU|X|TR|TC|T|O)[ \t]*$/m) || rest.match(/(?:^|\s)(\d+(?:\.\d+)?)(?:[ \t]*\n[ \t]*(A|B\+?|C\+?|D\+?|F|S|U|P|W|IP|I|AU|X|TR|TC|T|O))?[ \t]*$/m);
++    if (!m) { out.warnings.push('อ่านหน่วยกิต/เกรดไม่ได้: ' + code.prefix + code.num); continue; }
++    out.rows.push({ term: term[1], code: normCode(code.prefix + code.num), title: rest.slice(0,m.index).replace(/\s+/g,' ').trim(), credits: +m[1], grade: m[2] || '', page: page });
++    i = j-1;
++  }
++  if (!out.studentId) out.warnings.push('ไม่พบรหัสนักศึกษา กรุณากรอกยืนยัน');
++  if (!out.name || /[\uE000-\uF8FF\uFFFD]/.test(out.name)) out.warnings.push('กรุณาตรวจชื่อกับต้นฉบับ');
++  return out;
++}
++
++
++/** ตรวจว่าไฟล์นักศึกษาตรงกับเล่มหลักสูตรหรือไม่ (ก่อนเริ่ม) */
++function matchCheck(curr, tr) {
++  var seen = {}, stu = [];
++  tr.rows.forEach(function (r) { if (!seen[r.code]) { seen[r.code] = 1; stu.push(r); } });
++  var match = buildMatcher(curr, stu);
++  var list = stu.filter(function (r) { return !/^GRID/.test(r.code) || match(r.code); });
++  var hits = list.map(function (r) { return match(r.code); });
++  var found = hits.filter(Boolean).length, byNum = hits.filter(function (h) { return h && h.how !== 'exact'; }).length;
++  var amb = hits.filter(function (h) { return h && h.how === 'ambiguous'; }).length;
++  var checks = [];
++  checks.push({ ok: list.length ? found / list.length >= 0.6 : false, label: 'รหัสวิชาตรงกับเล่ม',
++    detail: 'พบในเล่ม ' + found + ' จาก ' + list.length + ' รหัส' + (byNum ? ' (จับคู่ด้วยเลขรหัส ' + byNum + ')' : '') + ' · ไม่นับวิชาภาษาอังกฤษ GRID' });
++  if (amb) checks.push({ ok: false, label: 'เลขรหัสซ้ำในเล่ม', detail: amb + ' วิชามีเลขเดียวกันหลายรายการในเล่ม — ตรวจหมวดในขั้นที่ 2' });
++  var gp = groupsForPlan(curr, tr.plan);
++  if (gp.unmatched) checks.push({ok:false,label:'ไม่พบเกณฑ์ของแผนนี้',detail:'โปรดตรวจแผนของนักศึกษาและเล่มหลักสูตร'});
++  if (normalizePlan(tr.plan) && curr.planOrder && curr.planOrder.filter(function (p) { return p !== 'default'; }).length)
++    checks.push({ ok: !!curr.plans[normalizePlan(tr.plan)], label: 'แผนการศึกษา', detail: 'นักศึกษา ' + tr.plan + ' · เล่มมี ' + curr.plan + (curr.plans[normalizePlan(tr.plan)] ? '' : ' — ใช้เกณฑ์แผน ' + (gp.plan || 'แรก')) });
++  return { checks: checks, ok: checks.every(function (c) { return c.ok; }) };
++}
++
++/**
++ * ตรวจโครงสร้าง
++ * opts.overrides = { code: cat }  เจ้าหน้าที่เปลี่ยนหมวด
++ * opts.transfer  = { code: true } วิชาในเล่มที่เทียบโอน/ยกเว้น
++ */
++function evaluate(curr, tr, opts) {
++  opts = opts || {};
++  var overrides = opts.overrides || {}, transfer = opts.transfer || {};
++  var gp = groupsForPlan(curr, tr.plan), majorInfo = opts.major && curriculumMajors(curr).indexOf(opts.major) >= 0 ? {major:opts.major,ambiguous:false,source:'วิชาเอกที่ระบุในขั้นแนบไฟล์'} : selectMajor(curr, tr);
++  gp.major = majorInfo.major;
++  var groupOf = {}; gp.groups.forEach(function (g) { groupOf[g.label] = g; });
++
++  // รวมรายการลงทะเบียนตามรหัสวิชา
++  var by = {}, order = [];
++  tr.rows.forEach(function (r) {
++    var e = by[r.code];
++    if (!e) { e = by[r.code] = { code: r.code, title: r.title, regs: [], maxCr: 0 }; order.push(r.code); }
++    e.regs.push(r); e.maxCr = Math.max(e.maxCr, r.credits);
++  });
++
++  var match = buildMatcher(curr, order.map(function (c) { return { code: c, credits: by[c].maxCr }; }));
++  var courses = order.map(function (code) {
++    var e = by[code], hit = match(code), b = hit ? hit.b : null;
++    var passRegs = e.regs.filter(function (r) { return isPass(r.grade); });
++    var pass = passRegs.length > 0;
++    var pending = !pass && e.regs.some(function (r) { return isPending(r.grade) || FAIL_GRADES.indexOf(r.grade) < 0; });
++    var main = pass ? passRegs[0] : e.regs[0]; // แถวบนสุด = ภาคล่าสุด
++    var g = b ? groupOf[b.group] : null;
++    var proposed, reason;
++    var thesisLike = /^(?:THESIS|THEMATIC PAPER|DISSERTATION|INDEPENDENT STUDY)$/i.test(e.title.trim());
++    if (b && g) {
++      proposed = g.cat;
++      reason = 'พบในเล่ม: ' + g.label + (hit.how === 'exact' ? '' : ' · จับคู่ด้วยเลข ' + b.num + ' กับ ' + b.display);
++      if (hit.how === 'ambiguous') reason += ' · เลข ' + b.num + ' มี ' + hit.candidates.length + ' รายการในเล่ม (' + hit.candidates.map(function (c) { return c.display + ' ' + c.group; }).join(', ') + ') — โปรดตรวจ';
++      if (THESIS_CATS.indexOf(g.cat) >= 0) reason += ' · ลงทะเบียน ' + e.maxCr + ' หน่วยกิต → ' + proposed;
++    } else if (/^GRID/.test(code) && /ENGLISH|ภาษาอังกฤษ|GRAMMAR|(?:READ|SPEAK).*ACADE.*CONT.*GR/i.test(e.title)) {
++      proposed = 'ภาษาอังกฤษ'; reason = 'รหัส GRID ที่ไม่มีในเล่ม = วิชาภาษาอังกฤษของบัณฑิตวิทยาลัย';
++    } else if (thesisLike) {
++      proposed = thesisCatByCredits(e.maxCr); reason = 'ไม่มีในเล่ม แต่ชื่อวิชาเป็นวิทยานิพนธ์/สารนิพนธ์ · ลงทะเบียน ' + e.maxCr + ' หน่วยกิต';
++    } else if (/^[A-D]\+?$/.test(main.grade)) {
++      proposed = 'เลือก'; reason = 'ไม่มีในเล่ม · มีเกรดตัวอักษร → เสนอเป็นวิชาเลือกนอกหลักสูตร';
++    } else {
++      proposed = 'รอตรวจสอบ'; reason = 'ไม่มีในเล่ม และเกรด ' + (main.grade || 'ว่าง') + ' — ให้เจ้าหน้าที่ระบุหมวด';
++    }
++    var cat = code in overrides ? overrides[code] : proposed;
++    var lowRegs = e.regs.filter(function(r) { return gradeBelowCategory(r.grade, cat); });
++    var pendingRegs = e.regs.filter(function(r) { return isPending(r.grade); });
++    var eligibleRegs = e.regs.filter(function(r) { return gradeMeetsCategory(r.grade, cat); });
++    pass = eligibleRegs.length > 0;
++    pending = !pass && pendingRegs.length > 0;
++    main = pass ? eligibleRegs[0] : e.regs[0];
++    var gradeNeedsReview = !pass && !pending && e.regs.some(function(r) { return isPass(r.grade) && !gradeMeetsCategory(r.grade, cat); });
++    var credits = THESIS_CATS.indexOf(cat) >= 0 ? e.maxCr : main.credits;
++    var isTransfer = TRANSFER_GRADES.indexOf(main.grade) >= 0;
++    var counted = !(b && !courseForPlan(b, gp)) && !(hit && hit.how === 'ambiguous') && pass && !!formRowOf(cat) && NOCREDIT_CATS.indexOf(cat) < 0;
++    var review = !!(b && !courseForPlan(b, gp)) || gradeNeedsReview || !b && proposed !== 'ภาษาอังกฤษ' || cat === 'รอตรวจสอบ' || !!(hit && hit.how === 'ambiguous') || !!(b && b.credits != null && b.credits !== credits);
++    return {
++      code: code, title: e.title, major: b ? b.major || '' : '', nameBook: b ? b.name : '', credits: credits, bookCredits: b ? b.credits : null,
++      bookKey: b ? b.key : '', bookDisplay: b ? b.display : '', how: hit ? hit.how : '', candidates: hit && hit.how === 'ambiguous' ? hit.candidates : null,
++      grade: main.grade, term: main.term, regs: e.regs, times: e.regs.length,
++      inBook: !!b, group: b ? b.group : '', evidence: b ? b.evidence : null, groupEvidence: g ? g.evidence : null,
++      proposed: proposed, reason: reason, cat: cat, overridden: code in overrides && overrides[code] !== proposed,
++      lowRegs: lowRegs, pendingRegs: pendingRegs, gradeNeedsReview: gradeNeedsReview,
++      pass: pass, pending: pending, failed: !pass && !pending, transfer: isTransfer, counted: counted, review: review
++    };
++  });
++
++  // วิทยานิพนธ์/สารนิพนธ์ของนักศึกษา (ยึดหน่วยกิตที่ลงทะเบียน)
++  var thesisC = courses.filter(function (x) { return THESIS_CATS.indexOf(x.cat) >= 0; })[0] || null;
++  var thesis = thesisC ? { code: thesisC.code, credits: thesisC.credits, cat: thesisC.cat, times: thesisC.times,
++    grades: thesisC.regs.map(function (r) { return r.grade || 'ว่าง'; }) } : null;
++
++  // ตรวจตามหมวดในเล่ม
++  var groups = gp.groups.map(function (g) {
++    var isThesis = THESIS_CATS.indexOf(g.cat) >= 0;
++    var req = g.required;
++    return { label: g.label, bookLabel: g.label, cat: g.cat,
++      formRow: formRowOf(g.cat), required: req, bookRequired: g.required, atLeast: g.atLeast, evidence: g.evidence,
++      noCredit: NOCREDIT_CATS.indexOf(g.cat) >= 0, study: 0, transfer: 0, pending: 0, items: [], missing: [] };
++  });
++  function assign(x) {
++    if (x.inBook && !x.overridden) { var h = groups.filter(function (g) { return g.bookLabel === x.group; })[0]; if (h) return h; }
++    return groups.filter(function (g) { return g.formRow && g.formRow === formRowOf(x.cat); })[0] || null;
++  }
++  courses.forEach(function (x) {
++    var g = assign(x);
++    if (!g || NOCREDIT_CATS.indexOf(x.cat) >= 0) return;
++    g.items.push(x);
++    if (x.counted) g[x.transfer ? 'transfer' : 'study'] += x.credits;
++    else if (x.pending) g.pending += x.credits;
++  });
++  curr.courses.forEach(function (b) {
++    var g = groups.filter(function (gg) { return gg.bookLabel === b.group; })[0];
++    if (!g || g.cat === 'เลือก' || g.noCredit || !courseForPlan(b, gp)) return;
++    var choice = (curr.choiceSets || []).filter(function(c) {return c.group === b.group && c.codes.indexOf(b.key)>=0;})[0];
++    if (choice) {
++      var eligible = courses.filter(function(c) {return choice.codes.indexOf(c.bookKey)>=0 && (c.pass || c.pending);}).length;
++      var transferred = choice.codes.some(function(code) {return !!transfer[code];});
++      if (eligible >= choice.count) return;
++      if (transferred) {if (b.key === choice.codes[0]) {var tb = curr.courses.filter(function(bb) {return choice.codes.indexOf(bb.key)>=0 && transfer[bb.key];})[0];g.transfer += tb.credits || 0;g.items.push({code:tb.display,title:tb.name,credits:tb.credits,transfer:true,manualTransfer:true,cat:g.cat,counted:true,key:tb.key});} return;}
++      if (b.key !== choice.codes[0]) return;
++    }
++    if (THESIS_CATS.indexOf(groupOf[b.group].cat) >= 0 && thesis && thesis.code === b.key) return;
++    var x = courses.filter(function (c) { return c.bookKey === b.key; })[0];
++    if (x && (x.pass || x.pending)) return;
++    if (transfer[b.key]) { g.transfer += b.credits || 0; g.items.push({ code: b.display, title: b.name, credits: b.credits, transfer: true, manualTransfer: true, cat: g.cat, counted: true, key: b.key }); }
++    else g.missing.push({ code: choice ? choice.codes.join(' หรือ ') : b.display, key: b.key, name: b.name, credits: b.credits, evidence: b.evidence, failed: !!x });
++  });
++  groups.forEach(function (g) {
++    g.got = g.study + g.transfer;
++    if (g.noCredit) g.status = '—';
++    else if (g.required == null) g.status = g.missing.length ? 'ขาด ' + g.missing.length + ' วิชา' : '—';
++    else if (g.got >= g.required && !g.missing.length) g.status = 'ครบ';
++    else if (g.got + g.pending >= g.required && !g.missing.length) g.status = 'รอผลประเมิน';
++    else g.status = 'ขาด ' + Math.max(g.required - g.got - g.pending, 0) + (g.missing.length ? ' (' + g.missing.length + ' วิชา)' : '');
++  });
++
++  if (curr.trackElectiveMinimum && gp.major) groups.forEach(function(g) {
++    if (g.cat !== 'เลือก' || g.required === 0) return;
++    var within = g.items.filter(function(x) {return x.counted && x.major === gp.major;}).reduce(function(a,x){return a+x.credits;},0);
++    if (within < curr.trackElectiveMinimum) {
++      g.status = 'ขาดวิชาเลือกในกลุ่มความเชี่ยวชาญ ' + (curr.trackElectiveMinimum - within) + ' หน่วยกิต';
++      g.trackRequired = curr.trackElectiveMinimum; g.trackGot = within;
++    }
++  });
++  // ตัวเลขสำหรับช่องในระบบทะเบียน
++  var form = {}; FORM_ROWS.forEach(function (k) { form[k] = { required: 0, study: 0, transfer: 0 }; });
++  groups.forEach(function (g) { if (g.formRow && !g.noCredit) { form[g.formRow].required += g.required || 0; form[g.formRow].study += g.study; form[g.formRow].transfer += g.transfer; } });
++  courses.forEach(function (x) { // วิชาที่นับแต่ไม่เข้าหมวดใดในเล่ม
++    if (x.counted && !groups.some(function (g) { return g.items.indexOf(x) >= 0; })) form[formRowOf(x.cat)][x.transfer ? 'transfer' : 'study'] += x.credits;
++  });
++  var total = { study: 0, transfer: 0, pending: 0 };
++  FORM_ROWS.forEach(function (k) { total.study += form[k].study; total.transfer += form[k].transfer; });
++  groups.forEach(function (g) { total.pending += g.pending; });
++  total.got = total.study + total.transfer;
++  var bookThesis = (gp.groups.filter(function (g) { return THESIS_CATS.indexOf(g.cat) >= 0; })[0] || {}).required || 0;
++  var reqSum = groups.reduce(function (a, g) { return a + (g.noCredit ? 0 : g.required || 0); }, 0);
++  total.required = gp.total != null ? gp.total : reqSum;
++
++  var short = groups.filter(function (g) { return /^ขาด/.test(g.status); });
++  var waiting = groups.filter(function (g) { return g.status === 'รอผลประเมิน'; });
++  var review = courses.filter(function (x) { return x.cat === 'รอตรวจสอบ' || (x.review && !(x.code in overrides)); });
++  var uncertainBook = !gp.groups.length || total.required <= 0 || (majorInfo.ambiguous && needsMajor(curr, gp)) || gp.unmatched || !!curr.planTableUncertain || groups.some(function(g) { return !g.noCredit && (g.required == null || curr.courses.some(function(b) { return b.group === g.bookLabel && b.credits == null; })); });
++  if ((tr.warnings || []).length) uncertainBook = true;
++  groups.forEach(function(g) { if (g.noCredit || g.cat === 'เลือก' || g.required == null || g.required === 0) return; var sum = curr.courses.filter(function(b) { return b.group === g.bookLabel && courseForPlan(b, gp); }).reduce(function(a,b) { return a + (b.credits || 0); },0); (curr.choiceSets || []).filter(function(c) {return c.group === g.bookLabel;}).forEach(function(c) {var bs = curr.courses.filter(function(b) {return c.codes.indexOf(b.key)>=0 && courseForPlan(b,gp);}); if (bs.length !== c.codes.length || bs.some(function(b) {return b.credits !== bs[0].credits;})) {uncertainBook = true;return;} sum -= bs.reduce(function(a,b) {return a+b.credits;},0) - c.count*bs[0].credits;}); if (sum !== g.required) uncertainBook = true; });
++  if (uncertainBook) review.push({code:'เกณฑ์ในเล่มอ่านไม่ครบ'});
++  var verdict = short.length || total.got + total.pending < total.required ? 'fail'
++    : waiting.length || review.length || uncertainBook || total.got < total.required ? 'waiting' : 'pass';
++
++  return { courses: courses, groups: groups, form: form, total: total, thesis: thesis, verdict: verdict, plan: gp.plan, planName: gp.planName, major: gp.major, majorSource: majorInfo.source || '', totalAtLeast: !!gp.total,
++    reviewCount: review.length, english: courses.filter(function (x) { return x.cat === 'ภาษาอังกฤษ'; }),
++    flagged: courses.filter(function (x) { return x.review || x.pending || (x.pendingRegs || []).length || (x.lowRegs || []).length || x.failed || x.overridden; }) };
++}
++
++
++</script>
++<script>
++// บันทึกในเครื่องผ่านโปรแกรมหลัก (POST /api/tool/currcheck) แทน google.script.run — ชื่อฟังก์ชันเดิม
++var hasGAS = true;
++var TOKEN = '{{TOKEN}}';
++var readTokens = { statStu: 0, statBook: 0, savedBook: 0 };
++var S = { book: null, bookName: '', major: '', stu: null, stuName: '', overrides: {}, transfer: {}, result: null, step: 1, saved: [] };
++function $(id) { return document.getElementById(id); }
++function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
++function toast(m) { var t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove('show'); }, 1800); }
++function call(fn) {
++  var args = [].slice.call(arguments, 1);
++  return new Promise(function (ok, no) {
++    fetch('/api/tool/currcheck', { method: 'POST', headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' },
++      body: JSON.stringify({ fn: fn, args: args }) })
++      .then(function (r) { return r.json(); })
++      .then(function (d) { if (d.error) throw new Error(d.error); ok(d.result); })
++      .catch(function (e) { no(new Error('บันทึก/อ่านข้อมูลในเครื่องไม่ได้: ' + e.message)); });
++  });
++}
++
++/* ---------- PDF → ข้อความ (เรียงบรรทัดตามตำแหน่ง, คั่นหน้าด้วย @@PAGE n@@) ---------- */
++var pdfReady = null;
++function getPdfjs() {
++  if (pdfReady) return pdfReady;
++  pdfReady = new Promise(function (ok, no) {
++    var n = 0;
++    (function wait() {
++      if (window.pdfjsLib) return ok(window.pdfjsLib);
++      if (++n > 100) return no(new Error('โหลดตัวอ่าน PDF ไม่สำเร็จ — ลองรีเฟรชหน้า หรือใช้ “วางข้อความแทน”'));
++      setTimeout(wait, 100);
++    })();
++  }).then(function (lib) {
++    if (lib.__ready) return lib;
++    lib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js?token=' + TOKEN;
++    lib.__ready = true;
++    return lib;
++  });
++  pdfReady.catch(function () { pdfReady = null; });
++  return pdfReady;
++}
++function pdfToText(file) {
++  var lib;
++  return getPdfjs().then(function (l) { lib = l; return file.arrayBuffer(); })
++    .then(function (buf) { return lib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise; })
++    .then(function (pdf) {
++      var ps = [];
++      for (var p = 1; p <= pdf.numPages; p++) ps.push(pdf.getPage(p).then(function (pg) { return pg.getTextContent(); }));
++      return Promise.all(ps);
++    }).then(function (contents) {
++      return contents.map(function (tc, pi) {
++        var lines = [];
++        tc.items.forEach(function (it, seq) {
++          if (!it.str) return;
++          var y = it.transform[5], x = it.transform[4];
++          var ln = null;
++          for (var i = 0; i < lines.length; i++) if (Math.abs(lines[i].y - y) < Math.max(1, Math.min(2.2, (it.height || 10) * 0.18))) { ln = lines[i]; break; }
++          if (!ln) { ln = { y: y, items: [] }; lines.push(ln); }
++          ln.items.push({ x: x, w: it.width, s: cleanPdfText(it.str), seq: seq });
++        });
++        lines.sort(function (a, b) { return b.y - a.y; });
++        return '@@PAGE ' + (pi + 1) + '@@\n' + lines.map(function (l) {
++          l.items.sort(function (a, b) { return a.x - b.x || a.seq - b.seq; });
++          var o = '', end = null;
++          l.items.forEach(function (it) { if (end !== null && it.x - end > 1.5 && !/\s$/.test(o)) o += ' '; o += it.s; end = it.x + it.w; });
++          return cleanPdfText(o).replace(/\s+/g, ' ').trim();
++        }).filter(Boolean).join('\n');
++      }).join('\n');
++    });
++}
++
++/* ---------- ขั้นที่ 1 ---------- */
++function setupDrop(dropId, inputId, nameId, handler) {
++  var d = $(dropId), inp = $(inputId);
++  inp.addEventListener('change', function () { if (inp.files[0]) handler(inp.files[0]); inp.value = ''; });
++  ['dragover', 'dragenter'].forEach(function (e) { d.addEventListener(e, function (ev) { ev.preventDefault(); d.classList.add('over'); }); });
++  ['dragleave', 'drop'].forEach(function (e) { d.addEventListener(e, function (ev) { ev.preventDefault(); d.classList.remove('over'); }); });
++  d.addEventListener('drop', function (ev) { var f = ev.dataTransfer.files[0]; if (f) handler(f); });
++}
++function readFile(file, nameId, statId, onText) {
++  var token = ++readTokens[statId];
++  if (statId === 'statBook') ++readTokens.savedBook;
++  $(nameId).textContent = file.name;
++  $(statId).innerHTML = '<span class="muted">กำลังอ่านไฟล์…</span>';
++  pdfToText(file).then(function (t) { if (token === readTokens[statId]) onText(t, file.name); })
++    .catch(function (e) { if (token !== readTokens[statId]) return; $(statId).innerHTML = '<span class="tag t-bad">อ่านไม่ได้</span> ' + esc(e.message); });
++}
++
++function fillStudentFields(t) {
++  var bindings = { editStudentId: 'studentId', editProgramKey: 'programKey', editStudentName: 'name', editProgram: 'program', editPlan: 'plan' };
++  Object.keys(bindings).forEach(function(id) { $(id).value = t[bindings[id]] || ''; });
++}
++function onStuText(text, fname) {
++  S.result = null; S.major = ''; S.savedAt = '';
++  var t = parseTranscript(text);
++  if (!t.rows.length) {
++    S.stu = null; $('studentEditor').classList.add('hidden');
++    $('statStu').innerHTML = '<span class="tag t-bad">ไม่พบรายวิชา</span> <span class="small muted">รูปแบบที่อ่านได้: ปีการศึกษา รหัสวิชา ชื่อวิชา หน่วยกิต เกรด</span>';
++  } else {
++    S.stu = t; S.stuName = fname || 'ข้อความที่วาง'; S.overrides = {}; S.transfer = {}; $('note').value = '';
++    var uniq = {}; t.rows.forEach(function (r) { uniq[r.code] = 1; });
++    $('statStu').innerHTML = '<span class="tag t-ok">อ่านแล้ว</span> <b>' + esc(t.studentId) + ' ' + esc(t.programKey) + '</b> ' + esc(t.name) +
++      '<div class="sub">' + Object.keys(uniq).length + ' รหัสวิชา · ' + t.rows.length + ' รายการลงทะเบียน' + (t.plan ? ' · แผน ' + esc(t.plan) : '') + '</div>';
++    $('studentEditor').classList.remove('hidden');
++    fillStudentFields(t);
++    if (t.warnings.length) $('statStu').innerHTML += '<div class="note warn">' + t.warnings.map(esc).join('<br>') + '</div>';
++    autoPickSaved();
++    if (S.book) showBookStat();
++  }
++  refresh1();
++  autoInspect();
++}
++function onBookText(text, fname, savedId) {
++  S.result = null; S.major = ''; S.savedAt = '';
++  var c = parseCurriculum(text);
++  if (!c.courses.length) {
++    S.book = null;
++    var d = c.diag, why;
++    if (d.chars < 300) why = 'ไฟล์นี้แทบไม่มีข้อความให้อ่าน (' + d.pages + ' หน้า, ' + d.chars + ' ตัวอักษร) — น่าจะเป็น PDF ที่สแกนเป็นภาพ ให้ใช้ไฟล์ PDF ที่บันทึกจาก Word หรือคัดลอกข้อความมาวางแทน';
++    else if (!d.codes) why = 'อ่านข้อความได้ ' + d.chars + ' ตัวอักษร แต่ไม่พบรหัสวิชา (เช่น DTOP 531 หรือ ทพทห ๕๓๑)';
++    else if (!d.headings) why = 'พบรหัสวิชา ' + d.codes + ' รายการ แต่ไม่พบหัวข้อหมวด (เช่น “หมวดวิชาบังคับ”, “วิชาเลือก”)';
++    else why = 'พบรหัสวิชา ' + d.codes + ' รายการ และหัวข้อหมวด ' + d.headings + ' รายการ แต่จับคู่กันไม่ได้';
++    $('statBook').innerHTML = '<span class="tag t-bad">อ่านรายวิชาไม่ได้</span> <span class="small">' + esc(why) + '</span>' +
++      '<details style="margin-top:6px"><summary>ดูข้อความที่ระบบอ่านได้ (คัดลอกส่งให้ผู้ดูแลระบบได้)</summary>' +
++      '<textarea class="inp" readonly style="min-height:160px;font-size:12px">' + esc(text.slice(0, 20000)) + '</textarea></details>';
++  } else {
++    S.book = c; S.bookName = fname || ''; S.book.savedId = savedId || '';
++    $('chkSaveBook').checked = false;
++    $('chkSaveBook').parentNode.classList.toggle('hidden', !!savedId || !hasGAS);
++    showBookStat();
++  }
++  refresh1();
++  autoInspect();
++}
++function showBookStat() {
++  var c = S.book;
++  var gp = groupsForPlan(c, S.stu && S.stu.plan);
++  var nTh = c.courses.filter(function (b) { return b.codeTh; }).length, nEn = c.courses.filter(function (b) { return b.codeEn; }).length;
++  $('statBook').innerHTML = '<span class="tag t-ok">อ่านแล้ว</span> <b>' + c.courses.length + ' รายวิชา · ' + c.groups.length + ' หมวด</b>' +
++    (gp.total ? ' · รวมไม่น้อยกว่า ' + gp.total + ' หน่วยกิต' : '') +
++    '<div class="sub">รหัสอังกฤษ ' + nEn + ' · รหัสไทย ' + nTh + ' — จับคู่ด้วยรหัสเต็มและคู่รหัสไทย–อังกฤษในเล่ม</div>' +
++    '<div class="sub">' + esc([c.name || S.bookName, c.plan ? 'แผน ' + c.plan : '', c.year ? 'พ.ศ. ' + c.year : ''].filter(Boolean).join(' · ')) + '</div>';
++  $('mapCard').classList.remove('hidden');
++  $('mapGrid').innerHTML = '<div class="small muted">หมวดในเล่ม' + (gp.plan ? ' (แผน ' + esc(gp.plan) + ')' : '') + '</div><div class="small muted">หน่วยกิต</div><div class="small muted">นับเป็น</div>' +
++    c.groups.map(function (g, i) {
++      var r = gp.groups.filter(function (x) { return x.label === g.label; })[0];
++      var n = c.courses.filter(function (b) { return b.group === g.label; }).length;
++      return '<div>' + esc(g.label) + ' <span class="sub">· ' + n + ' วิชา</span></div><div class="n">' + (!r || r.required == null ? '-' : (r.atLeast ? '≥ ' : '') + r.required) + '</div>' +
++        '<select class="inp gmap" data-i="' + i + '">' + GROUP_CATS.map(function (k) { return '<option' + (k === g.cat ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select>';
++    }).join('');
++}
++function majorReady() {
++  if (!S.book || curriculumMajors(S.book).length < 2 || (S.stu && !needsMajor(S.book, groupsForPlan(S.book, S.stu.plan)))) return true;
++  if (curriculumMajors(S.book).indexOf(S.major) >= 0) return true;
++  return !!(S.stu && !selectMajor(S.book, S.stu).ambiguous);
++}
++function refreshMajorInput() {
++  var majors = S.book ? curriculumMajors(S.book) : [];
++  $('majorCard').classList.toggle('hidden', majors.length < 2);
++  if (majors.indexOf(S.major) < 0) S.major = '';
++  $('majorSelect').innerHTML = '<option value="">— ตรวจอัตโนมัติจากรายวิชาในไฟล์ —</option>' + majors.map(function(m) { return '<option value="' + esc(m) + '">' + esc(m) + '</option>'; }).join('');
++  $('majorSelect').value = S.major || '';
++  var suggestion = S.book && S.stu ? selectMajor(S.book, S.stu) : null;
++  $('majorHint').textContent = S.major ? 'ใช้วิชาเอก: ' + S.major : suggestion && suggestion.major ? 'รายวิชาที่พบสอดคล้องกับวิชาเอก' + suggestion.major + ' — ระบบใช้เอกนี้ตรวจอัตโนมัติ'  : 'หากระบบแยกเอกไม่ได้ กรุณาเลือกวิชาเอกเพิ่มเติม';
++}
++function autoInspect() {
++  if (!S.book || !S.stu || !S.stu.rows.length || !majorReady()) return;
++  if (!matchCheck(S.book, S.stu).ok || !S.stu.studentId || !S.stu.name) return;
++  if (S.book.courses.some(function(b) { return b.credits == null; })) return;
++  compute(); go(3);
++}
++function refresh1() {
++  refreshMajorInput();
++  var ready = !!(S.book && S.stu && S.stu.studentId && S.stu.name && majorReady());
++  $('btnToStep2').disabled = !ready;
++  [].forEach.call(document.querySelectorAll('.tab'), function (b) { if (+b.dataset.go > 1) b.disabled = !ready; });
++  $('topPill').textContent = S.stu ? (S.stu.studentId + ' · ' + (S.stu.programKey || '')) : 'ยังไม่ได้นำเข้าไฟล์';
++  if (!ready) {
++    $('matchBody').innerHTML = '<span class="muted">นำเข้าไฟล์ทั้งสองไฟล์ ระบบจะแสดงชื่อหลักสูตร แผน และรหัสวิชาที่อ่านได้จากทั้งสองไฟล์ ให้เจ้าหน้าที่ยืนยัน</span>';
++    return;
++  }
++  var m = matchCheck(S.book, S.stu), t = S.stu, c = S.book;
++  $('matchBody').innerHTML =
++    '<div style="font-weight:600">' + esc([t.programKey, t.plan ? 'แผน ' + t.plan : '', t.criteria ? 'เกณฑ์ ' + t.criteria : ''].filter(Boolean).join(' · ')) + '</div>' +
++    '<div class="sub">นักศึกษา: ' + esc(t.program) + '</div>' +
++    '<div class="sub">เล่มหลักสูตร: ' + esc([c.name || S.bookName, c.plan ? 'แผน ' + c.plan : '', c.year ? 'พ.ศ. ' + c.year : ''].filter(Boolean).join(' · ')) + '</div>' +
++    '<div class="checks">' + m.checks.map(function (k) {
++      return '<div class="check"><span class="ic ' + (k.ok ? 'ok' : 'bad') + '">' + (k.ok ? '✓' : '!') + '</span><div><b>' + esc(k.label) + '</b> <span class="sub">' + esc(k.detail) + '</span></div></div>';
++    }).join('') + '</div>' +
++    (m.ok ? '' : '<div class="note warn" style="margin:12px 0 0">ข้อมูลบางส่วนไม่ตรงกัน — ตรวจว่าเลือกเล่มหลักสูตรถูกฉบับ ก่อนตรวจต่อ</div>');
++}
++function autoPickSaved() {
++  if (S.book || !S.stu || !S.saved.length) return;
++  var k = (S.stu.programKey || '').toUpperCase();
++  var candidates = S.saved.filter(function (x) { return x.key && x.key.toUpperCase() === k; });
++  var hit = candidates.length === 1 ? candidates[0] : null;
++  if (hit) { $('savedSel').value = hit.id; loadSaved(hit.id); }
++}
++function loadSaved(id) {
++  var token = ++readTokens.savedBook;
++  ++readTokens.statBook;
++  if (!id) return;
++  $('statBook').innerHTML = '<span class="muted">กำลังโหลดเล่มที่บันทึกไว้…</span>';
++  call('getCurriculum', id).then(function (c) {
++    if (token !== readTokens.savedBook) return;
++    if (c.parserVersion !== 8) throw new Error('เล่มที่บันทึกด้วยตัวอ่านเดิม กรุณานำเข้า PDF อีกครั้ง');
++    S.book = c; S.bookName = c.name; S.book.savedId = id;
++    $('nameBook').textContent = 'เล่มที่บันทึกไว้: ' + c.name;
++    $('chkSaveBook').parentNode.classList.add('hidden');
++    showBookStat(); refresh1(); autoInspect();
++  }).catch(function (e) { if (token !== readTokens.savedBook) return; $('statBook').innerHTML = '<span class="tag t-bad">โหลดไม่ได้</span> ' + esc(e.message); });
++}
++function loadSavedList() {
++  call('listCurricula').then(function (list) {
++    S.saved = list;
++    if (!list.length) return;
++    $('savedRow').classList.remove('hidden');
++    $('savedSel').innerHTML = '<option value="">— เลือก (' + list.length + ') —</option>' + list.map(function (c) {
++      return '<option value="' + esc(c.id) + '">' + esc(c.name) + (c.key ? ' [' + esc(c.key) + ']' : '') + '</option>';
++    }).join('');
++    autoPickSaved();
++  }).catch(function () {});
++}
++
++/* ---------- ขั้นที่ 2 ---------- */
++function gradesText(x) {
++  var g = []; x.regs.forEach(function (r) { var v = r.grade || 'ว่าง'; if (g.indexOf(v) < 0) g.push(v); });
++  return g.join(' / ');
++}
++function catSelect(x) {
++  return '<select class="cat k-' + esc(x.cat) + ' ovr" data-code="' + esc(x.code) + '" aria-label="หมวดของ ' + esc(x.code) + '">' +
++    CAT_LIST.map(function (k) { return '<option' + (k === x.cat ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select>';
++}
++function flagsHtml(x) {
++  var f = [];
++  if (!x.inBook && x.cat !== 'ภาษาอังกฤษ') f.push('<span class="tag t-warn">ไม่พบในเล่ม</span>');
++  if (x.times > 1) f.push('<span class="tag t-mute">ลงทะเบียน ' + x.times + ' ครั้ง · นับครั้งเดียว</span>');
++  if ((x.pendingRegs || []).length) f.push('<span class="tag t-warn">รายวิชานี้ยังไม่ได้ประเมินเกรด (' + x.pendingRegs.map(function(r) { return esc(r.term); }).join(', ') + ')</span>');
++  if ((x.lowRegs || []).length) f.push('<span class="tag t-bad">' + (x.cat === 'บังคับ' ? 'วิชาบังคับต่ำกว่า B' : 'วิชาเลือกต่ำกว่า C') + ': ' + x.lowRegs.map(function(r) { return esc(r.grade + ' · ' + r.term); }).join(', ') + (x.pass ? ' · มีผลครั้งอื่นผ่านเกณฑ์แล้ว' : ' · ไม่นับหน่วยกิตผ่านเกณฑ์') + '</span>');
++  if (x.gradeNeedsReview) f.push('<span class="tag t-warn">เกรดไม่ใช่ตัวอักษรที่ใช้เทียบ B/C — ต้องยืนยัน</span>');
++  if (x.failed) f.push('<span class="tag t-bad">ไม่ผ่าน · ไม่นับ</span>');
++  if (x.overridden) f.push('<span class="tag t-info">เจ้าหน้าที่แก้หมวด</span>');
++  if (x.how === 'num') f.push('<span class="tag t-mute">จับคู่ด้วยเลข ' + esc(x.bookDisplay) + '</span>');
++  if (x.how === 'ambiguous') f.push('<span class="tag t-bad">เลขซ้ำในเล่ม ' + x.candidates.length + ' รายการ — โปรดตรวจ</span>');
++  if (x.inBook && x.bookCredits != null && x.bookCredits !== x.credits && ['วิทยานิพนธ์', 'สารนิพนธ์'].indexOf(x.cat) < 0) f.push('<span class="tag t-warn">หน่วยกิตในเล่ม ' + x.bookCredits + '</span>');
++  if (['ภาษาอังกฤษ', 'ปรับพื้นฐาน'].indexOf(x.cat) >= 0) f.push('<span class="tag t-mute">ไม่นับหน่วยกิต</span>');
++  return f.length ? '<div class="flags">' + f.join('') + '</div>' : '';
++}
++function render2() {
++  var r = S.result, t = S.stu;
++  var nCourse = r.courses.filter(function (x) { return ['วิทยานิพนธ์', 'สารนิพนธ์'].indexOf(x.cat) < 0; }).length;
++  $('s2Title').textContent = (t.programKey || '') + (t.plan ? ' · แผน ' + t.plan : '') + ' — ' + t.studentId + ' ' + t.name;
++  $('s2Sub').textContent = nCourse + ' วิชาเรียน' + (r.thesis ? ' + ' + r.thesis.cat + ' 1 รหัส' : '') + ' · ' + t.rows.length + ' รายการลงทะเบียน';
++  var needs = r.courses.filter(function (x) { return x.cat === 'รอตรวจสอบ'; }).length;
++  $('s2Badge').className = 'tag ' + (needs ? 't-bad' : 't-warn');
++  $('s2Badge').textContent = needs ? 'รอตรวจสอบ ' + needs + ' รายการ' : 'รอเจ้าหน้าที่ทบทวน';
++
++  var notes = [];
++  r.courses.filter(function (x) { return x.times > 1; }).forEach(function (x) {
++    notes.push('<div class="note warn"><b>' + esc(x.code) + ' ลงทะเบียน ' + x.times + ' ครั้ง</b> — แสดงทุกภาคการศึกษาในหลักฐาน แต่นับหน่วยกิตครั้งเดียว (' + x.credits + ' หน่วยกิต)</div>');
++  });
++  var outs = r.courses.filter(function (x) { return !x.inBook && x.cat !== 'ภาษาอังกฤษ'; });
++  if (outs.length) notes.push('<div class="note info">มี <b>' + outs.length + ' รหัส</b> ที่ไม่พบในเล่มหลักสูตร (' + outs.map(function (x) { return esc(x.code); }).join(', ') + ') — ตรวจหมวดที่เสนอ หรือตรวจว่าใช้เล่มถูกฉบับ</div>');
++  $('s2Notes').innerHTML = notes.join('');
++
++  var f = $('filterSel').value;
++  var list = r.courses.filter(function (x) {
++    if (f === 'flag') return x.review || x.pending || (x.pendingRegs || []).length || (x.lowRegs || []).length || x.failed || x.overridden || x.how === 'ambiguous' || (!x.inBook && x.cat !== 'ภาษาอังกฤษ');
++    if (f === 'out') return !x.inBook;
++    return true;
++  });
++  $('courseTbl').innerHTML = '<thead><tr><th>รหัส / รายวิชา</th><th class="n">หน่วยกิต</th><th class="n">เกรด</th><th>หมวดที่เสนอ</th><th class="n">หลักฐาน</th></tr></thead><tbody>' +
++    (list.length ? list.map(function (x) {
++      var fl = x.review || x.pending || x.failed;
++      var gradeClass = (x.lowRegs || []).length ? 'grade-low' : fl ? 'flag' : '';
++      return '<tr' + (gradeClass ? ' class="' + gradeClass + '"' : '') + '><td><div class="code">' + esc(x.code) + '</div><div class="sub">' + esc(x.nameBook || x.title) + '</div>' + flagsHtml(x) + '</td>' +
++        '<td class="n">' + x.credits + '</td><td class="n">' + esc(gradesText(x)) + '</td><td>' + catSelect(x) + '</td>' +
++        '<td class="n"><button class="btn sm ev" type="button" data-code="' + esc(x.code) + '">ดูหลักฐาน</button></td></tr>';
++    }).join('') : '<tr><td colspan="5" class="muted">ไม่มีรายการในตัวกรองนี้</td></tr>') + '</tbody>';
++}
++
++/* ---------- หลักฐาน ---------- */
++function hl(line, code) {
++  var num = code.slice(-3), d = '๐๑๒๓๔๕๖๗๘๙';
++  var th = num.split('').map(function (c) { return '[' + c + d[+c] + ']'; }).join('');
++  var re = new RegExp('((?:[A-Z]{3,4}|[ก-ฮ]{2,5})\\s?' + th + ')(?![0-9๐-๙])', 'g');
++  return esc(line).replace(re, '<mark>$1</mark>');
++}
++function showEvidence(code) {
++  var r = S.result, x = r.courses.filter(function (c) { return c.code === code; })[0];
++  var miss = null;
++  if (!x) r.groups.forEach(function (g) { g.missing.forEach(function (m) { if (m.key === code) miss = { m: m, g: g }; }); });
++  $('evCode').textContent = x ? code + (x.bookDisplay && x.how !== 'exact' ? '  ↔  ' + x.bookDisplay : '') : miss ? miss.m.code : code;
++  $('evName').textContent = x ? (x.nameBook || x.title) : miss ? miss.m.name : '';
++  var h = '';
++  if (x) {
++    h += '<div class="row" style="margin-bottom:10px"><span class="small muted">หมวดที่เสนอ</span> <span class="cat k-' + esc(x.proposed) + '" style="cursor:default">' + esc(x.proposed) + '</span>' +
++      (x.overridden ? ' <span class="tag t-info">เจ้าหน้าที่เปลี่ยนเป็น “' + esc(x.cat) + '”</span>' : '') + '</div>';
++    h += '<div class="small">' + esc(x.reason) + '</div>';
++  }
++  var ev = x ? x.evidence : miss ? miss.m.evidence : null, gev = x ? x.groupEvidence : miss ? miss.g.evidence : null;
++  if (ev) {
++    h += '<div class="ev-sec" style="margin-top:12px">จากเล่มหลักสูตร — ข้อ 3.1.3 รายวิชาในหลักสูตร</div><div class="quote"><div class="pg">หน้า ' + ev.page + ' ของไฟล์เล่มหลักสูตร</div>' +
++      (ev.heading ? '<div style="font-weight:600">' + esc(ev.heading.line) + '</div>' : '') +
++      ev.lines.map(function (l) { return '<div>' + hl(l, x ? x.code : miss.m.key) + '</div>'; }).join('') + '</div>';
++    if (x && x.candidates) h += '<div class="note warn">เลข ' + esc(x.code.slice(4)) + ' มีในเล่ม ' + x.candidates.length + ' รายการ: ' +
++      x.candidates.map(function (c) { return '<b>' + esc(c.display) + '</b> (' + esc(c.group) + ', ' + (c.credits == null ? '?' : c.credits) + ' หน่วยกิต)'; }).join(' · ') +
++      ' — ระบบเลือกรายการแรกให้ ถ้าไม่ถูกให้เปลี่ยนหมวดในตาราง</div>';
++  } else if (x) {
++    h += '<div class="note warn" style="margin-top:12px">ไม่พบรหัส <b>' + esc(code) + '</b> ในข้อ 3.1.3 ของเล่มหลักสูตรที่นำเข้า</div>';
++  }
++  if (gev) h += '<div class="ev-sec">เกณฑ์ของหมวด — ข้อ 3.1.2 โครงสร้างหลักสูตร</div><div class="quote"><div class="pg">หน้า ' + gev.page + '</div>' + esc(gev.line) + '</div>';
++  if (x && ['วิทยานิพนธ์', 'สารนิพนธ์'].indexOf(x.cat) >= 0)
++    h += '<div class="note info">กติกา: วิทยานิพนธ์/สารนิพนธ์ยึดหน่วยกิตที่นักศึกษาลงทะเบียน (12 หรือ 36 = วิทยานิพนธ์, 6 = สารนิพนธ์) และนับครั้งเดียว</div>';
++  if (x) {
++    h += '<div class="ev-sec">จากโครงสร้างของนักศึกษา</div><div class="tbl" style="margin-top:6px"><table><thead><tr><th>ปีการศึกษา</th><th>ชื่อวิชา</th><th class="n">หน่วยกิต</th><th class="n">เกรด</th></tr></thead><tbody>' +
++      x.regs.map(function (g) { return '<tr><td>' + esc(g.term) + '</td><td>' + esc(g.title) + '</td><td class="n">' + g.credits + '</td><td class="n">' + (g.grade ? esc(g.grade) : '<span class="tag t-warn">ยังไม่ได้ประเมิน</span>') + '</td></tr>'; }).join('') +
++      '</tbody></table></div>';
++  }
++  if (miss) h += '<div class="note bad">ไม่พบรหัสนี้ในโครงสร้างของนักศึกษา</div>';
++  $('evBody').innerHTML = h;
++  $('evDlg').showModal();
++}
++
++/* ---------- ขั้นที่ 3 ---------- */
++function stCls(s) { return s === 'ครบ' ? 't-ok' : s === '—' ? 't-mute' : s === 'รอผลประเมิน' ? 't-warn' : 't-bad'; }
++function render3() {
++  var r = S.result, T = r.total;
++  var shortG = r.groups.filter(function (g) { return /^ขาด/.test(g.status); });
++  var why = shortG.map(function (g) { return g.label + ' ' + g.status; });
++  if (T.got + T.pending < T.required) why.push('หน่วยกิตรวมขาด ' + (T.required - T.got - T.pending));
++  $('verdict').innerHTML = r.verdict === 'pass'
++    ? '<div class="verdict pass"><span class="big">✓ เรียนครบตามโครงสร้างหลักสูตร</span><span>รวม ' + T.got + ' จากเกณฑ์ ' + T.required + ' หน่วยกิต</span></div>'
++    : r.verdict === 'waiting'
++    ? '<div class="verdict waiting"><span class="big">⏳ รอผลประเมินหรือข้อมูลที่ต้องยืนยัน</span><span>รอผล ' + T.pending + ' หน่วยกิต</span></div>'
++    : '<div class="verdict fail"><span class="big">✗ ยังไม่ครบตามโครงสร้างหลักสูตร</span><span>' + esc(why.join(' · ')) + '</span></div>';
++
++  function chips(g) {
++    return g.items.map(function (x) {
++      return '<span class="chip' + ((x.lowRegs || []).length ? ' grade-low' : '') + (x.inBook === false ? ' out' : '') + '" title="' + esc(x.title || '') + '">' + esc(x.code) + ' (' + x.credits + ')' + (x.transfer ? ' โอน' : '') + (x.pending ? ' รอผล' : '') + '</span>';
++    }).join('') + g.missing.map(function (m) { return '<span class="chip miss" title="' + esc(m.name) + '">' + esc(m.code) + ' (' + (m.credits == null ? '?' : m.credits) + ') ขาด</span>'; }).join('');
++  }
++  $('sumTbl').innerHTML = '<thead><tr><th>หมวดวิชา</th><th class="n">ตามหลักสูตร</th><th class="n">วิชาเรียนที่พบ</th><th class="n">ผล</th><th>รายวิชา</th></tr></thead><tbody>' +
++    r.groups.map(function (g) {
++      var req = g.required == null ? '-' : (g.atLeast ? 'อย่างน้อย ' : '') + g.required;
++      var extra = '';
++      if (['วิทยานิพนธ์', 'สารนิพนธ์'].indexOf(g.cat) >= 0 && r.thesis) {
++        extra = '<div class="sub">เกณฑ์ตามเล่ม' + (g.bookRequired && g.bookRequired !== g.required ? ' · ในเล่ม ' + g.bookRequired : '') + '</div>';
++      }
++      var found = g.got + (g.transfer ? '<div class="sub">โอน ' + g.transfer + '</div>' : '') + (g.pending ? '<div class="sub">+ รอผล ' + g.pending + '</div>' : '');
++      return '<tr><td><b>' + esc(g.label) + '</b><div class="sub">ช่อง “' + esc(g.formRow || '-') + '”</div></td><td class="n">' + req + extra + '</td><td class="n"><b>' + found + '</b></td>' +
++        '<td class="n"><span class="tag ' + stCls(g.status) + '">' + esc(g.status) + '</span></td><td>' + chips(g) + '</td></tr>';
++    }).join('') +
++    '<tr><td><b>รวม</b>' + (r.plan ? '<div class="sub">แผน ' + esc(r.plan) + '</div>' : '') + '</td><td class="n">' + (r.totalAtLeast ? 'อย่างน้อย ' : '') + T.required + '</td><td class="n"><b>' + T.got + '</b>' + (T.pending ? '<div class="sub">+ รอผล ' + T.pending + '</div>' : '') + '</td>' +
++    '<td class="n"><span class="tag ' + (T.got >= T.required ? 't-ok' : T.got + T.pending >= T.required ? 't-warn' : 't-bad') + '">' + (T.got >= T.required ? 'ครบ' : T.got + T.pending >= T.required ? 'รอผลประเมิน' : 'ขาด ' + (T.required - T.got - T.pending)) + '</span></td><td></td></tr></tbody>';
++
++  var n3 = [];
++  if (r.planName) n3.push('<div class="note info">ใช้เกณฑ์จากเล่ม: <b>' + esc(r.planName) + '</b> · แผนในข้อมูลนักศึกษา ' + esc(S.stu.plan) + '</div>');
++  if (r.major) n3.push('<div class="note info">วิชาเอกที่ใช้ตรวจ: <b>' + esc(r.major) + '</b> · เลือกจาก' + esc(r.majorSource) + '</div>');
++  r.courses.forEach(function(x) {
++    (x.lowRegs || []).forEach(function(reg) { n3.push('<div class="note bad"><b>' + esc(x.code + ' · ' + (x.nameBook || x.title)) + '</b> — ' + (x.cat === 'บังคับ' ? 'วิชาบังคับต่ำกว่า B' : 'วิชาเลือกต่ำกว่า C') + ' (ได้ ' + esc(reg.grade) + ', ' + esc(reg.term) + ')' + (x.pass ? ' · มีผลครั้งอื่นผ่านเกณฑ์แล้ว' : ' · ยังไม่นับเป็นหน่วยกิตผ่านเกณฑ์') + '</div>'); });
++    (x.pendingRegs || []).forEach(function(reg) { n3.push('<div class="note warn"><b>' + esc(x.code + ' · ' + (x.nameBook || x.title)) + '</b> — รายวิชานี้ยังไม่ได้ประเมินเกรด (' + esc(reg.term) + ', ' + esc(reg.grade || 'ช่องเกรดว่าง') + ')</div>'); });
++  });
++  if (r.thesis) {
++    var gs = []; r.thesis.grades.forEach(function (g) { if (gs.indexOf(g) < 0) gs.push(g); });
++    n3.push('<div class="note ' + (gs.indexOf('ว่าง') >= 0 ? 'warn' : 'info') + '"><b>' + esc(r.thesis.cat) + ' ' + esc(r.thesis.code) + ':</b> ลงทะเบียน ' + r.thesis.times + ' ครั้ง พบเกรด ' + esc(gs.join(', ')) +
++      ' — นับ ' + r.thesis.credits + ' หน่วยกิตครั้งเดียวตามที่ลงทะเบียน</div>');
++  }
++  if (r.reviewCount) n3.push('<div class="note bad">ยังมี <b>' + r.reviewCount + ' รายการ</b> ที่ต้องยืนยัน เช่น วิชานอกเล่มหรือหน่วยกิตไม่ตรง — กลับไปขั้นที่ 2 เพื่อตรวจเฉพาะรายการนี้</div>');
++  $('s3Notes').innerHTML = n3.join('');
++
++  // ตัวเลขช่องในระบบทะเบียน (ค่า 0 เว้นว่างเหมือนในระบบ)
++  function box(v) { return '<div class="box"' + (v ? ' data-copy="' + v + '" title="คลิกเพื่อคัดลอก"' : '') + '>' + (v || '') + '</div>'; }
++  var h = '';
++  FORM_ROWS.forEach(function (k) {
++    var s = r.form[k];
++    h += '<div class="l">' + k + '</div>' + box(s.required) + '<div>หน่วยกิต</div><div class="l">เรียน</div>' + box(s.study) + '<div>หน่วยกิต</div><div class="l">โอน</div>' + box(s.transfer) + '<div>หน่วยกิต</div>';
++  });
++  h += '<div class="l"><b>รวม</b></div>' + box(T.required) + '<div>หน่วยกิต</div><div class="l">รวม</div>' + box(T.study) + '<div>หน่วยกิต</div><div class="l">รวม</div>' + box(T.transfer) + '<div>หน่วยกิต</div>';
++  $('formBox').innerHTML = h;
++
++  // วิชาในเล่มที่ยังไม่พบ + เทียบโอน
++  var rows = [];
++  r.groups.forEach(function (g) {
++    g.missing.forEach(function (m) { rows.push({ g: g, code: m.code, key: m.key, name: m.name, credits: m.credits, on: false, failed: m.failed }); });
++    g.items.forEach(function (x) { if (x.manualTransfer) rows.push({ g: g, code: x.code, key: x.key, name: x.title, credits: x.credits, on: true }); });
++  });
++  var ord = {}; S.book.courses.forEach(function (b, i) { ord[b.key] = i; });
++  rows.sort(function (a, b) { return (ord[a.key] || 0) - (ord[b.key] || 0); });
++  $('missCard').classList.toggle('hidden', !rows.length);
++  $('missTbl').innerHTML = '<thead><tr><th>รหัสวิชา</th><th>ชื่อวิชา (ตามเล่ม)</th><th class="n">หน่วยกิต</th><th>หมวด</th><th class="n">โอน/ยกเว้น</th><th class="n">หลักฐาน</th></tr></thead><tbody>' +
++    rows.map(function (x) {
++      return '<tr><td class="code">' + esc(x.code) + '</td><td>' + esc(x.name) + (x.failed ? ' <span class="tag t-bad">ลงแล้วไม่ผ่าน</span>' : '') + '</td><td class="n">' + (x.credits == null ? '-' : x.credits) + '</td><td>' + esc(x.g.label) + '</td>' +
++        '<td class="n"><input type="checkbox" class="trf" data-code="' + esc(x.key) + '"' + (x.on ? ' checked' : '') + ' aria-label="โอน ' + esc(x.code) + '"></td>' +
++        '<td class="n">' + (x.on ? '' : '<button class="btn sm ev" type="button" data-code="' + esc(x.key) + '">ดูหลักฐาน</button>') + '</td></tr>';
++    }).join('') + '</tbody>';
++
++  $('engLine').textContent = 'รายวิชาในหมวดภาษาอังกฤษ: ' + (r.english.length ? r.english.map(function (x) { return x.code + ' (' + gradesText(x) + ')'; }).join(', ') : 'ยังไม่มี') + ' · ไม่นับหน่วยกิตในโครงสร้าง';
++  $('s3Status').textContent = 'สถานะ: ' + (S.savedAt ? 'ยืนยันแล้วเมื่อ ' + S.savedAt : 'รอทบทวนผล') + ' — การครบหน่วยกิตไม่ใช่การรับรองสำเร็จการศึกษา';
++}
++
++/* ---------- การทำงานหลัก ---------- */
++function compute() {
++  if (!S.book || !S.stu) return;
++  S.result = evaluate(S.book, S.stu, { overrides: S.overrides, transfer: S.transfer, major: S.major });
++  if (S.step === 2) render2();
++  if (S.step === 3) render3();
++}
++function go(n) {
++  n = +n;
++  if (n > 1 && !(S.book && S.stu)) return;
++  if (n > 1 && !majorReady()) { toast('รายวิชาที่พบยังแยกวิชาเอกไม่ได้ กรุณาเลือกวิชาเอก'); return; }
++  S.step = n;
++  [].forEach.call(document.querySelectorAll('section[data-step]'), function (s) { s.classList.toggle('hidden', +s.dataset.step !== n); });
++  [].forEach.call(document.querySelectorAll('.tab'), function (b) { b.setAttribute('aria-selected', +b.dataset.go === n ? 'true' : 'false'); });
++  if (n === 2 && S.book && S.stu && $('chkSaveBook').checked && !S.book.savedId) saveBook();
++  compute();
++  window.scrollTo({ top: 0, behavior: 'smooth' });
++}
++function saveBook() {
++  var key = (S.stu.programKey || '').toUpperCase();
++  var c = S.book;
++  call('saveCurriculum', { key: key, name: c.name || S.bookName.replace(/\.pdf$/i, ''), data: JSON.stringify(c) })
++    .then(function (id) { c.savedId = id; toast('บันทึกเล่มหลักสูตรแล้ว'); loadSavedList(); })
++    .catch(function (e) { toast(e.message); });
++}
++
++document.addEventListener('click', function (e) {
++  var g = e.target.closest('[data-go]'); if (g && !g.disabled) go(g.dataset.go);
++  var ev = e.target.closest('.ev'); if (ev) showEvidence(ev.dataset.code);
++  var b = e.target.closest('[data-copy]');
++  if (b) navigator.clipboard.writeText(b.dataset.copy).then(function () { toast('คัดลอก ' + b.dataset.copy); }, function () { toast(b.dataset.copy); });
++});
++document.addEventListener('change', function (e) {
++  var el = e.target;
++  if (el.classList.contains('studentField') && S.stu) { S.stu[el.dataset.field] = el.dataset.field === 'plan' ? normalizePlan(el.value) : el.value.trim(); S.result = null; S.savedAt = ''; refresh1(); }
++  if (el.classList.contains('ovr')) {
++    var x = S.result.courses.filter(function (c) { return c.code === el.dataset.code; })[0];
++    if (x && el.value === x.proposed) delete S.overrides[el.dataset.code]; else S.overrides[el.dataset.code] = el.value;
++    S.savedAt = ''; compute();
++  }
++  if (el.classList.contains('trf')) { if (el.checked) S.transfer[el.dataset.code] = true; else delete S.transfer[el.dataset.code]; S.savedAt = ''; compute(); }
++  if (el.classList.contains('gmap')) { S.book.groups[+el.dataset.i].cat = el.value; S.book.savedId = S.book.savedId ? '' : ''; refresh1(); }
++  if (el.id === 'majorSelect') { S.major = el.value; S.result = null; S.savedAt = ''; refresh1(); autoInspect(); }
++  if (el.id === 'filterSel') render2();
++  if (el.id === 'savedSel') loadSaved(el.value);
++});
++setupDrop('dropStu', 'fileStu', 'nameStu', function (f) { readFile(f, 'nameStu', 'statStu', onStuText); });
++setupDrop('dropBook', 'fileBook', 'nameBook', function (f) { $('savedSel').value = ''; readFile(f, 'nameBook', 'statBook', onBookText); });
++$('btnTxtStu').addEventListener('click', function () { $('nameStu').textContent = 'ข้อความที่วาง'; onStuText($('txtStu').value, ''); });
++$('btnTxtBook').addEventListener('click', function () { $('nameBook').textContent = 'ข้อความที่วาง'; onBookText($('txtBook').value, ''); });
++
++$('btnConfirm').addEventListener('click', function () {
++  var r = S.result, t = S.stu, btn = this;
++  if (r.reviewCount && !confirm('ยังมี ' + r.reviewCount + ' รายการรอตรวจสอบ ต้องการยืนยันผลเลยหรือไม่?')) return;
++  btn.disabled = true;
++  call('saveResult', {
++    studentId: t.studentId, programKey: t.programKey, name: t.name, program: t.program,
++    book: S.book.name || S.bookName, verdict: r.verdict, form: r.form, total: r.total,
++    groups: r.groups.map(function (g) { return { label: g.label, required: g.required, got: g.got, status: g.status, missing: g.missing.map(function (m) { return m.code; }) }; }),
++    courses: r.courses.map(function (x) { return { code: x.code, cat: x.cat, proposed: x.proposed, credits: x.credits, grade: gradesText(x), belowMinimum: (x.lowRegs || []).map(function(reg) { return {term:reg.term,grade:reg.grade}; }), notEvaluated: (x.pendingRegs || []).map(function(reg) { return {term:reg.term,grade:reg.grade}; }) }; }),
++    note: (r.major ? 'วิชาเอก: ' + r.major + '\n' : '') + $('note').value
++  }).then(function () {
++    S.savedAt = new Date().toLocaleString('th-TH'); toast('บันทึกผลตรวจแล้ว (ไฟล์ผลการตรวจโครงสร้าง.csv)'); render3();
++  }).catch(function (e) { alert(e.message); }).then(function () { btn.disabled = false; });
++});
++function resetUploads() {
++  // Ignore any earlier PDF read / saved-book request still in flight.
++  Object.keys(readTokens).forEach(function(key) { ++readTokens[key]; });
++  var saved = S.saved;
++  S = { book: null, bookName: '', major: '', stu: null, stuName: '', overrides: {}, transfer: {}, result: null, step: 1, saved: saved, savedAt: '' };
++  ['fileStu','fileBook','txtStu','txtBook','note','savedSel'].forEach(function(id) { $(id).value = ''; });
++  $('nameStu').textContent = 'ไม่ได้เลือกไฟล์ใด';
++  $('nameBook').textContent = 'ไม่ได้เลือกไฟล์ใด';
++  ['statStu','statBook','mapGrid','s2Notes','s3Notes','courseTbl','sumTbl','formBox','missTbl','verdict'].forEach(function(id) { $(id).innerHTML = ''; });
++  ['studentEditor','mapCard','missCard'].forEach(function(id) { $(id).classList.add('hidden'); });
++  fillStudentFields({});
++  $('chkSaveBook').checked = false;
++  $('filterSel').value = 'all';
++  refresh1(); go(1);
++  toast('ล้างไฟล์แล้ว เลือกไฟล์เดิมหรือไฟล์ใหม่เพื่อตรวจอีกครั้งได้เลย');
++}
++$('btnRefresh').addEventListener('click', resetUploads);
++$('btnPrint').addEventListener('click', function () { window.print(); });
++$('evClose').addEventListener('click', function () { $('evDlg').close(); });
++$('btnResults').addEventListener('click', function () { call('openResults').catch(function (e) { toast(e.message); }); });
++$('btnNext').addEventListener('click', function () {
++  S.stu = null; S.major = ''; S.overrides = {}; S.transfer = {}; S.result = null; S.savedAt = '';
++  $('nameStu').textContent = 'ไม่ได้เลือกไฟล์ใด'; $('statStu').innerHTML = ''; $('note').value = ''; $('txtStu').value = ''; $('studentEditor').classList.add('hidden');
++  refresh1(); go(1); toast('เก็บเล่มหลักสูตรไว้แล้ว — นำเข้าไฟล์นักศึกษาคนถัดไปได้เลย');
++});
++
++loadSavedList();
++getPdfjs().catch(function () {});
++</script>
++</body>
++</html>
+\ No newline at end of file
+diff --git a/doctypes/pdftools/__init__.py b/doctypes/pdftools/__init__.py
+index 5233220..a4da40e 100644
+--- a/doctypes/pdftools/__init__.py
++++ b/doctypes/pdftools/__init__.py
+@@ -4,13 +4,13 @@
+ 
+ ต่างจากประเภทเอกสารอื่นตรงที่ไม่ใช้ Word และไม่ผ่าน inspect/convert ของ hub:
+ หน้าจออยู่ที่ web/index.html (ประกาศด้วย page) hub แสดงในกรอบแทนช่องวางไฟล์ แล้วหน้านี้อ่าน/ตัด/รวม PDF
+-ด้วย JavaScript ในหน้าต่างโปรแกรมเอง (pdf.js, pdf-lib, JSZip ใน web/lib — ไม่โหลดจากอินเทอร์เน็ต)
++ด้วย JavaScript ในหน้าต่างโปรแกรมเอง (pdf.js, pdf-lib, JSZip ใน web/vendor ของโปรแกรม — ไม่โหลดจากอินเทอร์เน็ต)
+ ผลลัพธ์ดาวน์โหลดลงโฟลเดอร์ Downloads ของเครื่อง — ไม่มีการส่งไฟล์ออกนอกเครื่อง และไม่ต้องใช้บัญชีออนไลน์
+ 
+     แยกเอกสารรายคน  PDF รวม (ผลสอบ ฯลฯ) -> อ่านรหัสนักศึกษาแต่ละหน้า -> ตรวจ/แก้ในตาราง -> ZIP ของ PDF รายคน + รายการไฟล์.csv
+     รวมไฟล์ PDF     PDF หลายไฟล์ -> เรียงลำดับ -> PDF ไฟล์เดียว
+ 
+-แก้หน้าจอ/กฎการอ่านรหัส: web/index.html (ID_PATTERN) · ไลบรารี: web/lib/VERSIONS.txt
++แก้หน้าจอ/กฎการอ่านรหัส: web/index.html (ID_PATTERN) · ไลบรารี: web/vendor/VERSIONS.txt
+ """
+ from core.doctype import DocType
+ 
+diff --git a/doctypes/pdftools/web/index.html b/doctypes/pdftools/web/index.html
+index b8deb84..d53337a 100644
+--- a/doctypes/pdftools/web/index.html
++++ b/doctypes/pdftools/web/index.html
+@@ -6,7 +6,7 @@
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>แยก / รวม PDF</title>
+ <!-- เครื่องมือของประเภทเอกสาร pdftools — hub เปิดหน้านี้ในกรอบ (iframe) ที่ /tool/pdftools/
+-     ทำงานในเครื่องทั้งหมด: ไลบรารีอยู่ใน lib/ ของโฟลเดอร์นี้ ไม่โหลดอะไรจากอินเทอร์เน็ต ไม่ส่งไฟล์ไปที่ใด
++     ทำงานในเครื่องทั้งหมด: ไลบรารีอยู่ใน web/vendor/ ของโปรแกรม (ใช้ร่วมกันทุกเครื่องมือ) ไม่โหลดอะไรจากอินเทอร์เน็ต ไม่ส่งไฟล์ไปที่ใด
+      (app.py ส่ง Content-Security-Policy ที่ห้ามหน้านี้ติดต่อที่อื่นนอกจากโปรแกรมในเครื่อง) -->
+ <script>
+ // ใช้โหมดสว่าง/มืดตามหน้าโปรแกรมหลัก (ปุ่มพระจันทร์)
+@@ -20,220 +20,7 @@
+   try { new MutationObserver(sync).observe(parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+ })();
+ </script>
+-<style>
+-/* สีเดียวกับหน้าโปรแกรมหลัก (web/index.html) — โหมดมืดตามปุ่มพระจันทร์ของ hub */
+-:root{
+-  --bg:#f3f5fa;--card:#fff;--card-soft:#f8f9fc;--text:#0f172a;--muted:#64748b;--line:#e4e8f1;--line-strong:#cbd3e1;
+-  --primary:#4338ca;--primary-hover:#3730a3;--primary-soft:#eef2ff;--on-primary:#fff;
+-  --ok:#15803d;--ok-soft:#dcfce7;--warn:#a16207;--warn-soft:#fef3c7;--warn-line:#f2cf6b;
+-  --err:#dc2626;--err-soft:#fee2e2;--err-row:#fff7f7;--warn-row:#fffcf0;
+-  --field:#fff;--canvas-bg:#e7ebf3;--toast:#0f172a;--toast-ink:#fff;
+-  --shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.06);--radius:18px;
+-  color-scheme:light;
+-}
+-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+-  --bg:#0b1020;--card:#121a2e;--card-soft:#0f172a;--text:#e5e9f5;--muted:#8b97b3;--line:#222c45;--line-strong:#33405f;
+-  --primary:#818cf8;--primary-hover:#a5b4fc;--primary-soft:#1e2347;--on-primary:#0b1020;
+-  --ok:#4ade80;--ok-soft:#12321f;--warn:#fbbf24;--warn-soft:#3a2c0b;--warn-line:#6b5212;
+-  --err:#f87171;--err-soft:#3b1414;--err-row:#1d1219;--warn-row:#1c1a12;
+-  --field:#0f172a;--canvas-bg:#0a0f1d;--toast:#e5e9f5;--toast-ink:#0b1020;
+-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}}
+-:root[data-theme="dark"]{
+-  --bg:#0b1020;--card:#121a2e;--card-soft:#0f172a;--text:#e5e9f5;--muted:#8b97b3;--line:#222c45;--line-strong:#33405f;
+-  --primary:#818cf8;--primary-hover:#a5b4fc;--primary-soft:#1e2347;--on-primary:#0b1020;
+-  --ok:#4ade80;--ok-soft:#12321f;--warn:#fbbf24;--warn-soft:#3a2c0b;--warn-line:#6b5212;
+-  --err:#f87171;--err-soft:#3b1414;--err-row:#1d1219;--warn-row:#1c1a12;
+-  --field:#0f172a;--canvas-bg:#0a0f1d;--toast:#e5e9f5;--toast-ink:#0b1020;
+-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}
+-*{box-sizing:border-box}
+-[hidden]{display:none!important}
+-html,body{background:var(--bg)}
+-body{margin:0;color:var(--text);font:15px/1.6 "Segoe UI","Leelawadee UI","TH Sarabun New",Tahoma,system-ui,sans-serif}
+-.wrap{max-width:1120px;margin:0 auto;padding:4px 2px 24px}
+-h1,h2,h3{line-height:1.3;margin:0}
+-h2{font-size:18px}
+-p{margin:.5em 0}
+-code{background:var(--card-soft);border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:.92em}
+-.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+-:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 55%,transparent);outline-offset:2px}
+-
+-/* แถบบน: เครื่องมือ + ขั้นตอน */
+-.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+-.tool-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;padding:6px;border-radius:16px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);flex:1;min-width:280px;max-width:520px}
+-.tool-tabs button{border:0;border-radius:11px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:transparent;color:var(--muted)}
+-.tool-tabs button[aria-pressed=true]{background:var(--primary-soft);color:var(--primary)}
+-.steps{display:flex;align-items:center;list-style:none;margin:0;padding:0}
+-.steps li{position:relative;display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);white-space:nowrap}
+-.steps li+li{margin-left:10px;padding-left:34px}
+-.steps li+li::before{content:"";position:absolute;left:0;top:50%;width:24px;height:2px;border-radius:2px;background:var(--line-strong)}
+-.steps li.is-done+li::before{background:var(--ok)}
+-.steps li b{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:50%;font-size:12.5px;background:var(--card);border:1px solid var(--line-strong);color:var(--muted)}
+-.steps li[aria-current=step]{color:var(--text);font-weight:600}
+-.steps li[aria-current=step] b{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+-.steps li.is-done b{background:var(--ok);border-color:var(--ok);color:transparent;position:relative}
+-.steps li.is-done b::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:var(--card);font-weight:700}
+-.privacy{font-size:12.5px;color:var(--muted);margin:10px 2px 0}
+-
+-/* การ์ด */
+-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-top:16px;box-shadow:var(--shadow)}
+-fieldset{border:0;margin:0;padding:0;min-width:0}
+-.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+-.hint{color:var(--muted);font-size:13.5px}
+-
+-/* ปุ่ม */
+-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:12px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;line-height:1.3;min-height:40px;white-space:nowrap}
+-.btn.primary{background:var(--primary);color:var(--on-primary)}
+-.btn.primary:hover{background:var(--primary-hover)}
+-.btn.ghost{background:var(--card);color:var(--text);border-color:var(--line)}
+-.btn.ghost:hover{background:var(--card-soft);border-color:var(--line-strong)}
+-.btn.lg{padding:12px 22px;font-size:16px;border-radius:14px}
+-.btn.sm{padding:5px 11px;min-height:32px;font-size:13.5px;border-radius:9px}
+-.btn.danger{color:var(--err)}
+-.btn.link{background:none;border:0;color:var(--primary);padding:0;min-height:0;text-decoration:underline;font-weight:500}
+-.btn:disabled,fieldset:disabled .btn{opacity:.5;cursor:not-allowed}
+-
+-/* เลือกวิธีแยก */
+-.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0 10px}
+-.mode{position:relative;display:block;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px 12px 44px;cursor:pointer;background:var(--card-soft)}
+-.mode:hover{border-color:var(--line-strong)}
+-.mode input{position:absolute;left:16px;top:16px;width:17px;height:17px;accent-color:var(--primary)}
+-.mode b{display:block}
+-.mode span{display:block;font-size:13.5px;color:var(--muted)}
+-.mode:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}
+-.check{display:inline-flex;gap:8px;align-items:flex-start;font-size:14.5px;cursor:pointer}
+-.check input{width:17px;height:17px;margin-top:3px;accent-color:var(--primary);flex:none}
+-
+-/* ช่องวางไฟล์ (แบบเดียวกับ .zone ของ hub) */
+-.drop{margin-top:14px;border:2px dashed var(--line);border-radius:14px;padding:26px 20px;text-align:center;background:var(--card-soft);transition:background .15s,border-color .15s}
+-.drop.over{border-color:var(--primary);background:var(--primary-soft)}
+-.drop .icon{font-size:30px;line-height:1}
+-.drop p{margin:6px 0 12px}
+-.drop small{display:block;color:var(--muted);margin-top:10px}
+-.file-chip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--card-soft)}
+-.file-chip .name{font-weight:600;word-break:break-all}
+-.file-chip .meta{color:var(--muted);font-size:13.5px}
+-.file-chip .grow{flex:1;min-width:180px}
+-
+-/* สถานะ */
+-.status{margin-top:16px;border-radius:12px;padding:11px 14px;background:var(--card-soft);border:1px solid var(--line);color:var(--muted);white-space:pre-line;font-size:14.5px}
+-.status:empty{display:none}
+-.status.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+-.status.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+-.status.error{background:var(--err-soft);border-color:transparent;color:var(--err)}
+-progress{width:100%;height:6px;margin-top:10px;appearance:none;border:0;border-radius:99px;background:var(--line);overflow:hidden}
+-progress::-webkit-progress-bar{background:var(--line)}
+-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--primary),#2563eb)}
+-progress::-moz-progress-bar{background:var(--primary)}
+-
+-/* ป้ายสรุป */
+-.chips{display:flex;gap:6px;flex-wrap:wrap}
+-.chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600;background:var(--card-soft);border:1px solid var(--line);color:var(--text);font-variant-numeric:tabular-nums}
+-.chip.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+-.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+-.chip.err{background:var(--err-soft);border-color:transparent;color:var(--err)}
+-
+-/* แผนผังหน้า */
+-.pagemap-box{margin:14px 0;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card-soft)}
+-.pm-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+-.legend{display:flex;gap:12px;flex-wrap:wrap}
+-.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+-.pagemap{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;max-height:180px;overflow:auto}
+-.pg{border:1px solid transparent;border-radius:7px;font:inherit;font-size:12px;padding:3px 0;cursor:pointer;font-variant-numeric:tabular-nums}
+-.pg,.legend .ok{background:var(--ok-soft);color:var(--ok)}
+-.pg.review,.legend .review{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+-.pg.missing,.legend .missing{background:var(--card);color:var(--err);border:1px dashed var(--err)}
+-.pg.dup,.legend .dup{background:var(--err);color:var(--card)}
+-.pg:hover{filter:brightness(.95)}
+-
+-/* ตาราง */
+-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
+-.table-wrap{border:1px solid var(--line);border-radius:14px;overflow:auto}
+-table{width:100%;border-collapse:collapse}
+-th{background:var(--card-soft);font-size:12.5px;font-weight:600;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+-td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+-tbody tr:last-child td{border-bottom:0}
+-tr.is-err{background:var(--err-row)}
+-tr.is-warn{background:var(--warn-row)}
+-td.no{color:var(--muted);font-variant-numeric:tabular-nums;padding-top:16px;width:44px;text-align:right}
+-td.c-name{min-width:220px}
+-td.c-pages{width:150px}
+-td.c-act{white-space:nowrap;width:1%}
+-td.c-act .btn{margin:2px 0}
+-input[type=text]{width:100%;padding:8px 11px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;background:var(--field);color:var(--text);min-height:40px}
+-input[type=text]:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+-input[aria-invalid=true]{border-color:var(--err)}
+-.st{font-size:13.5px;min-width:200px}
+-.st .msg{display:flex;gap:6px;align-items:flex-start}
+-.st .msg+.msg{margin-top:2px}
+-.st .e{color:var(--err)}
+-.st .w{color:var(--warn)}
+-.st .o{color:var(--ok)}
+-.st .cands{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+-.empty{padding:28px;text-align:center;color:var(--muted)}
+-
+-/* แถบสร้าง ZIP */
+-.export-bar{position:sticky;bottom:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin:16px -22px -22px;padding:14px 22px;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(6px);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
+-.export-bar .msg{flex:1;min-width:220px;font-size:13.5px}
+-.export-bar .msg.err{color:var(--err)}
+-.export-bar .msg.ok{color:var(--ok)}
+-
+-/* เสร็จแล้ว */
+-.done{border-color:color-mix(in srgb,var(--ok) 40%,var(--line))}
+-.done .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+-
+-/* คำแนะนำ */
+-details.card summary{cursor:pointer;font-weight:600}
+-details.card ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+-details.card li{margin:4px 0}
+-
+-/* หน้าต่าง */
+-dialog{border:1px solid var(--line);border-radius:var(--radius);padding:0;background:var(--card);box-shadow:0 24px 64px rgba(0,0,0,.3);color:var(--text)}
+-dialog::backdrop{background:rgba(2,6,23,.55)}
+-#viewer{width:min(94vw,820px);max-height:94vh}
+-.v-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+-.v-head .grow{flex:1;min-width:140px}
+-.v-title{font-weight:600}
+-.v-owner{font-size:13.5px;color:var(--muted)}
+-.v-body{padding:14px;background:var(--canvas-bg);overflow:auto;max-height:calc(94vh - 70px)}
+-#canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);margin:0 auto}
+-#confirmDlg{width:min(92vw,440px);padding:22px}
+-#confirmDlg .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+-
+-/* แจ้งเตือน */
+-.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:10;display:flex;gap:14px;align-items:center;background:var(--toast);color:var(--toast-ink);padding:10px 16px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.25);font-size:14.5px;max-width:calc(100vw - 32px)}
+-.toast .btn.link{color:inherit;font-weight:700}
+-
+-.foot{font-size:12.5px;color:var(--muted);margin-top:12px}
+-
+-/* รวมไฟล์ */
+-.merge-actions{display:flex;gap:10px;flex-wrap:wrap}
+-.merge-list{list-style:none;padding:0;margin:12px 0 20px;display:grid;gap:8px}
+-.merge-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card-soft)}
+-.merge-item .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+-.merge-item .order{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;font-weight:700;background:var(--primary-soft);color:var(--primary);flex:none}
+-.merge-item .controls{display:flex;gap:6px;flex-wrap:wrap}
+-
+-@media (max-width:760px){
+-  .steps{width:100%;justify-content:space-between}
+-  .steps li{flex-direction:column;gap:3px;font-size:12.5px;flex:1}
+-  .steps li+li{margin-left:0;padding-left:0}
+-  .steps li+li::before{left:-50%;width:calc(100% - 34px);top:13px;margin-left:17px}
+-  .card{padding:16px}
+-  .export-bar{margin:16px -16px -16px;padding:12px 16px}
+-  .export-bar .btn{width:100%}
+-  thead{display:none}
+-  table,tbody{display:block}
+-  tbody tr{display:grid;grid-template-columns:30px 1fr;grid-template-areas:"no name" "no pages" "no st" "no act";gap:6px 8px;padding:12px 10px;border-bottom:1px solid var(--line)}
+-  td{border:0!important;padding:0;width:auto!important;min-width:0!important}
+-  td.no{grid-area:no;padding-top:10px;text-align:left}
+-  td.c-name{grid-area:name}
+-  td.c-pages{grid-area:pages}
+-  td.st{grid-area:st}
+-  td.c-act{grid-area:act;white-space:normal}
+-  .merge-item{flex-wrap:wrap}.merge-item .controls{width:100%;justify-content:flex-end}
+-}
+-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+-</style>
++<link rel="stylesheet" href="/vendor/tool.css?token={{TOKEN}}">
+ </head>
+ <body>
+ <main class="wrap">
+@@ -393,10 +180,10 @@ dialog::backdrop{background:rgba(2,6,23,.55)}
+ 
+ <div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" class="btn link" id="toastUndo">เลิกทำ</button></div>
+ 
+-<!-- ไลบรารีในเครื่อง (doctypes/pdftools/web/lib — เวอร์ชันและ SHA-384 ใน lib/VERSIONS.txt) -->
+-<script src="lib/pdf.min.js?token={{TOKEN}}"></script>
+-<script src="lib/pdf-lib.min.js?token={{TOKEN}}"></script>
+-<script src="lib/jszip.min.js?token={{TOKEN}}"></script>
++<!-- ไลบรารีในเครื่อง (web/vendor — เวอร์ชันและ SHA-384 ใน web/vendor/VERSIONS.txt) -->
++<script src="/vendor/pdf.min.js?token={{TOKEN}}"></script>
++<script src="/vendor/pdf-lib.min.js?token={{TOKEN}}"></script>
++<script src="/vendor/jszip.min.js?token={{TOKEN}}"></script>
+ <script>
+ 'use strict';
+ const $ = id => document.getElementById(id);
+@@ -1103,11 +890,11 @@ let libsReady = false;
+ lock(false);
+ syncMode();
+ if (window.pdfjsLib && window.PDFLib && window.JSZip) {
+-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js?token={{TOKEN}}';
++  pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js?token={{TOKEN}}';
+   libsReady = true;
+   setStatus('พร้อมใช้งาน • เลือกไฟล์ PDF รวม');
+ } else {
+-  setStatus('โหลดเครื่องมืออ่าน PDF ไม่สำเร็จ — ไฟล์ในโฟลเดอร์ doctypes/pdftools/web/lib อาจหายไป ให้ติดตั้ง/อัปเดตโปรแกรมใหม่', 'error');
++  setStatus('โหลดเครื่องมืออ่าน PDF ไม่สำเร็จ — ไฟล์ในโฟลเดอร์ web/vendor อาจหายไป ให้ติดตั้ง/อัปเดตโปรแกรมใหม่', 'error');
+ }
+ lock(false);
+ </script>
+diff --git a/tests/test_currcheck.py b/tests/test_currcheck.py
+new file mode 100644
+index 0000000..57125d5
+--- /dev/null
++++ b/tests/test_currcheck.py
+@@ -0,0 +1,127 @@
++# -*- coding: utf-8 -*-
++"""ทดสอบประเภทเอกสาร "ตรวจโครงสร้างหลักสูตร" — ที่เก็บข้อมูลในเครื่องและเส้นทาง /api/tool (ไม่ใช้อินเทอร์เน็ต)
++ตรรกะการอ่าน/ตรวจอยู่ใน JavaScript ของ web/index.html (คัดลอกจากเว็บเดิม) — ทดสอบผ่านหน้าโปรแกรม
++python -m unittest discover -s tests"""
++import csv
++import json
++import os
++import re
++import sys
++import tempfile
++import threading
++import unittest
++import urllib.error
++import urllib.request
++from http.server import ThreadingHTTPServer
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(ROOT))
++
++import app  # noqa: E402
++from core import registry  # noqa: E402
++
++WEB = ROOT / "doctypes" / "currcheck" / "web"
++
++
++class Store(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.env = os.environ.get("AS_DOCUMENT_DATA")
++        os.environ["AS_DOCUMENT_DATA"] = self.tmp.name
++        self.d = registry.get("currcheck")
++
++    def tearDown(self):
++        if self.env is None:
++            os.environ.pop("AS_DOCUMENT_DATA", None)
++        else:
++            os.environ["AS_DOCUMENT_DATA"] = self.env
++        self.tmp.cleanup()
++
++    def test_save_list_get_delete_book(self):
++        data = json.dumps({"parserVersion": 8, "name": "หลักสูตรทดสอบ", "courses": []}, ensure_ascii=False)
++        cid = self.d.tool_api("saveCurriculum", [{"key": "SCBT/M", "name": "หลักสูตรทดสอบ", "data": data}])
++        self.assertRegex(cid, r"^[0-9a-f]{8}$")
++        lst = self.d.tool_api("listCurricula", [])
++        self.assertEqual([(x["id"], x["key"]) for x in lst], [(cid, "SCBT/M")])
++        c = self.d.tool_api("getCurriculum", [cid])
++        self.assertEqual((c["name"], c["savedId"]), ("หลักสูตรทดสอบ", cid))
++        self.d.tool_api("deleteCurriculum", [cid])
++        self.assertEqual(self.d.tool_api("listCurricula", []), [])
++
++    def test_bad_ids_and_functions(self):
++        for bad in ("../../app", "x", "", None, "ABCDEF12"):
++            with self.assertRaises(ValueError):
++                self.d.tool_api("getCurriculum", [bad])
++        with self.assertRaises(ValueError):
++            self.d.tool_api("__init__", [])
++        with self.assertRaises(ValueError):
++            self.d.tool_api("saveCurriculum", [{"data": "not json"}])
++
++    def test_save_result_csv(self):
++        r = {"studentId": "6812345", "programKey": "SCBT/M", "name": "=HYPERLINK(\"x\")", "program": "ทดสอบ", "book": "เล่ม",
++             "verdict": "fail", "form": {"บังคับ": {"study": 6, "transfer": 0}},
++             "total": {"required": 30, "study": 15, "transfer": 0},
++             "groups": [{"label": "หมวดวิชาบังคับ", "required": 9, "got": 6, "status": "ขาด 3", "missing": ["SCBT 503"]}],
++             "courses": [{"code": "SCBT503", "cat": "บังคับ"}], "note": "-ทดสอบ"}
++        self.d.tool_api("saveResult", [r])
++        self.d.tool_api("saveResult", [r])
++        f = Path(self.tmp.name) / "currcheck" / "ผลการตรวจโครงสร้าง.csv"
++        rows = list(csv.reader(f.open(encoding="utf-8-sig")))
++        self.assertEqual(len(rows), 3)                          # หัวตาราง 1 ครั้ง + 2 ผล
++        row = dict(zip(rows[0], rows[1]))
++        self.assertEqual(row["ผลตรวจ"], "ยังไม่ครบ")
++        self.assertEqual(row["บังคับ (เรียน)"], "6")
++        self.assertEqual(row["วิชาที่ยังขาด"], "SCBT 503")
++        self.assertTrue(row["ชื่อ-สกุล"].startswith("'="))     # กันสูตร Excel
++        self.assertTrue(row["หมายเหตุ"].startswith("'-"))
++
++
++class Page(unittest.TestCase):
++    def test_registered_page(self):
++        d = registry.get("currcheck")
++        self.assertEqual(d.manifest()["page"], "index.html")
++
++    def test_offline(self):
++        html = (WEB / "index.html").read_text(encoding="utf-8")
++        self.assertIsNone(re.search(r"""(src|href)\s*=\s*["']https?://""", html))
++        self.assertNotIn("google.script", html.replace("แทน google.script.run", ""))
++        self.assertIn("isEvalSupported: false", html)
++        self.assertIn("/vendor/pdf.min.js", html)
++
++
++class Route(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.tmp = tempfile.TemporaryDirectory()
++        os.environ["AS_DOCUMENT_DATA"] = cls.tmp.name
++        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
++        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
++        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
++
++    @classmethod
++    def tearDownClass(cls):
++        cls.server.shutdown()
++        os.environ.pop("AS_DOCUMENT_DATA", None)
++        cls.tmp.cleanup()
++
++    def post(self, path, body, token=True):
++        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(), method="POST",
++                                     headers={"Content-Type": "application/json", **({"X-Token": app.TOKEN} if token else {})})
++        try:
++            with urllib.request.urlopen(req) as r:
++                return r.status, json.loads(r.read())
++        except urllib.error.HTTPError as e:
++            return e.code, json.loads(e.read())
++
++    def test_tool_api(self):
++        self.assertEqual(self.post("/api/tool/currcheck", {"fn": "listCurricula", "args": []}), (200, {"result": []}))
++        self.assertEqual(self.post("/api/tool/currcheck", {"fn": "listCurricula"}, token=False)[0], 403)
++        self.assertEqual(self.post("/api/tool/bt31", {"fn": "listCurricula"})[0], 500)      # ไม่มีหน้าเครื่องมือ
++        code, body = self.post("/api/tool/currcheck", {"fn": "os.system", "args": ["x"]})
++        self.assertEqual(code, 500)
++        self.assertIn("ไม่รู้จักคำสั่ง", body["error"])
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_pdftools.py b/tests/test_pdftools.py
+index baf2fcd..7a08525 100644
+--- a/tests/test_pdftools.py
++++ b/tests/test_pdftools.py
+@@ -19,6 +19,7 @@ import app  # noqa: E402
+ from core import registry  # noqa: E402
+ 
+ WEB = ROOT / "doctypes" / "pdftools" / "web"
++VENDOR = ROOT / "web" / "vendor"
+ 
+ 
+ class PdfToolsDocType(unittest.TestCase):
+@@ -28,10 +29,13 @@ class PdfToolsDocType(unittest.TestCase):
+         self.assertEqual(d.accept_exts(), set())          # hub ไม่รับไฟล์แทน — วางในกรอบของเครื่องมือ
+         self.assertNotIn("pdftools", registry.errors)
+ 
+-    def test_other_doctypes_have_no_page(self):
++    def test_word_doctypes_have_no_page(self):
++        """ประเภทที่สร้างหนังสือผ่าน Word ใช้หน้าจอช่องวางไฟล์ของ hub — ไม่มี page"""
++        for dt_id in ("bt31", "bgks39", "examletters"):
++            self.assertEqual(registry.get(dt_id).manifest()["page"], "")
+         for d in registry.all_doctypes():
+-            if d.id != "pdftools":
+-                self.assertEqual(d.manifest()["page"], "")
++            if d.manifest()["page"]:
++                self.assertTrue((ROOT / "doctypes" / d.id / "web" / d.page).is_file(), d.id)
+ 
+     def test_offline_no_internet_references(self):
+         """ทำงานในเครื่องทั้งหมด: หน้าเครื่องมือห้ามโหลดสคริปต์/ฟอนต์/สไตล์จากอินเทอร์เน็ต"""
+@@ -42,10 +46,10 @@ class PdfToolsDocType(unittest.TestCase):
+         self.assertIn("isEvalSupported: false", html)     # CVE-2024-4367
+ 
+     def test_libs_match_versions_file(self):
+-        listed = dict(re.findall(r"^(\S+\.js)\s+\S+\s+sha384-(\S+)$", (WEB / "lib" / "VERSIONS.txt").read_text(encoding="utf-8"), re.M))
++        listed = dict(re.findall(r"^(\S+\.js)\s+\S+\s+sha384-(\S+)$", (VENDOR / "VERSIONS.txt").read_text(encoding="utf-8"), re.M))
+         self.assertEqual(set(listed), {"pdf.min.js", "pdf.worker.min.js", "pdf-lib.min.js", "jszip.min.js"})
+         for name, digest in listed.items():
+-            actual = base64.b64encode(hashlib.sha384((WEB / "lib" / name).read_bytes()).digest()).decode()
++            actual = base64.b64encode(hashlib.sha384((VENDOR / name).read_bytes()).digest()).decode()
+             self.assertEqual(actual, digest, name)
+ 
+ 
+@@ -82,14 +86,14 @@ class ToolRoute(unittest.TestCase):
+         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+ 
+     def test_lib_served(self):
+-        code, headers, body = self.get("/tool/pdftools/lib/pdf-lib.min.js")
++        code, headers, body = self.get("/vendor/pdf-lib.min.js")
+         self.assertEqual(code, 200)
+         self.assertTrue(headers["Content-Type"].startswith("text/javascript"))
+-        self.assertEqual(body, (WEB / "lib" / "pdf-lib.min.js").read_bytes())
++        self.assertEqual(body, (VENDOR / "pdf-lib.min.js").read_bytes())
+ 
+     def test_cannot_leave_web_folder(self):
+-        for p in ("/tool/pdftools/../../app.py", "/tool/pdftools/lib/../../__init__.py",
+-                  "/tool/pdftools/%2e%2e/%2e%2e/app.py", "/tool/pdftools/lib/VERSIONS.txt"):
++        for p in ("/tool/pdftools/../../app.py", "/tool/pdftools/../__init__.py",
++                  "/tool/pdftools/%2e%2e/%2e%2e/app.py", "/vendor/VERSIONS.txt", "/vendor/../index.html", "/vendor/../../app.py"):
+             self.assertEqual(self.get(p)[0], 404, p)
+ 
+     def test_doctype_without_page(self):
+diff --git a/doctypes/pdftools/web/lib/VERSIONS.txt b/web/vendor/VERSIONS.txt
+similarity index 73%
+rename from doctypes/pdftools/web/lib/VERSIONS.txt
+rename to web/vendor/VERSIONS.txt
+index fac1ce5..09da1bb 100644
+--- a/doctypes/pdftools/web/lib/VERSIONS.txt
++++ b/web/vendor/VERSIONS.txt
+@@ -1,4 +1,4 @@
+-ไลบรารีที่ใช้ในเครื่อง (ไม่โหลดจากอินเทอร์เน็ต) — ได้จากแพ็กเกจ npm ตามเวอร์ชันด้านล่าง ไม่ได้แก้ไข
++ไลบรารีที่หน้าเครื่องมือทุกตัวใช้ร่วมกัน (hub ส่งที่ /vendor/<ไฟล์>?token=…) — ไม่โหลดจากอินเทอร์เน็ต ได้จากแพ็กเกจ npm ตามเวอร์ชันด้านล่าง ไม่ได้แก้ไข
+ อัปเดตไลบรารี: ดาวน์โหลดไฟล์จากแพ็กเกจ npm เวอร์ชันใหม่ แล้วแก้ตารางนี้ (sha384: openssl dgst -sha384 -binary FILE | openssl base64 -A)
+ 
+ pdf.min.js  npm:pdfjs-dist@3.11.174/build/pdf.min.js  sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e
+diff --git a/doctypes/pdftools/web/lib/jszip.min.js b/web/vendor/jszip.min.js
+similarity index 100%
+rename from doctypes/pdftools/web/lib/jszip.min.js
+rename to web/vendor/jszip.min.js
+diff --git a/doctypes/pdftools/web/lib/pdf-lib.min.js b/web/vendor/pdf-lib.min.js
+similarity index 100%
+rename from doctypes/pdftools/web/lib/pdf-lib.min.js
+rename to web/vendor/pdf-lib.min.js
+diff --git a/doctypes/pdftools/web/lib/pdf.min.js b/web/vendor/pdf.min.js
+similarity index 100%
+rename from doctypes/pdftools/web/lib/pdf.min.js
+rename to web/vendor/pdf.min.js
+diff --git a/doctypes/pdftools/web/lib/pdf.worker.min.js b/web/vendor/pdf.worker.min.js
+similarity index 100%
+rename from doctypes/pdftools/web/lib/pdf.worker.min.js
+rename to web/vendor/pdf.worker.min.js
+diff --git a/web/vendor/tool.css b/web/vendor/tool.css
+new file mode 100644
+index 0000000..9e11931
+--- /dev/null
++++ b/web/vendor/tool.css
+@@ -0,0 +1,213 @@
++/* สไตล์กลางของหน้าเครื่องมือ (ประเภทเอกสารแบบ page) — สี/โหมดมืดเดียวกับหน้าโปรแกรมหลัก (web/index.html) */
++/* สีเดียวกับหน้าโปรแกรมหลัก (web/index.html) — โหมดมืดตามปุ่มพระจันทร์ของ hub */
++:root{
++  --bg:#f3f5fa;--card:#fff;--card-soft:#f8f9fc;--text:#0f172a;--muted:#64748b;--line:#e4e8f1;--line-strong:#cbd3e1;
++  --primary:#4338ca;--primary-hover:#3730a3;--primary-soft:#eef2ff;--on-primary:#fff;
++  --ok:#15803d;--ok-soft:#dcfce7;--warn:#a16207;--warn-soft:#fef3c7;--warn-line:#f2cf6b;
++  --err:#dc2626;--err-soft:#fee2e2;--err-row:#fff7f7;--warn-row:#fffcf0;
++  --field:#fff;--canvas-bg:#e7ebf3;--toast:#0f172a;--toast-ink:#fff;
++  --shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.06);--radius:18px;
++  color-scheme:light;
++}
++@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
++  --bg:#0b1020;--card:#121a2e;--card-soft:#0f172a;--text:#e5e9f5;--muted:#8b97b3;--line:#222c45;--line-strong:#33405f;
++  --primary:#818cf8;--primary-hover:#a5b4fc;--primary-soft:#1e2347;--on-primary:#0b1020;
++  --ok:#4ade80;--ok-soft:#12321f;--warn:#fbbf24;--warn-soft:#3a2c0b;--warn-line:#6b5212;
++  --err:#f87171;--err-soft:#3b1414;--err-row:#1d1219;--warn-row:#1c1a12;
++  --field:#0f172a;--canvas-bg:#0a0f1d;--toast:#e5e9f5;--toast-ink:#0b1020;
++  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}}
++:root[data-theme="dark"]{
++  --bg:#0b1020;--card:#121a2e;--card-soft:#0f172a;--text:#e5e9f5;--muted:#8b97b3;--line:#222c45;--line-strong:#33405f;
++  --primary:#818cf8;--primary-hover:#a5b4fc;--primary-soft:#1e2347;--on-primary:#0b1020;
++  --ok:#4ade80;--ok-soft:#12321f;--warn:#fbbf24;--warn-soft:#3a2c0b;--warn-line:#6b5212;
++  --err:#f87171;--err-soft:#3b1414;--err-row:#1d1219;--warn-row:#1c1a12;
++  --field:#0f172a;--canvas-bg:#0a0f1d;--toast:#e5e9f5;--toast-ink:#0b1020;
++  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}
++*{box-sizing:border-box}
++[hidden]{display:none!important}
++html,body{background:var(--bg)}
++body{margin:0;color:var(--text);font:15px/1.6 "Segoe UI","Leelawadee UI","TH Sarabun New",Tahoma,system-ui,sans-serif}
++.wrap{max-width:1120px;margin:0 auto;padding:4px 2px 24px}
++h1,h2,h3{line-height:1.3;margin:0}
++h2{font-size:18px}
++p{margin:.5em 0}
++code{background:var(--card-soft);border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:.92em}
++.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
++:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 55%,transparent);outline-offset:2px}
++
++/* แถบบน: เครื่องมือ + ขั้นตอน */
++.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
++.tool-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;padding:6px;border-radius:16px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);flex:1;min-width:280px;max-width:520px}
++.tool-tabs button{border:0;border-radius:11px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:transparent;color:var(--muted)}
++.tool-tabs button[aria-pressed=true]{background:var(--primary-soft);color:var(--primary)}
++.steps{display:flex;align-items:center;list-style:none;margin:0;padding:0}
++.steps li{position:relative;display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);white-space:nowrap}
++.steps li+li{margin-left:10px;padding-left:34px}
++.steps li+li::before{content:"";position:absolute;left:0;top:50%;width:24px;height:2px;border-radius:2px;background:var(--line-strong)}
++.steps li.is-done+li::before{background:var(--ok)}
++.steps li b{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:50%;font-size:12.5px;background:var(--card);border:1px solid var(--line-strong);color:var(--muted)}
++.steps li[aria-current=step]{color:var(--text);font-weight:600}
++.steps li[aria-current=step] b{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
++.steps li.is-done b{background:var(--ok);border-color:var(--ok);color:transparent;position:relative}
++.steps li.is-done b::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:var(--card);font-weight:700}
++.privacy{font-size:12.5px;color:var(--muted);margin:10px 2px 0}
++
++/* การ์ด */
++.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-top:16px;box-shadow:var(--shadow)}
++fieldset{border:0;margin:0;padding:0;min-width:0}
++.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
++.hint{color:var(--muted);font-size:13.5px}
++
++/* ปุ่ม */
++.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:12px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;line-height:1.3;min-height:40px;white-space:nowrap}
++.btn.primary{background:var(--primary);color:var(--on-primary)}
++.btn.primary:hover{background:var(--primary-hover)}
++.btn.ghost{background:var(--card);color:var(--text);border-color:var(--line)}
++.btn.ghost:hover{background:var(--card-soft);border-color:var(--line-strong)}
++.btn.lg{padding:12px 22px;font-size:16px;border-radius:14px}
++.btn.sm{padding:5px 11px;min-height:32px;font-size:13.5px;border-radius:9px}
++.btn.danger{color:var(--err)}
++.btn.link{background:none;border:0;color:var(--primary);padding:0;min-height:0;text-decoration:underline;font-weight:500}
++.btn:disabled,fieldset:disabled .btn{opacity:.5;cursor:not-allowed}
++
++/* เลือกวิธีแยก */
++.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0 10px}
++.mode{position:relative;display:block;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px 12px 44px;cursor:pointer;background:var(--card-soft)}
++.mode:hover{border-color:var(--line-strong)}
++.mode input{position:absolute;left:16px;top:16px;width:17px;height:17px;accent-color:var(--primary)}
++.mode b{display:block}
++.mode span{display:block;font-size:13.5px;color:var(--muted)}
++.mode:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}
++.check{display:inline-flex;gap:8px;align-items:flex-start;font-size:14.5px;cursor:pointer}
++.check input{width:17px;height:17px;margin-top:3px;accent-color:var(--primary);flex:none}
++
++/* ช่องวางไฟล์ (แบบเดียวกับ .zone ของ hub) */
++.drop{margin-top:14px;border:2px dashed var(--line);border-radius:14px;padding:26px 20px;text-align:center;background:var(--card-soft);transition:background .15s,border-color .15s}
++.drop.over{border-color:var(--primary);background:var(--primary-soft)}
++.drop .icon{font-size:30px;line-height:1}
++.drop p{margin:6px 0 12px}
++.drop small{display:block;color:var(--muted);margin-top:10px}
++.file-chip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--card-soft)}
++.file-chip .name{font-weight:600;word-break:break-all}
++.file-chip .meta{color:var(--muted);font-size:13.5px}
++.file-chip .grow{flex:1;min-width:180px}
++
++/* สถานะ */
++.status{margin-top:16px;border-radius:12px;padding:11px 14px;background:var(--card-soft);border:1px solid var(--line);color:var(--muted);white-space:pre-line;font-size:14.5px}
++.status:empty{display:none}
++.status.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
++.status.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
++.status.error{background:var(--err-soft);border-color:transparent;color:var(--err)}
++progress{width:100%;height:6px;margin-top:10px;appearance:none;border:0;border-radius:99px;background:var(--line);overflow:hidden}
++progress::-webkit-progress-bar{background:var(--line)}
++progress::-webkit-progress-value{background:linear-gradient(90deg,var(--primary),#2563eb)}
++progress::-moz-progress-bar{background:var(--primary)}
++
++/* ป้ายสรุป */
++.chips{display:flex;gap:6px;flex-wrap:wrap}
++.chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600;background:var(--card-soft);border:1px solid var(--line);color:var(--text);font-variant-numeric:tabular-nums}
++.chip.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
++.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
++.chip.err{background:var(--err-soft);border-color:transparent;color:var(--err)}
++
++/* แผนผังหน้า */
++.pagemap-box{margin:14px 0;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card-soft)}
++.pm-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px}
++.legend{display:flex;gap:12px;flex-wrap:wrap}
++.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
++.pagemap{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;max-height:180px;overflow:auto}
++.pg{border:1px solid transparent;border-radius:7px;font:inherit;font-size:12px;padding:3px 0;cursor:pointer;font-variant-numeric:tabular-nums}
++.pg,.legend .ok{background:var(--ok-soft);color:var(--ok)}
++.pg.review,.legend .review{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
++.pg.missing,.legend .missing{background:var(--card);color:var(--err);border:1px dashed var(--err)}
++.pg.dup,.legend .dup{background:var(--err);color:var(--card)}
++.pg:hover{filter:brightness(.95)}
++
++/* ตาราง */
++.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
++.table-wrap{border:1px solid var(--line);border-radius:14px;overflow:auto}
++table{width:100%;border-collapse:collapse}
++th{background:var(--card-soft);font-size:12.5px;font-weight:600;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
++td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
++tbody tr:last-child td{border-bottom:0}
++tr.is-err{background:var(--err-row)}
++tr.is-warn{background:var(--warn-row)}
++td.no{color:var(--muted);font-variant-numeric:tabular-nums;padding-top:16px;width:44px;text-align:right}
++td.c-name{min-width:220px}
++td.c-pages{width:150px}
++td.c-act{white-space:nowrap;width:1%}
++td.c-act .btn{margin:2px 0}
++input[type=text]{width:100%;padding:8px 11px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;background:var(--field);color:var(--text);min-height:40px}
++input[type=text]:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
++input[aria-invalid=true]{border-color:var(--err)}
++.st{font-size:13.5px;min-width:200px}
++.st .msg{display:flex;gap:6px;align-items:flex-start}
++.st .msg+.msg{margin-top:2px}
++.st .e{color:var(--err)}
++.st .w{color:var(--warn)}
++.st .o{color:var(--ok)}
++.st .cands{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
++.empty{padding:28px;text-align:center;color:var(--muted)}
++
++/* แถบสร้าง ZIP */
++.export-bar{position:sticky;bottom:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin:16px -22px -22px;padding:14px 22px;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(6px);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
++.export-bar .msg{flex:1;min-width:220px;font-size:13.5px}
++.export-bar .msg.err{color:var(--err)}
++.export-bar .msg.ok{color:var(--ok)}
++
++/* เสร็จแล้ว */
++.done{border-color:color-mix(in srgb,var(--ok) 40%,var(--line))}
++.done .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
++
++/* คำแนะนำ */
++details.card summary{cursor:pointer;font-weight:600}
++details.card ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
++details.card li{margin:4px 0}
++
++/* หน้าต่าง */
++dialog{border:1px solid var(--line);border-radius:var(--radius);padding:0;background:var(--card);box-shadow:0 24px 64px rgba(0,0,0,.3);color:var(--text)}
++dialog::backdrop{background:rgba(2,6,23,.55)}
++#viewer{width:min(94vw,820px);max-height:94vh}
++.v-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line)}
++.v-head .grow{flex:1;min-width:140px}
++.v-title{font-weight:600}
++.v-owner{font-size:13.5px;color:var(--muted)}
++.v-body{padding:14px;background:var(--canvas-bg);overflow:auto;max-height:calc(94vh - 70px)}
++#canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);margin:0 auto}
++#confirmDlg{width:min(92vw,440px);padding:22px}
++#confirmDlg .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
++
++/* แจ้งเตือน */
++.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:10;display:flex;gap:14px;align-items:center;background:var(--toast);color:var(--toast-ink);padding:10px 16px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.25);font-size:14.5px;max-width:calc(100vw - 32px)}
++.toast .btn.link{color:inherit;font-weight:700}
++
++.foot{font-size:12.5px;color:var(--muted);margin-top:12px}
++
++/* รวมไฟล์ */
++.merge-actions{display:flex;gap:10px;flex-wrap:wrap}
++.merge-list{list-style:none;padding:0;margin:12px 0 20px;display:grid;gap:8px}
++.merge-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card-soft)}
++.merge-item .grow{flex:1;min-width:0;overflow-wrap:anywhere}
++.merge-item .order{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;font-weight:700;background:var(--primary-soft);color:var(--primary);flex:none}
++.merge-item .controls{display:flex;gap:6px;flex-wrap:wrap}
++
++@media (max-width:760px){
++  .steps{width:100%;justify-content:space-between}
++  .steps li{flex-direction:column;gap:3px;font-size:12.5px;flex:1}
++  .steps li+li{margin-left:0;padding-left:0}
++  .steps li+li::before{left:-50%;width:calc(100% - 34px);top:13px;margin-left:17px}
++  .card{padding:16px}
++  .export-bar{margin:16px -16px -16px;padding:12px 16px}
++  .export-bar .btn{width:100%}
++  thead{display:none}
++  table,tbody{display:block}
++  tbody tr{display:grid;grid-template-columns:30px 1fr;grid-template-areas:"no name" "no pages" "no st" "no act";gap:6px 8px;padding:12px 10px;border-bottom:1px solid var(--line)}
++  td{border:0!important;padding:0;width:auto!important;min-width:0!important}
++  td.no{grid-area:no;padding-top:10px;text-align:left}
++  td.c-name{grid-area:name}
++  td.c-pages{grid-area:pages}
++  td.st{grid-area:st}
++  td.c-act{grid-area:act;white-space:normal}
++  .merge-item{flex-wrap:wrap}.merge-item .controls{width:100%;justify-content:flex-end}
++}
++@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 -- 
 2.43.0
 
