@@ -1,15 +1,15 @@
 From 2762927d45af69cadd5f8036190fef92b222b2c6 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 04:12:53 +0000
-Subject: [PATCH] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88=E0=B8=A1?=
- =?UTF-8?q?=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97=E0=B9=80?=
- =?UTF-8?q?=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20=E0=B9=81?=
- =?UTF-8?q?=E0=B8=A2=E0=B8=81=20/=20=E0=B8=A3=E0=B8=A7=E0=B8=A1=20PDF=20(?=
- =?UTF-8?q?=E0=B8=A2=E0=B9=89=E0=B8=B2=E0=B8=A2=E0=B8=88=E0=B8=B2=E0=B8=81?=
- =?UTF-8?q?=E0=B9=80=E0=B8=A7=E0=B9=87=E0=B8=9A=20Apps=20Script=20?=
- =?UTF-8?q?=E0=B8=A1=E0=B8=B2=E0=B8=97=E0=B8=B3=E0=B8=87=E0=B8=B2=E0=B8=99?=
- =?UTF-8?q?=E0=B9=83=E0=B8=99=E0=B9=80=E0=B8=84=E0=B8=A3=E0=B8=B7=E0=B9=88?=
- =?UTF-8?q?=E0=B8=AD=E0=B8=87)?=
+Subject: [PATCH 1/2] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
+ =?UTF-8?q?=E0=B8=A1=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97?=
+ =?UTF-8?q?=E0=B9=80=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20?=
+ =?UTF-8?q?=E0=B9=81=E0=B8=A2=E0=B8=81=20/=20=E0=B8=A3=E0=B8=A7=E0=B8=A1?=
+ =?UTF-8?q?=20PDF=20(=E0=B8=A2=E0=B9=89=E0=B8=B2=E0=B8=A2=E0=B8=88?=
+ =?UTF-8?q?=E0=B8=B2=E0=B8=81=E0=B9=80=E0=B8=A7=E0=B9=87=E0=B8=9A=20Apps?=
+ =?UTF-8?q?=20Script=20=E0=B8=A1=E0=B8=B2=E0=B8=97=E0=B8=B3=E0=B8=87?=
+ =?UTF-8?q?=E0=B8=B2=E0=B8=99=E0=B9=83=E0=B8=99=E0=B9=80=E0=B8=84=E0=B8=A3?=
+ =?UTF-8?q?=E0=B8=B7=E0=B9=88=E0=B8=AD=E0=B8=87)?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -1706,6 +1706,987 @@ index c019fa4..74ed236 100644
    } catch (_) {}
  }
  $("updateBtn").onclick = async () => {
+-- 
+2.43.0
+
+
+From ea1339571d255623bfb63080f36d22d7c6bf7554 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:27:02 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?=E0=B9=80=E0=B8=9E=E0=B8=B4=E0=B9=88?=
+ =?UTF-8?q?=E0=B8=A1=E0=B8=9B=E0=B8=A3=E0=B8=B0=E0=B9=80=E0=B8=A0=E0=B8=97?=
+ =?UTF-8?q?=E0=B9=80=E0=B8=AD=E0=B8=81=E0=B8=AA=E0=B8=B2=E0=B8=A3=20?=
+ =?UTF-8?q?=E0=B8=AB=E0=B8=99=E0=B8=B1=E0=B8=87=E0=B8=AA=E0=B8=B7=E0=B8=AD?=
+ =?UTF-8?q?=E0=B8=88=E0=B8=B2=E0=B8=81=E0=B8=84=E0=B8=B3=E0=B8=AA=E0=B8=B1?=
+ =?UTF-8?q?=E0=B9=88=E0=B8=87=E0=B8=AA=E0=B8=AD=E0=B8=9A=20(=E0=B8=9A?=
+ =?UTF-8?q?=E0=B8=91.1=20/=20=E0=B8=9A=E0=B8=91.2=20/=20=E0=B8=9A=E0=B8=91?=
+ =?UTF-8?q?.27=20/=20=E0=B8=9A=E0=B8=91.35=20/=20=E0=B8=9A=E0=B8=91.39)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ย้ายแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script มาเป็นประเภทเอกสารแบบเดียวกับ บฑ.31:
+อ่านคำสั่ง (PDF/.docx) -> ช่องตรวจ/แก้ข้อมูล (ว่าง = จุดไข่ปลา ระบบไม่เดา) -> หนังสือเชิญ + หนังสือขออนุมัติ (เลือกได้)
+ไทย/อังกฤษ -> Word/PDF ผ่าน Word
+- แท็บ = แบบฟอร์ม ระบบแนะนำแท็บจากหัวเรื่องคำสั่ง · ผู้ได้รับเชิญ = กรรมการภายนอก/ผู้ทรงคุณวุฒิในคำสั่ง
+- ถ้อยคำหนังสือเป็นร่าง (ยังไม่ได้เทียบแม่แบบ) — มีหมายเหตุเตือนทุกไฟล์จนกว่าจะยืนยันใน letter.VERIFIED
+- hub: ช่องกรอกแบบ check "optional" (เว้นว่างได้)
+- tests/test_examletters.py (คำสั่งจำลอง ชื่อสมมติ)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01YXfQ2RA7H6ZampdLjp4LUL
+---
+ HANDOFF.md                             |   7 ++
+ README.md                              |   2 +
+ core/doctype.py                        |   2 +-
+ doctypes/examletters/__init__.py       | 129 +++++++++++++++++++
+ doctypes/examletters/data/signers.json |  12 ++
+ doctypes/examletters/fields.py         |  59 +++++++++
+ doctypes/examletters/forms.py          |  68 ++++++++++
+ doctypes/examletters/layout.py         |  98 +++++++++++++++
+ doctypes/examletters/letter.py         | 166 +++++++++++++++++++++++++
+ doctypes/examletters/source.py         | 109 ++++++++++++++++
+ tests/test_examletters.py              | 162 ++++++++++++++++++++++++
+ web/index.html                         |   1 +
+ 12 files changed, 814 insertions(+), 1 deletion(-)
+ create mode 100644 doctypes/examletters/__init__.py
+ create mode 100644 doctypes/examletters/data/signers.json
+ create mode 100644 doctypes/examletters/fields.py
+ create mode 100644 doctypes/examletters/forms.py
+ create mode 100644 doctypes/examletters/layout.py
+ create mode 100644 doctypes/examletters/letter.py
+ create mode 100644 doctypes/examletters/source.py
+ create mode 100644 tests/test_examletters.py
+
+diff --git a/HANDOFF.md b/HANDOFF.md
+index d16d165..c512e4d 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -16,6 +16,7 @@
+ |---|---|---|---|
+ | **บฑ.31 / GR.31** หนังสือเชิญอาจารย์พิเศษ + หนังสือขออนุมัติต่อผู้บังคับบัญชา (ไทย/อังกฤษ) | `doctypes/bt31/` | ไฟล์ `Export (xx).doc` (`export.py`) · PDF หน้า บฑ.31 e-Form (`eform.py`) | `หนังสือเชิญ บฑ.31 <รหัสวิชา เช่น EGIT 503> <ตำแหน่ง ชื่ออาจารย์>.docx` / `หนังสือขออนุมัติ …` (อังกฤษใช้ `GR.31`) |
+ | **บฑกศ.39** หนังสือเชิญ / หนังสือขออนุมัติ ผู้ทำหน้าที่เพื่อให้ได้มาซึ่งหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระ | `doctypes/bgks39/` | ไฟล์ .docx ที่ระบบสร้าง (`source.py`) — เลือกแท็บหนังสือเชิญ/ขออนุมัติก่อน | `หนังสือเชิญ-บฑกศ.39 <ชื่อนักศึกษา>.docx` / `หนังสือขออนุมัติ-บฑกศ.39 …` |
++| **หนังสือจากคำสั่งสอบ** บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39 (ไทย/อังกฤษ — ย้ายจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script) | `doctypes/examletters/` | คำสั่งสอบ PDF/.docx (`source.py`) → ช่องตรวจ/แก้ข้อมูล (`fields.py`, ว่าง = จุดไข่ปลา) — แท็บ = แบบฟอร์ม | `หนังสือเชิญ บฑ.39 <ชื่อนักศึกษา>.docx` / `หนังสือขออนุมัติ …` (อังกฤษ `GR.39`) — **ถ้อยคำยังเป็นร่าง** (หัวข้อ 8) |
+ | **แยก / รวม PDF** (ย้ายมาจากเว็บ Apps Script "ตัวช่วยจัดการเอกสาร") | `doctypes/pdftools/` | หน้าจอของตัวเอง (`web/index.html`, ประกาศด้วย `page`) — ไม่ใช้ Word/inspect/convert | ZIP ของ PDF รายคน + `รายการไฟล์.csv` / PDF รวมไฟล์เดียว (ลง Downloads) |
+ 
+ ## 2. โครงสร้างไฟล์
+@@ -36,6 +37,8 @@
+ │  ├─ README.md          วิธีสอนระบบให้จัดรูปแบบเอกสารประเภทใหม่ (เก็บตัวอย่าง → วัด → เขียนกฎ → เทียบ)
+ │  ├─ _template/         แม่แบบประเภทใหม่ (ขึ้นต้นด้วย _ = ไม่แสดงในโปรแกรม)
+ │  ├─ bgks39/          บฑกศ.39 ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์ (source.py อ่าน .docx, letter.py, layout.py)
++│  ├─ examletters/       หนังสือจากคำสั่งสอบ (forms.py แบบฟอร์ม, source.py อ่านคำสั่ง, fields.py ช่องตรวจ/แก้,
++│  │                     letter.py ถ้อยคำ+ชื่อไฟล์, layout.py, data/signers.json)
+ │  ├─ pdftools/          แยก / รวม PDF — ประเภทที่มีหน้าจอของตัวเอง (page): web/index.html + web/lib/ (pdf.js, pdf-lib, JSZip
+ │  │                     ในเครื่อง ไม่โหลดจากอินเทอร์เน็ต — เวอร์ชัน/SHA-384 ใน web/lib/VERSIONS.txt)
+ │  └─ bt31/
+@@ -167,6 +170,10 @@ PDF บฑ.31 ──eform.read_pdf()──► dict ──build_letters_th/en()
+ 
+ ## 8. เรื่องที่ยังเปิดอยู่ / ข้อจำกัด
+ 
++- **examletters**: ถ้อยคำหนังสือใน `letter.py` เป็น**ร่าง** ยังไม่ได้เทียบกับแม่แบบที่เว็บ Apps Script ใช้ (เช่น "หนังสือเชิญ GR39 TH")
++  — ทุกไฟล์ที่สร้างมีหมายเหตุเตือนจนกว่าจะใส่ (แบบฟอร์ม, ภาษา) ใน `VERIFIED` · รูปแบบการอ่านคำสั่งใน `source.py` ทดสอบกับคำสั่งจำลอง
++  (ยังไม่มีคำสั่งจริง) — ได้คำสั่ง/หนังสือที่เจ้าหน้าที่จัดแล้วเมื่อใด ให้ทำตาม doctypes/README.md (เก็บใน `samples/` ห้าม commit)
++  · ผู้ได้รับเชิญ = กรรมการที่คำสั่งระบุว่า "ภายนอก/ผู้ทรงคุณวุฒิ" (ไม่พบ = 1 คน ให้กรอกเอง) — เพิ่มคนในหน้าจอไม่ได้
+ - **pdftools**: pdf.js 3.11.174 มีช่องโหว่ CVE-2024-4367 — ปิดด้วย `isEvalSupported: false` (และ CSP ห้าม eval อยู่แล้ว);
+   ทางแก้ถาวรคืออัปเกรดเป็น pdf.js 4.x (เป็น ES module ต้องปรับการโหลด) · อ่านรหัสนักศึกษาจากชั้นข้อความเท่านั้น (ไม่มี OCR)
+ 
+diff --git a/README.md b/README.md
+index c79acc6..db761ff 100644
+--- a/README.md
++++ b/README.md
+@@ -8,6 +8,7 @@
+ |---|---|
+ | **บฑ.31 อาจารย์พิเศษ** | ปรับไฟล์ `Export (xx).doc` ที่ดาวน์โหลดจากระบบ (หนังสือเชิญ / หนังสือขออนุมัติอาจารย์พิเศษ ไทย/อังกฤษ) หรือสร้างหนังสือจาก PDF หน้า บฑ.31 (e-Form) ให้เป็นรูปแบบเดียวกับไฟล์ตัวอย่าง |
+ | **บฑกศ.39 ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์** | ปรับไฟล์ .docx ที่ระบบสร้าง (หนังสือเชิญ / หนังสือขออนุมัติ ผู้ทำหน้าที่เพื่อให้ได้มาซึ่งหัวข้อวิทยานิพนธ์หรือการค้นคว้าอิสระ) — เลือกแท็บหนังสือเชิญหรือหนังสือขออนุมัติก่อนวางไฟล์ |
++| **หนังสือจากคำสั่งสอบ** | วางคำสั่งสอบ (PDF/Word) ของ **บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39** → ตรวจ/แก้ข้อมูลที่ระบบอ่านได้ (ช่องที่ว่างจะเป็นจุดไข่ปลา ระบบไม่เดา) → หนังสือเชิญ และหนังสือขออนุมัติถึงผู้บังคับบัญชา (เลือกได้) ภาษาไทยหรืออังกฤษ — เลือกแท็บแบบฟอร์มให้ตรงกับคำสั่ง (ระบบแนะนำให้) |
+ | **แยก / รวม PDF** | **แยก** PDF ผลสอบรวมเป็นไฟล์รายคนตามรหัสนักศึกษา (ตรวจ/แก้ชื่อและเลขหน้าได้ก่อน ได้ ZIP + รายการไฟล์.csv) หรือ **รวม** PDF หลายไฟล์เป็นไฟล์เดียว — ทำงานในเครื่อง ไม่ใช้ Word ไม่ต้องใช้อินเทอร์เน็ต ผลลัพธ์อยู่ใน Downloads |
+ 
+ **ติดตั้งบนเครื่องใหม่ด้วยคำสั่งเดียว** — กด `Win + R` วางคำสั่งนี้แล้ว Enter (ดาวน์โหลดจาก GitHub + ติดตั้งให้เอง):
+@@ -121,6 +122,7 @@ python fix_letters.py "Export (90).doc" "Export (91).doc" --pdf
+   - `doctypes/bt31/data/signers.json` — ผู้ลงนามในหนังสือที่สร้างจาก บฑ.31 (ไทย `th` / อังกฤษ `en`)
+   - `doctypes/bt31/data/courses.json` — รายชื่อวิชา รหัส → ชื่อภาษาอังกฤษ
+   - `doctypes/bt31/data/translations.json` — คำแปลภาษาอังกฤษที่เคยกรอก (สร้างอัตโนมัติ)
++  - `doctypes/examletters/` — หนังสือจากคำสั่งสอบ: `data/signers.json` ผู้ลงนาม (ไทย `th` / อังกฤษ `en`)
+   - `doctypes/pdftools/` — แยก / รวม PDF: หน้าจอ `web/index.html` และไลบรารีในเครื่อง `web/lib/`
+   - `doctypes/_template/` — แม่แบบสำหรับเพิ่มประเภทใหม่
+ - `tools/learn.py` — วัดรูปแบบจากไฟล์ตัวอย่าง / เทียบผลลัพธ์กับตัวอย่าง (ใช้ตอนเพิ่มประเภทใหม่)
+diff --git a/core/doctype.py b/core/doctype.py
+index 1ef6198..0c81c79 100644
+--- a/core/doctype.py
++++ b/core/doctype.py
+@@ -30,7 +30,7 @@ hub ไม่รู้จักรายละเอียดของเอก
+                             'ext': นามสกุลที่ได้เสมอไม่ขึ้นกับรูปแบบที่เลือก เช่น "pdf" (ไม่บังคับ)}]
+     fields, fields_title, fields_status
+                           ช่องให้ผู้ใช้กรอกก่อนแปลง [{'key','label','hint','value','check','placeholder','requires'}]
+-                          check: 'english' = ต้องเป็นภาษาอังกฤษ / 'required' = ห้ามว่าง
++                          check: 'english' = ต้องเป็นภาษาอังกฤษ / 'required' = ห้ามว่าง (ค่าเริ่มต้น) / 'optional' = เว้นว่างได้
+ 
+ ผล convert(jobs, ...) -> {job.id: {'ok', 'error', 'notes', 'outputs': [{'kind','label','docx','pdf','doc'}]}}
+     pdf=True  ผู้ใช้เลือกรูปแบบไฟล์ "PDF" -> ส่งออก .pdf อย่างเดียว; False = Word (.docx) อย่างเดียว
+diff --git a/doctypes/examletters/__init__.py b/doctypes/examletters/__init__.py
+new file mode 100644
+index 0000000..1b818a9
+--- /dev/null
++++ b/doctypes/examletters/__init__.py
+@@ -0,0 +1,129 @@
++# -*- coding: utf-8 -*-
++"""
++ประเภทเอกสาร: หนังสือจากคำสั่งสอบ — หนังสือเชิญ (ถึงผู้ได้รับเชิญ) และหนังสือขออนุมัติ (ถึงผู้บังคับบัญชา สำเนาถึงผู้ได้รับเชิญ)
++ย้ายมาจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script ให้ทำงานแบบเดียวกับ บฑ.31:
++อ่านคำสั่ง -> ช่องตรวจ/แก้ข้อมูลในแถวของไฟล์ -> Word HTML -> Word -> .docx / PDF
++
++    forms.py    แบบฟอร์ม บฑ.1 / บฑ.2 / บฑ.27 / บฑ.35 / บฑ.39 และการระบุแบบฟอร์มจากหัวเรื่องคำสั่ง
++    source.py   อ่านคำสั่ง (PDF มีชั้นข้อความ / .docx) — "ระบบไม่เดา": ไม่พบ = ช่องว่าง
++    fields.py   ช่องตรวจ/แก้ข้อมูลในหน้าจอ
++    letter.py   ถ้อยคำหนังสือไทย/อังกฤษ (ร่าง — ดูหัวไฟล์) + ชื่อไฟล์
++    layout.py   รูปแบบหน้ากระดาษ
++    data/signers.json  ผู้ลงนาม {"th": [...], "en": [...]}
++
++แท็บ = แบบฟอร์ม (ผู้ใช้เลือกได้ ระบบแนะนำแท็บจากหัวเรื่องคำสั่ง) · ภาษาและการสร้างหนังสือขออนุมัติเป็นตัวเลือกในแผงขวา
++บฑกศ.39 อยู่ในประเภทเอกสาร bgks39 แล้ว จึงไม่มีในประเภทนี้
++"""
++from pathlib import Path
++
++from core import render
++from core.doctype import DocType
++
++from . import layout, source
++from .fields import APPROVE, field_defs, initial_values
++from .forms import FORMS, SHORT
++from .letter import KINDS, make_letters, notes_for, output_stem
++
++ACCEPT = [".pdf", ".docx"]
++LANG_EN = "lang_en"
++ICONS = {"bt39": "form", "bt2": "cert", "bt27": "book", "bt35": "check", "bt1": "users"}
++COLORS = {"bt39": "blue", "bt2": "violet", "bt27": "amber", "bt35": "rose", "bt1": "green"}
++
++
++def slot(fid: str) -> dict:
++    f = FORMS[fid]
++    return {"id": fid, "mode": fid, "num": 1, "title": f"คำสั่ง {f['name'].split(' — ')[1]}",
++            "desc": f"{f['code']} — หนังสือเชิญ" + (" + หนังสือขออนุมัติ (ถ้าเปิดตัวเลือก)"),
++            "icon": ICONS[fid], "color": COLORS[fid], "accept": ACCEPT, "pick": "order", "pick_label": "เลือกไฟล์",
++            "zone_title": "ลากไฟล์คำสั่งมาวางที่นี่",
++            "zone_desc": "คำสั่ง PDF / Word (.docx) · ไฟล์สแกนที่ไม่มีชั้นข้อความต้องกรอกข้อมูลเอง"}
++
++
++class ExamLetters(DocType):
++    id = "examletters"
++    name = "หนังสือจากคำสั่งสอบ"
++    description = "หนังสือเชิญ / หนังสือขออนุมัติจากคำสั่งสอบ บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39 (ไทย / English) → Word หรือ PDF"
++    icon = "cert"
++    color = "violet"
++    order = 30
++    max_mb = 30
++    options = {"mode": "bt39", LANG_EN: False, APPROVE: False}
++    pickers = {"order": {"title": "เลือกไฟล์คำสั่งสอบ", "filters": [("คำสั่ง (PDF / Word)", "*.pdf *.docx"), ("ทุกไฟล์", "*.*")]}}
++    drop_hint = "รองรับคำสั่งสอบเป็นไฟล์ PDF หรือ Word (.docx)"
++    ui = {
++        "modes": [{"id": fid, "label": f"{FORMS[fid]['code']} {SHORT[fid]}",
++                   "icon": ICONS[fid], "color": COLORS[fid],
++                   "summary": [{"slot": fid}, {"option": APPROVE, "label": "หนังสือขออนุมัติ", "icon": "approve",
++                                               "color": "violet", "on": "สร้างด้วย", "off": "ไม่สร้าง"},
++                               {"option": LANG_EN, "label": "ภาษาของหนังสือ", "icon": "word", "color": "blue",
++                                "on": "English", "off": "ไทย"}]}
++                  for fid in sorted(FORMS, key=lambda x: FORMS[x]["order"])],
++        "slots": [slot(fid) for fid in sorted(FORMS, key=lambda x: FORMS[x]["order"])],
++        "checks": [
++            {"option": APPROVE, "label": "สร้างหนังสือขออนุมัติด้วย",
++             "desc": "ถึงผู้บังคับบัญชาของผู้ได้รับเชิญ สำเนาถึงผู้ได้รับเชิญ · หนังสือเชิญจะมี “ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว”"},
++            {"option": LANG_EN, "label": "หนังสือภาษาอังกฤษ (English)",
++             "desc": "ชื่อไฟล์ใช้ GR.xx · กรอกข้อมูลในช่องเป็นภาษาอังกฤษ"},
++        ],
++    }
++
++    def inspect(self, path: Path) -> dict:
++        path = Path(path)
++        if path.name.startswith(tuple(k[0] + " บฑ." for k in KINDS.values()) + tuple(k[0] + " GR." for k in KINDS.values())):
++            return {"ok": False, "reason": "เป็นไฟล์หนังสือที่สร้างแล้ว"}
++        try:
++            d = source.read(path)
++        except ImportError:
++            return {"ok": False, "reason": "อ่าน PDF ไม่ได้ — เครื่องนี้ยังไม่ได้ติดตั้งไลบรารี pymupdf (เปิด ติดตั้ง.bat อีกครั้ง)"}
++        except Exception as e:
++            return {"ok": False, "reason": f"อ่านไฟล์ไม่ได้ ({e})"}
++        form = d["form"] or "bt39"
++        values = initial_values(d)
++        found = sum(1 for k in ("student_name", "student_id", "program", "title", "exam_date") if d.get(k))
++        out = {"ok": True, "kind": "คำสั่ง " + (FORMS[d["form"]]["code"] if d["form"] else "(ระบุแบบฟอร์มไม่ได้ — เลือกแท็บเอง)"),
++               "subtitle": d["subject"] or "ไม่พบหัวเรื่องคำสั่ง",
++               "subtitle2": (f"อ่านได้ {found} จาก 5 ช่องหลัก · ผู้ได้รับเชิญ {sum(1 for k in values if k.endswith('_name') and k.startswith('inv'))} คน"
++                             if found else "ไม่พบข้อความในไฟล์ (อาจเป็นไฟล์สแกน) — กรอกข้อมูลเอง"),
++               "fields_title": "ตรวจสอบ / แก้ไขข้อมูล — ช่องที่ระบบอ่านได้เติมไว้ให้ตรวจ · ช่องว่างจะเป็นจุดไข่ปลาในหนังสือ (ระบบไม่เดา)",
++               "fields_status": "ตรวจข้อมูล",
++               "fields": field_defs(form, values),
++               "outputs_preview": [{"name": output_stem(form, "invite", "th", values["student_name"], path.stem)},
++                                   {"name": output_stem(form, "approve", "th", values["student_name"], path.stem),
++                                    "requires": APPROVE}]}
++        if d["form"]:
++            out["slot"] = d["form"]
++        return out
++
++    def convert(self, jobs: list, options: dict, pdf, extra: dict, log=lambda m: None) -> dict:
++        form = options.get("mode") if options.get("mode") in FORMS else "bt39"
++        lang = "en" if options.get(LANG_EN) else "th"
++        want = bool(options.get(APPROVE))
++        fmt = "both" if pdf == "both" else "pdf" if pdf else "docx"
++        kinds = ["invite", "approve"] if want else ["invite"]
++        entries, owners = [], []
++        for j in jobs:
++            values = dict(extra.get(j.id) or {})
++            if not values:                       # ไม่มีช่องกรอก (เช่น เรียกจากบรรทัดคำสั่ง) -> ค่าที่อ่านได้
++                values = initial_values(source.read(j.path))
++            notes = notes_for(form, lang, values, want)
++            for kind in kinds:
++                letters = make_letters(form, kind, lang, values, inform=want)
++                entries.append(dict(src=j.path, outdir=j.outdir, notes=list(notes) if kind == "invite" else [],
++                                    stem=output_stem(form, kind, lang, values.get("student_name", ""), Path(j.path).stem),
++                                    kind=KINDS[kind][0 if lang == "th" else 1],
++                                    build=lambda logo, ls=letters: layout.build_html(ls, logo)))
++                owners.append(j.id)
++        out = {j.id: {"ok": False, "error": "", "notes": [], "outputs": []} for j in jobs}
++        for jid, r in zip(owners, render.render(entries, fmt=fmt, log=log)):
++            o = out[jid]
++            o["notes"] += r["notes"]
++            if r["docx"] or r["pdf"] or r["doc"]:
++                o["outputs"].append({"kind": r["kind"], "label": r["kind"], "docx": r["docx"], "pdf": r["pdf"], "doc": r["doc"]})
++            elif r["error"]:
++                o["error"] = r["error"]
++        for o in out.values():
++            o["ok"] = bool(o["outputs"]) and not o["error"]
++        return out
++
++
++DOCTYPE = ExamLetters()
+diff --git a/doctypes/examletters/data/signers.json b/doctypes/examletters/data/signers.json
+new file mode 100644
+index 0000000..e7dd1a8
+--- /dev/null
++++ b/doctypes/examletters/data/signers.json
+@@ -0,0 +1,12 @@
++{
++  "th": [
++    "(รองศาสตราจารย์ ดร. กภ.วรินทร์ กฤตยาเกียรณ)",
++    "รองคณบดีฝ่ายแผนและพัฒนาคุณภาพ",
++    "ปฏิบัติหน้าที่แทนคณบดีบัณฑิตวิทยาลัย"
++  ],
++  "en": [
++    "(Associate Professor Dr. Warin Krityakiarana)",
++    "Deputy Dean for Planning and Quality Assurance",
++    "Acting as Dean of the Faculty of Graduate Studies, Mahidol University"
++  ]
++}
+\ No newline at end of file
+diff --git a/doctypes/examletters/fields.py b/doctypes/examletters/fields.py
+new file mode 100644
+index 0000000..8420385
+--- /dev/null
++++ b/doctypes/examletters/fields.py
+@@ -0,0 +1,59 @@
++# -*- coding: utf-8 -*-
++"""
++หนังสือจากคำสั่งสอบ: ช่องตรวจ/แก้ข้อมูลที่แสดงในแถวของไฟล์ (manifest fields ของ hub — core/doctype.py)
++
++ทุกช่องเป็น "optional": เว้นว่างได้ (จะเป็นจุดไข่ปลาในหนังสือ) — ช่องที่ระบบอ่านได้จะเติมค่าไว้ให้ตรวจ
++ผู้ได้รับเชิญ 1 คน = ช่อง inv<n>_name / _role / _org / _boss  (ช่องผู้บังคับบัญชาแสดงเมื่อเปิด "สร้างหนังสือขออนุมัติ")
++"""
++from .forms import FORMS
++
++APPROVE = "want_approve"
++COMMON = [
++    ("order_no", "เลขที่คำสั่ง", "เช่น 1234/2569"),
++    ("student_name", "ชื่อ-นามสกุลนักศึกษา", "เช่น นายสมชาย ใจดี"),
++    ("student_id", "รหัสนักศึกษา", "เช่น 6812345 ABCD/M"),
++    ("program", "หลักสูตร / สาขาวิชา / คณะ", "เช่น หลักสูตรวิทยาศาสตรมหาบัณฑิต สาขาวิชา…"),
++    ("work", "ชนิดผลงาน", "วิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ"),
++]
++TITLE = ("title", "หัวข้อผลงาน", "ชื่อหัวข้อวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ")
++EXAM = [
++    ("exam_date", "วันที่สอบ", "เช่น 12 พฤศจิกายน 2569"),
++    ("exam_time", "เวลาสอบ", "เช่น 09.00 - 12.00"),
++    ("exam_place", "สถานที่สอบ", "เช่น ห้อง 101 อาคารบัณฑิตวิทยาลัย"),
++]
++
++
++def field_defs(form: str, values: dict) -> list:
++    """ช่องของแบบฟอร์มนี้ (ค่าเริ่มต้นจาก values) — ลำดับตามที่แสดงในหน้าจอ"""
++    f = FORMS[form]
++    rows = list(COMMON)
++    if form in ("bt39", "bt2", "bt1"):
++        rows.append(TITLE)
++    if f["exam"]:
++        rows += EXAM
++    idx = sorted({int(k[3:k.index("_")]) for k in values if k.startswith("inv") and "_" in k and k[3:k.index("_")].isdigit()}) or [1]
++    out = [{"key": k, "label": label, "placeholder": ph, "value": values.get(k, ""), "check": "optional"}
++           for k, label, ph in rows]
++    for n in idx:
++        p = f"ผู้ได้รับเชิญ {n} · " if len(idx) > 1 else "ผู้ได้รับเชิญ · "
++        out += [
++            {"key": f"inv{n}_name", "label": p + "ชื่อ (พร้อมตำแหน่งทางวิชาการ)", "placeholder": "เช่น รองศาสตราจารย์ ดร.สมชาย ใจดี"},
++            {"key": f"inv{n}_role", "label": p + "หน้าที่", "placeholder": "เว้นว่าง = ตามแบบฟอร์ม เช่น กรรมการสอบ"},
++            {"key": f"inv{n}_org", "label": p + "สังกัด", "placeholder": "เช่น คณะวิทยาศาสตร์ มหาวิทยาลัย…"},
++            {"key": f"inv{n}_boss", "label": p + "ผู้บังคับบัญชา (เรียน)", "placeholder": "เช่น คณบดีคณะวิทยาศาสตร์",
++             "requires": APPROVE},
++        ]
++        for x in out[-4:]:
++            x.update(value=values.get(x["key"], ""), check="optional")
++    return out
++
++
++def initial_values(d: dict) -> dict:
++    """ค่าที่อ่านได้จากคำสั่ง -> ค่าเริ่มต้นของช่อง: ผู้ได้รับเชิญ = กรรมการภายนอก/ผู้ทรงคุณวุฒิ (ถ้าระบุในคำสั่ง)"""
++    vals = {k: d.get(k, "") for k in ("order_no", "student_name", "student_id", "program", "work", "title",
++                                      "exam_date", "exam_time", "exam_place")}
++    ext = [m for m in d.get("members", []) if m["external"]]
++    for n, m in enumerate(ext or [{}], 1):
++        vals.update({f"inv{n}_name": m.get("name", ""), f"inv{n}_role": m.get("role", ""),
++                     f"inv{n}_org": "", f"inv{n}_boss": ""})
++    return vals
+diff --git a/doctypes/examletters/forms.py b/doctypes/examletters/forms.py
+new file mode 100644
+index 0000000..2dc3c6c
+--- /dev/null
++++ b/doctypes/examletters/forms.py
+@@ -0,0 +1,68 @@
++# -*- coding: utf-8 -*-
++"""
++หนังสือจากคำสั่งสอบ: แบบฟอร์มที่รองรับ (ย้ายมาจากแท็บ "สร้างหนังสือจากคำสั่งสอบ" ของเว็บ Apps Script)
++
++    รหัส   ชื่อแบบฟอร์ม                                    คำในหัวเรื่องคำสั่งที่ใช้ระบุแบบฟอร์ม
++    bt39  บฑ.39 สอบโครงร่างวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ   โครงร่าง
++    bt2   บฑ.2  สอบวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ          สอบวิทยานิพนธ์ / สอบสารนิพนธ์ / สอบการค้นคว้าอิสระ / สอบปากเปล่า
++    bt27  บฑ.27 สอบประมวลความรู้                               ประมวลความรู้
++    bt35  บฑ.35 สอบวัดคุณสมบัติ                                วัดคุณสมบัติ
++    bt1   บฑ.1  อาจารย์ที่ปรึกษาวิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ  อาจารย์ที่ปรึกษา
++
++บฑกศ.39 (ผู้ทำหน้าที่หัวข้อวิทยานิพนธ์) อยู่ในประเภทเอกสาร bgks39 แล้ว — ไม่ซ้ำที่นี่
++
++ข้อความใน {work} / {work_en} = ชนิดผลงานของนักศึกษา (WORKS) ซึ่งอ่านจากคำสั่งหรือผู้ใช้กรอก
++"""
++import re
++
++SHORT = {"bt39": "สอบโครงร่าง", "bt2": "สอบวิทยานิพนธ์", "bt27": "ประมวลความรู้", "bt35": "วัดคุณสมบัติ",
++         "bt1": "อาจารย์ที่ปรึกษา"}          # ชื่อสั้นบนแท็บ
++WORKS = {"วิทยานิพนธ์": "Thesis", "สารนิพนธ์": "Thematic Paper", "การค้นคว้าอิสระ": "Independent Study"}
++
++FORMS = {
++    "bt39": dict(code="บฑ.39", code_en="GR.39", order=1, exam=True,
++                 name="บฑ.39 — สอบโครงร่างวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
++                 task_th="กรรมการสอบโครงร่าง{work}", task_en="{work_en} Proposal Examination Committee",
++                 event_th="สอบโครงร่าง{work}", event_en="{work_en} proposal examination",
++                 keys=(r"โครงร่าง",)),
++    "bt2": dict(code="บฑ.2", code_en="GR.2", order=2, exam=True,
++                name="บฑ.2 — สอบวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
++                task_th="กรรมการสอบ{work}", task_en="{work_en} Examination Committee",
++                event_th="สอบ{work}", event_en="{work_en} examination",
++                keys=(r"สอบ\s*(?:ปากเปล่า|วิทยานิพนธ์|สารนิพนธ์|การค้นคว้าอิสระ)",)),
++    "bt27": dict(code="บฑ.27", code_en="GR.27", order=3, exam=True,
++                 name="บฑ.27 — สอบประมวลความรู้",
++                 task_th="กรรมการสอบประมวลความรู้", task_en="Comprehensive Examination Committee",
++                 event_th="สอบประมวลความรู้", event_en="comprehensive examination",
++                 keys=(r"ประมวลความรู้",)),
++    "bt35": dict(code="บฑ.35", code_en="GR.35", order=4, exam=True,
++                 name="บฑ.35 — สอบวัดคุณสมบัติ",
++                 task_th="กรรมการสอบวัดคุณสมบัติ", task_en="Qualifying Examination Committee",
++                 event_th="สอบวัดคุณสมบัติ", event_en="qualifying examination",
++                 keys=(r"วัดคุณสมบัติ",)),
++    "bt1": dict(code="บฑ.1", code_en="GR.1", order=5, exam=False,
++                name="บฑ.1 — อาจารย์ที่ปรึกษาวิทยานิพนธ์ / สารนิพนธ์ / การค้นคว้าอิสระ",
++                task_th="อาจารย์ที่ปรึกษา{work}", task_en="{work_en} Advisor",
++                event_th="", event_en="",
++                keys=(r"อาจารย์ที่ปรึกษา",)),
++}
++# ลำดับการตรวจหัวเรื่อง: โครงร่างก่อน (หัวเรื่องสอบโครงร่างมีคำว่า "สอบวิทยานิพนธ์" อยู่ด้วยได้)
++DETECT_ORDER = ("bt39", "bt27", "bt35", "bt2", "bt1")
++
++
++def detect(subject: str) -> str:
++    """แบบฟอร์มจากหัวเรื่องของคำสั่ง ("เรื่อง แต่งตั้ง...") — ไม่ตรงแบบใด = "" (ให้ผู้ใช้เลือกแท็บเอง)"""
++    for fid in DETECT_ORDER:
++        if any(re.search(k, subject) for k in FORMS[fid]["keys"]):
++            return fid
++    return ""
++
++
++def work_of(text: str) -> str:
++    """ชนิดผลงาน (วิทยานิพนธ์/สารนิพนธ์/การค้นคว้าอิสระ) ที่พบก่อนในข้อความ — ไม่พบ = "" """
++    hits = [(m.start(), w) for w in WORKS for m in [re.search(w, text)] if m]
++    return min(hits)[1] if hits else ""
++
++
++def fill(template: str, work: str) -> str:
++    return template.replace("{work}", work).replace("{work_en}", WORKS.get(work, "")).strip()
+diff --git a/doctypes/examletters/layout.py b/doctypes/examletters/layout.py
+new file mode 100644
+index 0000000..3965363
+--- /dev/null
++++ b/doctypes/examletters/layout.py
+@@ -0,0 +1,98 @@
++# -*- coding: utf-8 -*-
++"""
++หนังสือจากคำสั่งสอบ: รูปแบบหน้ากระดาษ (Letter -> Word HTML)
++
++ใช้รูปแบบเดียวกับหนังสือของบัณฑิตวิทยาลัยในระบบนี้ (บฑ.31 / บฑกศ.39): TH Sarabun New 16pt, A4 ขอบ 2.54 ซม.,
++ภาษาไทยระยะบรรทัด exactly 18pt + กระจายแบบไทย, ภาษาอังกฤษระยะบรรทัด single,
++โลโก้กึ่งกลางคู่ที่อยู่ชิดขวา, ป้าย ที่/วันที่/เรื่อง/เรียน แท็บ 2 ซม., ลายมือชื่อที่แกน 75% (core.wordhtml.signature_block)
++ผู้ได้รับเชิญหลายคน = หลายฉบับในไฟล์เดียว ขึ้นหน้าใหม่ทุกฉบับ
++
++ยังไม่ได้วัดจากหนังสือที่เจ้าหน้าที่จัด — เมื่อได้ฉบับจริง ให้วัดด้วย tools/learn.py แล้วแก้ค่าในไฟล์นี้
++"""
++from core.text import NB
++from core.wordhtml import esc, font_css, lines_html, signature_block, wrap_document
++
++from .letter import Letter
++
++FONT = font_css("TH Sarabun New", 16)
++LH = {"th": "line-height:18.0pt;mso-line-height-rule:exactly;", "en": ""}
++TAB = "tab-stops:2.0cm;"
++TAB_SPAN = "<span style='mso-tab-count:1'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>"
++JUSTIFY = {"th": "text-align:justify;text-justify:inter-cluster;", "en": "text-align:justify;"}
++LOGO = (95, 93)
++SIGN_CENTER = 0.75
++LABELS = {"th": ("วันที่", "เรื่อง", "เรียน"), "en": ("", "Subject", "Dear")}
++
++
++def para(content: str, lang: str, style: str = "", align: str = "") -> str:
++    attr = f" align={align}" if align else ""
++    if align:
++        style = f"text-align:{align};" + style
++    lang_attr = " lang=TH" if lang == "th" else ""
++    return (f"<p class=MsoNormal{attr} style='{style}{LH[lang]}{TAB}'><span{lang_attr} style='{FONT}'>"
++            f"{content}<o:p></o:p></span></p>\n\n")
++
++
++def blank(lang: str, n: int = 1) -> list:
++    return [para("&nbsp;", lang) for _ in range(n)]
++
++
++def labeled(label: str, value: str, lang: str) -> str:
++    return para(esc(label) + TAB_SPAN + value, lang, style="margin-left:2.0cm;text-indent:-2.0cm;")
++
++
++def page_break() -> str:
++    return ("<p class=MsoNormal style='page-break-before:always;line-height:1.0pt;mso-line-height-rule:exactly'>"
++            "<span style='font-size:1.0pt'>&nbsp;</span></p>\n\n")
++
++
++def head_block(L: Letter, logo_src: str) -> str:
++    cell = "valign=top style='padding:0cm 0cm 0cm 0cm'"
++    w, h = LOGO
++    return ("<table class=MsoNormalTable border=0 cellspacing=0 cellpadding=0 width=\"100%\" "
++            "style='width:100.0%;border-collapse:collapse;mso-padding-alt:0cm 0cm 0cm 0cm'>\n<tr>\n"
++            f"<td width=\"25%\" {cell}>{para('&nbsp;', L.lang)}</td>\n"
++            f"<td width=\"30%\" {cell}>{para(f'<img width={w} height={h} src=\"{logo_src}\">', L.lang, align='center')}</td>\n"
++            f"<td width=\"45%\" {cell}>{para(lines_html(L.address), L.lang, align='right')}</td>\n"
++            "</tr>\n</table>\n\n")
++
++
++def letter_html(L: Letter, logo_src: str) -> list:
++    lg = L.lang
++    date_label, subj_label, to_label = LABELS[lg]
++    out = [head_block(L, logo_src)]
++    out += blank(lg)
++    out.append(para(esc(L.ref), lg))
++    if lg == "th":
++        out.append(para(date_label + TAB_SPAN + esc(L.date.replace(NB, " ")).replace("  ", "&nbsp;&nbsp;"), lg))
++        out.append(labeled(subj_label, esc(L.subject), lg))
++        out += blank(lg)
++        out.append(labeled(to_label, esc(L.to), lg))
++    else:
++        out.append(para(esc(L.date).replace(NB, "&nbsp;"), lg))
++        out += blank(lg)
++        out.append(para(f"<b>{esc(subj_label)}:</b> {esc(L.subject)}", lg))
++        out += blank(lg)
++        out.append(para(f"{esc(to_label)} {esc(L.to)},", lg))
++    for p in L.body:
++        out += blank(lg)
++        out.append(para(esc(p), lg, style=("text-indent:2.0cm;" if lg == "th" else "") + JUSTIFY[lg]))
++    if L.closing:
++        out += blank(lg)
++        out.append(para(esc(L.closing), lg, style="text-indent:2.0cm;" if lg == "th" else ""))
++    out += blank(lg)
++    lines = [L.sign_off, "", "", ""] + L.signature
++    out.append(signature_block(lines, "TH Sarabun New", thai=lg == "th", center=SIGN_CENTER, extra_style=LH[lg] + TAB))
++    if L.cc:
++        out += blank(lg)
++        out += [para(esc(x), lg) for x in L.cc]
++    return out
++
++
++def build_html(letters: list, logo_src: str) -> str:
++    out = []
++    for n, L in enumerate(letters):
++        if n:
++            out.append(page_break())
++        out += letter_html(L, logo_src)
++    return wrap_document(out)
+diff --git a/doctypes/examletters/letter.py b/doctypes/examletters/letter.py
+new file mode 100644
+index 0000000..808c937
+--- /dev/null
++++ b/doctypes/examletters/letter.py
+@@ -0,0 +1,166 @@
++# -*- coding: utf-8 -*-
++"""
++หนังสือจากคำสั่งสอบ: แบบจำลองหนังสือ + ถ้อยคำ (ไทย/อังกฤษ) + ชื่อไฟล์
++
++⚠ ถ้อยคำในไฟล์นี้เป็น "ร่าง" ตามโครงหนังสือราชการของบัณฑิตวิทยาลัย (แบบเดียวกับ บฑ.31 / บฑกศ.39)
++  ยังไม่ได้เทียบกับแม่แบบที่เว็บ Apps Script ใช้ (เช่น "หนังสือเชิญ GR39 TH") — ทุกไฟล์ที่สร้างจึงมีหมายเหตุเตือน
++  เมื่อได้แม่แบบ/หนังสือที่เจ้าหน้าที่จัดแล้ว: แก้ข้อความใน TEXT ให้ตรงทุกตัวอักษร แล้วใส่ (แบบฟอร์ม, ภาษา) ใน VERIFIED
++
++ช่องที่ผู้ใช้เว้นว่าง = จุดไข่ปลา (BLANK) ให้เขียนเองในหนังสือ — ระบบไม่เดาข้อมูลแทน
++"""
++import datetime as dt
++import re
++from dataclasses import dataclass, field
++from pathlib import Path
++
++from core.store import JsonFile
++from core.text import NB, THAI, clean, safe_stem
++
++from .forms import FORMS, WORKS, fill
++
++DATA = Path(__file__).resolve().parent / "data"
++SIGNERS = JsonFile(DATA / "signers.json")
++BLANK = "…………………………………"
++VERIFIED = set()          # {("bt39", "th"), ...} แบบที่ถ้อยคำตรงกับแม่แบบแล้ว (ไม่ต้องมีหมายเหตุ "ร่าง")
++DRAFT_NOTE = "ถ้อยคำหนังสือเป็นร่าง ยังไม่ได้เทียบกับแม่แบบของบัณฑิตวิทยาลัย — ตรวจก่อนใช้ (doctypes/examletters/letter.py)"
++
++MONTHS_TH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
++             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
++MONTHS_EN = ["January", "February", "March", "April", "May", "June",
++             "July", "August", "September", "October", "November", "December"]
++ADDRESS = {
++    "th": ["บัณฑิตวิทยาลัย งานบริการการศึกษา", "25/25 ถ.พุทธมณฑลสาย 4 ต.ศาลายา", "อ.พุทธมณฑล จ.นครปฐม 73170"],
++    "en": ["Faculty of Graduate Studies", "Mahidol University", "25/25 Phutthamonthon Sai 4 Road",
++           "Salaya, Nakhon Pathom 73170, Thailand"],
++}
++DEFAULT_SIGNERS = {"th": ["(ชื่อผู้ลงนาม)", "ตำแหน่ง", "ปฏิบัติหน้าที่แทนคณบดีบัณฑิตวิทยาลัย"],
++                   "en": ["(Signer's name)", "Position", "Acting as Dean of the Faculty of Graduate Studies, Mahidol University"]}
++KINDS = {"invite": ("หนังสือเชิญ", "Invitation"), "approve": ("หนังสือขออนุมัติ", "Approval Request")}
++
++
++@dataclass
++class Letter:
++    kind: str                         # invite | approve
++    lang: str                         # th | en
++    address: list
++    ref: str
++    date: str
++    subject: str
++    to: str
++    body: list = field(default_factory=list)
++    closing: str = ""
++    sign_off: str = ""
++    signature: list = field(default_factory=list)
++    cc: list = field(default_factory=list)
++
++
++def v(values: dict, key: str) -> str:
++    """ค่าที่ผู้ใช้ตรวจแล้ว — ว่าง = จุดไข่ปลา"""
++    return clean(values.get(key) or "") or BLANK
++
++
++def load_signers() -> dict:
++    s = SIGNERS.load({})
++    return {k: s.get(k) or DEFAULT_SIGNERS[k] for k in ("th", "en")}
++
++
++def invitees(values: dict) -> list:
++    """ดัชนีผู้ได้รับเชิญที่มีในช่องกรอก (inv1_, inv2_, ...)"""
++    return sorted({int(m[1]) for k in values for m in [re.match(r"inv(\d+)_", k)] if m})
++
++
++def text_th(form: str, kind: str, values: dict, i: int, inform: bool) -> dict:
++    f, work = FORMS[form], clean(values.get("work") or "")
++    task = fill(f["task_th"], work or BLANK)
++    who, org = v(values, f"inv{i}_name"), v(values, f"inv{i}_org")
++    role = clean(values.get(f"inv{i}_role") or "") or task
++    order = f" ตามคำสั่งบัณฑิตวิทยาลัย ที่ {v(values, 'order_no')}" if form != "bt1" or values.get("order_no") else ""
++    student = (f"{v(values, 'student_name')} รหัสประจำตัวนักศึกษา {v(values, 'student_id')} "
++               f"{v(values, 'program')}")
++    if f["exam"]:
++        event = (f"ด้วย {student} จะ{fill(f['event_th'], work or BLANK)}"
++                 + (f" เรื่อง “{v(values, 'title')}”" if form in ("bt39", "bt2") else "")
++                 + f" ในวันที่ {v(values, 'exam_date')} เวลา {v(values, 'exam_time')} น. ณ {v(values, 'exam_place')}")
++    else:
++        event = (f"ด้วย {student} ได้เสนอหัวข้อ{work or BLANK} เรื่อง “{v(values, 'title')}” "
++                 f"และขอแต่งตั้งอาจารย์ที่ปรึกษา{work or BLANK}")
++    if kind == "invite":
++        body = [event,
++                f"บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล พิจารณาแล้วเห็นว่าท่านเป็นผู้มีความรู้ ความสามารถ และประสบการณ์ "
++                f"จึงขอเรียนเชิญท่านเป็น{role}{order}"
++                + (" ทั้งนี้ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว" if inform else "")]
++        return dict(subject=f"ขอเรียนเชิญเป็น{task}", to=who, body=body,
++                    closing="จึงเรียนมาเพื่อโปรดพิจารณา และขอขอบพระคุณมา ณ โอกาสนี้", cc=[])
++    body = [event,
++            f"บัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล จึงขออนุมัติให้ {who} {org} ซึ่งเป็นบุคลากรในสังกัดของท่าน "
++            f"เป็น{role}{order}"]
++    return dict(subject=f"ขออนุมัติให้บุคลากรในสังกัดเป็น{task}", to=v(values, f"inv{i}_boss"), body=body,
++                closing="จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ และขอขอบพระคุณมา ณ โอกาสนี้", cc=[f"สำเนาเรียน {who}"])
++
++
++def text_en(form: str, kind: str, values: dict, i: int, inform: bool) -> dict:
++    f, work = FORMS[form], clean(values.get("work") or "")
++    task = fill(f["task_en"], work) if work or "{work" not in f["task_en"] else f["task_en"].replace("{work_en}", BLANK)
++    who, org = v(values, f"inv{i}_name"), v(values, f"inv{i}_org")
++    role = clean(values.get(f"inv{i}_role") or "") or task
++    order = f" according to the Faculty of Graduate Studies Order No. {v(values, 'order_no')}" \
++        if form != "bt1" or values.get("order_no") else ""
++    student = (f"{v(values, 'student_name')}, Student ID {v(values, 'student_id')}, {v(values, 'program')}")
++    if f["exam"]:
++        event = (f"{student}, will take the {fill(f['event_en'], work) if work or '{work' not in f['event_en'] else BLANK}"
++                 + (f" entitled “{v(values, 'title')}”" if form in ("bt39", "bt2") else "")
++                 + f" on {v(values, 'exam_date')}, {v(values, 'exam_time')}, at {v(values, 'exam_place')}.")
++    else:
++        event = f"{student}, has proposed the {WORKS.get(work, BLANK)} entitled “{v(values, 'title')}”."
++    if kind == "invite":
++        body = [event,
++                f"In recognition of your expertise and experience, the Faculty of Graduate Studies, Mahidol University "
++                f"would like to invite you to serve as {role}{order}."
++                + (" Your supervisor has been informed." if inform else "")]
++        return dict(subject=f"Invitation to serve as {task}", to=who, body=body,
++                    closing="Thank you very much for your kind consideration.", cc=[])
++    body = [event,
++            f"The Faculty of Graduate Studies would like to request your approval for {who}, {org}, "
++            f"a member of your staff, to serve as {role}{order}."]
++    return dict(subject=f"Approval Request: Staff to serve as {task}", to=v(values, f"inv{i}_boss"), body=body,
++                closing="Thank you very much for your kind consideration.", cc=[f"cc: {who}"])
++
++
++def make_letters(form: str, kind: str, lang: str, values: dict, inform: bool, today=None) -> list:
++    today = today or dt.date.today()
++    signers = load_signers()[lang]
++    out = []
++    for i in invitees(values) or [1]:
++        t = (text_th if lang == "th" else text_en)(form, kind, values, i, inform)
++        if lang == "th":
++            out.append(Letter(kind=kind, lang="th", address=list(ADDRESS["th"]), ref="ที่ อว 78.02 /",
++                              date=f"{NB * 4} {MONTHS_TH[today.month - 1]} {today.year + 543}", subject=t["subject"],
++                              to=t["to"], body=t["body"], closing=t["closing"], sign_off="ขอแสดงความนับถือ",
++                              signature=list(signers), cc=t["cc"]))
++        else:
++            out.append(Letter(kind=kind, lang="en", address=list(ADDRESS["en"]), ref="Ref.No.78.02 /",
++                              date=f"{MONTHS_EN[today.month - 1]}{NB * 5}, {today.year}", subject=t["subject"],
++                              to=t["to"], body=t["body"], closing=t["closing"], sign_off="Sincerely yours,",
++                              signature=list(signers), cc=t["cc"]))
++    return out
++
++
++def notes_for(form: str, lang: str, values: dict, want_approve: bool) -> list:
++    """หมายเหตุหลังสร้าง: ร่างถ้อยคำ, ช่องที่ยังว่าง, ภาษาไทยในหนังสือภาษาอังกฤษ"""
++    notes = [] if (form, lang) in VERIFIED else [DRAFT_NOTE]
++    from .fields import field_defs    # หลีกเลี่ยง import วน
++    empty = [f["label"] for f in field_defs(form, values)
++             if not clean(values.get(f["key"]) or "") and (want_approve or not f["key"].endswith("_boss"))]
++    if empty:
++        notes.append("ช่องที่เว้นว่าง (เป็นจุดไข่ปลาในหนังสือ): " + ", ".join(empty))
++    if lang == "en":
++        thai = [k for k, x in values.items() if THAI.search(x or "")]
++        if thai:
++            notes.append("หนังสือภาษาอังกฤษยังมีข้อความภาษาไทยในช่อง: " + ", ".join(sorted(thai)))
++    return notes
++
++
++def output_stem(form: str, kind: str, lang: str, student_name: str, fallback: str) -> str:
++    code = FORMS[form]["code" if lang == "th" else "code_en"]
++    name = clean(student_name) or fallback
++    return safe_stem(f"{KINDS[kind][0]} {code} {name}")
+diff --git a/doctypes/examletters/source.py b/doctypes/examletters/source.py
+new file mode 100644
+index 0000000..122568b
+--- /dev/null
++++ b/doctypes/examletters/source.py
+@@ -0,0 +1,109 @@
++# -*- coding: utf-8 -*-
++"""
++หนังสือจากคำสั่งสอบ: อ่านคำสั่ง (PDF ที่มีชั้นข้อความ / Word .docx) -> ข้อมูลสำหรับหนังสือ
++
++หลัก "ระบบไม่เดา" (เหมือนเว็บเดิม): อ่านเฉพาะสิ่งที่พบตามรูปแบบชัดเจน ช่องที่ไม่พบปล่อยว่าง
++ให้ผู้ใช้ตรวจ/กรอกในหน้าจอ — ช่องที่ยังว่างตอนสร้างหนังสือจะเป็นจุดไข่ปลาให้เขียนเอง
++
++รูปแบบที่อ่าน (ปรับได้ที่นี่เมื่อได้คำสั่งตัวอย่างจริง — เก็บใน doctypes/examletters/samples/ ห้าม commit):
++  ที่ <เลข>/<ปี>             เลขที่คำสั่ง
++  เรื่อง <หัวเรื่อง>            ใช้ระบุแบบฟอร์ม (forms.detect)
++  (นาย|นางสาว|นาง) ชื่อ สกุล   ชื่อนักศึกษา (ชื่อแรกที่อยู่หลังคำว่า "นักศึกษา")
++  6812345 ABCD/M             รหัสนักศึกษา
++  หลักสูตร…                   บรรทัดหลักสูตร/สาขาวิชา
++  “…”                        หัวข้อผลงาน (ข้อความในเครื่องหมายคำพูดหลังคำว่า หัวข้อ/เรื่อง)
++  วันที่ … / เวลา … / ณ …      วัน เวลา สถานที่สอบ
++  1. ชื่อ ... ประธานกรรมการ    รายชื่อกรรมการ (บรรทัดที่ขึ้นต้นด้วยเลขข้อและลงท้ายด้วยหน้าที่)
++"""
++import html
++import re
++import zipfile
++from pathlib import Path
++
++from core.text import clean
++
++from .forms import detect, work_of
++
++THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
++QUOTE = r"[\"“”'‘’]"
++ROLES = r"(ประธาน\S*|รองประธาน\S*|กรรมการ\S*|เลขานุการ\S*|อาจารย์ที่ปรึกษา\S*|ผู้ทรงคุณวุฒิ\S*)"
++EXTERNAL = re.compile(r"ภายนอก|ผู้ทรงคุณวุฒิ")
++MONTHS = r"(?:มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม" \
++         r"|ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)"
++
++
++def read_text(path: Path) -> str:
++    """ข้อความทั้งไฟล์ ตัดเป็นบรรทัด (PDF: ตามบรรทัดบนหน้า / .docx: ตามย่อหน้า)"""
++    path = Path(path)
++    if path.suffix.lower() == ".pdf":
++        import pymupdf
++        with pymupdf.open(str(path)) as doc:
++            text = "\n".join(page.get_text("text", sort=True) for page in doc)
++    elif path.suffix.lower() == ".docx":
++        with zipfile.ZipFile(path) as z:
++            xml = z.read("word/document.xml").decode("utf-8")
++        lines = []
++        for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S):
++            t = ""
++            for r in re.finditer(r"<w:t(?: [^>]*)?>(.*?)</w:t>|<w:tab/>|<w:br/>", p):
++                t += html.unescape(r.group(1)) if r.group(1) is not None else "\t"
++            lines.append(t)
++        text = "\n".join(lines)
++    else:
++        raise ValueError("รองรับเฉพาะ PDF และ .docx")
++    return text.translate(THAI_DIGITS).replace(" ", " ")
++
++
++def first(pattern: str, text: str, flags=0) -> str:
++    m = re.search(pattern, text, flags)
++    return clean(m.group(1)) if m else ""
++
++
++def members(lines: list) -> list:
++    """[{name, role, external}] จากบรรทัด "1. ชื่อ .... หน้าที่" (หน้าที่อาจอยู่บรรทัดถัดไป)"""
++    out = []
++    for i, ln in enumerate(lines):
++        m = re.match(r"^\s*\d{1,2}\s*[.)]\s*(.+)$", ln)
++        if not m:
++            continue
++        body = clean(m.group(1).replace("\t", " "))
++        role = re.search(ROLES + r"(?:\s*\S*ภายนอก\S*)?\s*$", body)
++        if not role and i + 1 < len(lines):
++            nxt = clean(lines[i + 1])
++            if re.match(ROLES, nxt):
++                body, role = f"{body} {nxt}", re.search(ROLES + r".*$", f"{body} {nxt}")
++        if not role:
++            continue
++        name = clean(body[:role.start()])
++        if len(name) < 4 or re.search(r"หลักสูตร|นักศึกษา|คำสั่ง", name):
++            continue
++        r = clean(body[role.start():])
++        out.append({"name": name, "role": r, "external": bool(EXTERNAL.search(r))})
++    return out
++
++
++def parse(text: str) -> dict:
++    lines = [ln for ln in text.splitlines()]
++    flat = clean(" ".join(clean(x) for x in lines))
++    subject = first(r"(?:^|\n)\s*เรื่อง\s*(.+)", text)
++    d = {
++        "order_no": first(r"(?:^|\s)ที่\s*(\d{1,5}\s*/\s*\d{4})", flat),
++        "subject": subject,
++        "form": detect(subject or flat[:400]),
++        "work": work_of(subject) or work_of(flat),
++        "student_name": first(r"นักศึกษา\S*\s*(?:ชื่อ\s*)?((?:นาย|นางสาว|นาง)\s*\S+\s+\S+)", flat)
++        or first(r"((?:นาย|นางสาว|นาง)\s*\S+\s+\S+)", flat),
++        "student_id": first(r"\b(\d{7}\s*[A-Z]{2,6}\s*/\s*[A-Z])\b", flat).replace(" /", "/").replace("/ ", "/"),
++        "program": first(r"(หลักสูตร[^\n]+?)(?=\s+(?:เรื่อง|หัวข้อ|ทั้งนี้|โดย|ประกอบด้วย|ใน\s*วันที่)|$)", flat),
++        "title": first(rf"(?:หัวข้อ|ชื่อเรื่อง|เรื่อง)\S*\s*{QUOTE}(.+?){QUOTE}", flat),
++        "exam_date": first(rf"วันที่\s*(\d{{1,2}}\s*{MONTHS}\s*(?:พ\.ศ\.\s*)?\d{{4}})", flat),
++        "exam_time": first(r"เวลา\s*(\d{1,2}[.:]\d{2}\s*[-–]\s*\d{1,2}[.:]\d{2}\s*(?:น\.)?)", flat),
++        "exam_place": first(r"(?:ณ|สถานที่สอบ)\s+(.+?)(?=\s+(?:ทั้งนี้|โดย|ประกอบด้วย|คณะกรรมการ|สั่ง\s*ณ)|$)", flat),
++        "members": members(lines),
++    }
++    d["exam_time"] = re.sub(r"\s*[-–]\s*", " - ", d["exam_time"]).replace("น.", "").strip()
++    return d
++
++
++def read(path: Path) -> dict:
++    return parse(read_text(path))
+diff --git a/tests/test_examletters.py b/tests/test_examletters.py
+new file mode 100644
+index 0000000..aee5a2f
+--- /dev/null
++++ b/tests/test_examletters.py
+@@ -0,0 +1,162 @@
++# -*- coding: utf-8 -*-
++"""ทดสอบประเภทเอกสาร "หนังสือจากคำสั่งสอบ" (ไม่ใช้ Word/อินเทอร์เน็ต — ข้อมูลในคำสั่งเป็นชื่อสมมติ)
++python -m unittest discover -s tests"""
++import sys
++import tempfile
++import unittest
++import zipfile
++from pathlib import Path
++from unittest import mock
++
++ROOT = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(ROOT))
++
++from core import registry  # noqa: E402
++from core.doctype import Job  # noqa: E402
++from doctypes.examletters import fields, forms, layout, letter, source  # noqa: E402
++
++ORDER = """คำสั่งบัณฑิตวิทยาลัย มหาวิทยาลัยมหิดล
++ที่ ๑๒๓๔/๒๕๖๙
++เรื่อง แต่งตั้งคณะกรรมการสอบโครงร่างวิทยานิพนธ์
++ด้วยนักศึกษา นายสมชาย ใจดี รหัสประจำตัว 6812345 SCBT/M
++หลักสูตรวิทยาศาสตรมหาบัณฑิต สาขาวิชาเทคโนโลยีชีวภาพ คณะวิทยาศาสตร์
++หัวข้อวิทยานิพนธ์ “การศึกษาตัวอย่างระบบทดสอบ”
++สอบในวันที่ 12 พฤศจิกายน 2569 เวลา 09.00-12.00 น. ณ ห้อง 101 อาคารบัณฑิตวิทยาลัย
++ประกอบด้วย
++1. รองศาสตราจารย์ ดร.สมหญิง รักเรียน\tประธานกรรมการ
++2. ผู้ช่วยศาสตราจารย์ ดร.สมชาย รักเรียน\tกรรมการ
++3. อาจารย์ ดร.สมหญิง ใจดี\tกรรมการภายนอก
++สั่ง ณ วันที่ 1 ตุลาคม 2569"""  # allow-name (ชื่อสมมติทั้งหมด)
++
++
++def make_docx(path: Path, text: str):
++    paras = "".join(f"<w:p><w:r><w:t xml:space=\"preserve\">{ln.replace(chr(9), '</w:t><w:tab/><w:t>')}</w:t></w:r></w:p>"
++                    for ln in text.splitlines())
++    with zipfile.ZipFile(path, "w") as z:
++        z.writestr("word/document.xml", f'<?xml version="1.0"?><w:document xmlns:w="w"><w:body>{paras}</w:body></w:document>')
++
++
++class Parse(unittest.TestCase):
++    def test_reads_order(self):
++        d = source.parse(ORDER.translate(source.THAI_DIGITS))
++        self.assertEqual(d["form"], "bt39")
++        self.assertEqual(d["order_no"], "1234/2569")
++        self.assertEqual(d["student_name"], "นายสมชาย ใจดี")
++        self.assertEqual(d["student_id"], "6812345 SCBT/M")
++        self.assertTrue(d["program"].startswith("หลักสูตรวิทยาศาสตรมหาบัณฑิต"))
++        self.assertEqual(d["title"], "การศึกษาตัวอย่างระบบทดสอบ")
++        self.assertEqual(d["exam_date"], "12 พฤศจิกายน 2569")
++        self.assertEqual(d["exam_time"], "09.00 - 12.00")
++        self.assertEqual(d["exam_place"], "ห้อง 101 อาคารบัณฑิตวิทยาลัย")
++        self.assertEqual(d["work"], "วิทยานิพนธ์")
++        self.assertEqual([m["role"] for m in d["members"]], ["ประธานกรรมการ", "กรรมการ", "กรรมการภายนอก"])
++        self.assertEqual([m["external"] for m in d["members"]], [False, False, True])
++
++    def test_missing_is_blank_not_guessed(self):
++        d = source.parse("เรื่อง แต่งตั้งคณะกรรมการสอบวัดคุณสมบัติ")
++        self.assertEqual(d["form"], "bt35")
++        for k in ("student_name", "student_id", "exam_date", "exam_place", "title"):
++            self.assertEqual(d[k], "", k)
++
++    def test_detect_forms(self):
++        cases = {"แต่งตั้งคณะกรรมการสอบโครงร่างวิทยานิพนธ์": "bt39", "แต่งตั้งคณะกรรมการสอบวิทยานิพนธ์": "bt2",
++                 "แต่งตั้งคณะกรรมการสอบประมวลความรู้": "bt27", "แต่งตั้งคณะกรรมการสอบวัดคุณสมบัติ": "bt35",
++                 "แต่งตั้งอาจารย์ที่ปรึกษาวิทยานิพนธ์": "bt1", "เรื่องอื่น": ""}
++        for subject, fid in cases.items():
++            self.assertEqual(forms.detect(subject), fid, subject)
++
++
++class Letters(unittest.TestCase):
++    def setUp(self):
++        self.values = fields.initial_values(source.parse(ORDER.translate(source.THAI_DIGITS)))
++
++    def test_invitee_is_external_member(self):
++        self.assertEqual(self.values["inv1_name"], "อาจารย์ ดร.สมหญิง ใจดี")     # allow-name
++        self.assertEqual(self.values["inv1_role"], "กรรมการภายนอก")
++        self.assertNotIn("inv2_name", self.values)
++
++    def test_thai_letters(self):
++        inv = letter.make_letters("bt39", "invite", "th", self.values, inform=True)[0]
++        self.assertEqual(inv.subject, "ขอเรียนเชิญเป็นกรรมการสอบโครงร่างวิทยานิพนธ์")
++        self.assertIn("ตามคำสั่งบัณฑิตวิทยาลัย ที่ 1234/2569", inv.body[1])
++        self.assertIn("ทั้งนี้ได้แจ้งให้ผู้บังคับบัญชาของท่านทราบแล้ว", inv.body[1])
++        self.assertIn("เวลา 09.00 - 12.00 น.", inv.body[0])
++        no_inform = letter.make_letters("bt39", "invite", "th", self.values, inform=False)[0]
++        self.assertNotIn("ผู้บังคับบัญชา", no_inform.body[1])
++        app = letter.make_letters("bt39", "approve", "th", self.values, inform=True)[0]
++        self.assertEqual(app.to, letter.BLANK)                    # ยังไม่กรอกผู้บังคับบัญชา = จุดไข่ปลา
++        self.assertTrue(app.cc[0].startswith("สำเนาเรียน "))
++
++    def test_blank_fields_become_dots_and_are_reported(self):
++        vals = {**self.values, "exam_place": ""}
++        inv = letter.make_letters("bt39", "invite", "th", vals, inform=False)[0]
++        self.assertIn("ณ " + letter.BLANK, inv.body[0])
++        notes = letter.notes_for("bt39", "th", vals, want_approve=False)
++        self.assertIn(letter.DRAFT_NOTE, notes)
++        self.assertTrue(any("สถานที่สอบ" in n for n in notes))
++        self.assertFalse(any("ผู้บังคับบัญชา" in n for n in notes))   # ไม่สร้างหนังสือขออนุมัติ = ไม่ถามช่องนี้
++
++    def test_english_letter_and_names(self):
++        vals = {**self.values, "student_name": "Mr. Somchai Jaidee"}
++        L = letter.make_letters("bt2", "invite", "en", vals, inform=False)[0]
++        self.assertEqual(L.subject, "Invitation to serve as Thesis Examination Committee")
++        self.assertTrue(any("ภาษาไทย" in n for n in letter.notes_for("bt2", "en", vals, False)))
++        self.assertEqual(letter.output_stem("bt2", "invite", "en", "Mr. Somchai Jaidee", "x"),
++                         "หนังสือเชิญ GR.2 Mr. Somchai Jaidee")
++        self.assertEqual(letter.output_stem("bt39", "approve", "th", "", "คำสั่ง 1"), "หนังสือขออนุมัติ บฑ.39 คำสั่ง 1")
++
++    def test_advisor_form_has_no_exam_fields(self):
++        keys = [f["key"] for f in fields.field_defs("bt1", self.values)]
++        self.assertNotIn("exam_date", keys)
++        self.assertIn("title", keys)
++        self.assertTrue(all(f["check"] == "optional" for f in fields.field_defs("bt39", self.values)))
++
++    def test_layout_page_per_invitee(self):
++        vals = {**self.values, "inv2_name": "ศาสตราจารย์ ดร.สมชาย ใจดี", "inv2_role": "", "inv2_org": "", "inv2_boss": ""}  # allow-name
++        ls = letter.make_letters("bt27", "invite", "th", vals, inform=False)
++        self.assertEqual(len(ls), 2)
++        html = layout.build_html(ls, "logo.jpg")
++        self.assertEqual(html.count("page-break-before:always"), 1)
++        self.assertIn("TH Sarabun New", html)
++
++
++class DocTypeFlow(unittest.TestCase):
++    def test_registered(self):
++        d = registry.get("examletters")
++        self.assertNotIn("examletters", registry.errors)
++        self.assertEqual([m["id"] for m in d.manifest()["modes"]], ["bt39", "bt2", "bt27", "bt35", "bt1"])
++
++    def test_inspect_and_convert_docx(self):
++        d = registry.get("examletters")
++        with tempfile.TemporaryDirectory() as t:
++            src = Path(t) / "คำสั่ง.docx"
++            make_docx(src, ORDER)
++            info = d.inspect(src)
++            self.assertTrue(info["ok"], info)
++            self.assertEqual(info["slot"], "bt39")
++            values = {f["key"]: f["value"] for f in info["fields"]}
++            self.assertEqual(values["student_id"], "6812345 SCBT/M")
++            values["inv1_boss"] = "คณบดีคณะวิทยาศาสตร์"
++            with mock.patch("core.render.word_convert", side_effect=RuntimeError("no Word")):   # ไม่มี Word -> .doc
++                r = d.convert([Job("a", src, Path(t))], {"mode": "bt39", "want_approve": True}, False, {"a": values})["a"]
++            self.assertTrue(r["ok"], r)
++            names = sorted(Path(o["doc"]).name for o in r["outputs"])
++            self.assertEqual(names, ["หนังสือขออนุมัติ บฑ.39 นายสมชาย ใจดี.doc", "หนังสือเชิญ บฑ.39 นายสมชาย ใจดี.doc"])  # allow-name
++            body = (Path(t) / "หนังสือขออนุมัติ บฑ.39 นายสมชาย ใจดี.doc").read_text(encoding="utf-8")  # allow-name
++            self.assertIn("คณบดีคณะวิทยาศาสตร์", body)
++
++    def test_scanned_or_unreadable(self):
++        d = registry.get("examletters")
++        with tempfile.TemporaryDirectory() as t:
++            bad = Path(t) / "x.docx"
++            bad.write_bytes(b"not a zip")
++            self.assertFalse(d.inspect(bad)["ok"])
++            empty = Path(t) / "scan.docx"
++            make_docx(empty, "")
++            info = d.inspect(empty)
++            self.assertTrue(info["ok"])
++            self.assertIn("กรอกข้อมูลเอง", info["subtitle2"])
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/web/index.html b/web/index.html
+index 74ed236..054f0f1 100644
+--- a/web/index.html
++++ b/web/index.html
+@@ -529,6 +529,7 @@ const THAI_RE = /[฀-๿]/;
+ const CHECKS = {
+   english: (v) => !!v && !THAI_RE.test(v) && !/\sin\s*$/.test(v),
+   required: (v) => !!String(v || "").trim(),
++  optional: () => true,                 // เว้นว่างได้ (ประเภทเอกสารจัดการค่าว่างเอง เช่น จุดไข่ปลา)
+ };
+ const fieldValid = (f, v) => (CHECKS[f.check] || CHECKS.required)(v);
+ const fieldsFor = (it) => (it.fields || []).filter((f) => !f.requires || opt(f.requires));
 -- 
 2.43.0
 

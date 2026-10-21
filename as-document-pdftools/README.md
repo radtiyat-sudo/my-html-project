@@ -1,31 +1,29 @@
-# แยก / รวม PDF สำหรับ as-document (ระบบปรับเอกสาร)
+# ปลั๊กอินใหม่สำหรับ as-document (ระบบปรับเอกสาร)
 
-ย้าย "ตัวช่วยจัดการเอกสาร" (เว็บ Apps Script — แยก PDF รายคน / รวม PDF) เข้าไปเป็นประเภทเอกสาร `pdftools`
-ใน [supawitmar/as-document](https://github.com/supawitmar/as-document) ให้ทำงานในเครื่องทั้งหมด
-ไม่ต้องใช้บัญชี Google/อินเทอร์เน็ต ตามสถาปัตยกรรม hub + doctypes ของระบบนั้น
+ย้ายหน้า "จัดการเอกสาร" ของเว็บ Apps Script (`?page=documents`) เข้าเป็นประเภทเอกสาร (ปลั๊กอิน) ใน
+[supawitmar/as-document](https://github.com/supawitmar/as-document) ให้เป็นระบบเดียว ทำงานในเครื่อง ไม่ต้องใช้บัญชีออนไลน์
 
-ต่อจาก `97be497` (version 1.3.1) ของ as-document
+| แท็บในเว็บ Apps Script | ปลั๊กอินใน as-document |
+|---|---|
+| แยกไฟล์ PDF / รวมไฟล์ PDF | `doctypes/pdftools` — หน้าจอของตัวเอง (ไม่ใช้ Word) |
+| สร้างหนังสือจากคำสั่งสอบ (บฑ.1 · บฑ.2 · บฑ.27 · บฑ.35 · บฑ.39) | `doctypes/examletters` — แนวเดียวกับ บฑ.31 (อ่าน → ตรวจ/แก้ → Word/PDF ผ่าน Word) |
+| สร้างหนังสือจากคำสั่งสอบ (บฑกศ.39) | ใช้ `doctypes/bgks39` ที่มีอยู่แล้ว (ไม่ทำซ้ำ) |
 
-## นำไปใช้ (เลือกวิธีใดวิธีหนึ่ง)
+ต่อจาก `97be497` (version 1.3.1) — 2 commit, ทดสอบแล้ว `git am` ลง clone ใหม่ได้ และชุดทดสอบผ่านทั้งหมด (33 ทดสอบ)
+
+## นำไปใช้
 
 **ก. ใน repo as-document (เครื่องพัฒนา)**
 ```
-git am --3way "as-document-pdftools.patch"
+git am --3way as-document-plugins.patch
 python -m unittest discover -s tests
-python tools/release.py "เพิ่มประเภทเอกสาร แยก / รวม PDF" -i "แยก PDF ผลสอบเป็นไฟล์รายคน (ZIP)" -i "รวม PDF หลายไฟล์เป็นไฟล์เดียว"
+python tools/release.py "เพิ่มหนังสือจากคำสั่งสอบ และแยก / รวม PDF" -i "หนังสือเชิญ/ขออนุมัติจากคำสั่งสอบ บฑ.1 บฑ.2 บฑ.27 บฑ.35 บฑ.39" -i "แยก PDF ผลสอบรายคน / รวม PDF"
 ```
 
-**ข. คัดลอกไฟล์** — แตก `as-document-pdftools-files.zip` ทับโฟลเดอร์โปรแกรม (โครงสร้างโฟลเดอร์ตรงกัน)
+**ข. คัดลอกไฟล์** — แตก `as-document-plugins-files.zip` ทับโฟลเดอร์โปรแกรม
 
-## สิ่งที่เปลี่ยน
+## ⚠ ก่อนใช้หนังสือจากคำสั่งสอบจริง
 
-| ไฟล์ | ทำอะไร |
-|---|---|
-| `doctypes/pdftools/__init__.py` | ประเภทเอกสาร "แยก / รวม PDF" (การ์ดสี teal) |
-| `doctypes/pdftools/web/index.html` | หน้าจอแยก/รวม PDF (สี/โหมดมืดตาม hub) |
-| `doctypes/pdftools/web/lib/` | pdf.js 3.11.174, pdf-lib 1.17.1, JSZip 3.10.1 + `VERSIONS.txt` (SHA-384) |
-| `core/doctype.py` | เพิ่ม `page` — ประเภทที่มีหน้าจอของตัวเอง |
-| `app.py` | เส้นทาง `/tool/<รหัส>/` (ต้องมี token, เฉพาะไฟล์ใน web/, ส่ง Content-Security-Policy ห้ามติดต่อนอกเครื่อง) |
-| `web/index.html` | แสดงหน้าจอของประเภทนั้นในกรอบแทนช่องวางไฟล์ |
-| `tests/test_pdftools.py` | 9 ทดสอบ (token, path traversal, CSP, ไม่มีลิงก์อินเทอร์เน็ต, SHA ของไลบรารี) |
-| `HANDOFF.md`, `README.md`, `doctypes/README.md` | เอกสาร |
+ถ้อยคำหนังสือใน `doctypes/examletters/letter.py` เป็น **ร่าง** — ยังไม่ได้เทียบกับแม่แบบที่เว็บ Apps Script ใช้
+(เช่น "หนังสือเชิญ GR39 TH") ทุกไฟล์ที่สร้างจะมีหมายเหตุเตือน จนกว่าจะแก้ถ้อยคำให้ตรงแม่แบบแล้วใส่ใน `VERIFIED`
+รูปแบบการอ่านคำสั่ง (`source.py`) ทดสอบกับคำสั่งจำลอง — ควรลองกับคำสั่งจริงแล้วปรับ
