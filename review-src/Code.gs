@@ -34,12 +34,31 @@ function setup() {
   return msg;
 }
 
+/** ▶ ตรวจการเชื่อมต่อฐานข้อมูลทั้งหมด (รันครั้งแรกจะขออนุญาตสิทธิ์ "เชื่อมต่อบริการภายนอก") — ดูผลใน Execution log */
+function testConnection() {
+  const lines = [];
+  const tryFetch = function (label, url) {
+    try {
+      const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      lines.push(label + ': ' + (r.getResponseCode() < 400 ? 'เชื่อมต่อได้' : 'ตอบกลับรหัส ' + r.getResponseCode()));
+    } catch (e) { lines.push(label + ': ไม่ได้ — ' + explainFetchError_(e.message)); }
+  };
+  tryFetch('OpenAlex', 'https://api.openalex.org/works?per_page=1');
+  tryFetch('PubMed', 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=mahidol&retmax=1&retmode=json');
+  tryFetch('ERIC', 'https://api.ies.ed.gov/eric/?search=thailand&rows=1&format=json');
+  tryFetch('Crossref', 'https://api.crossref.org/works?rows=1');
+  lines.push(testScopus());
+  const msg = lines.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
 /** ▶ ตรวจว่ากุญแจ Scopus / WoS ใช้ได้หรือไม่ (ดูผลใน Execution log) */
 function testScopus() {
   CURRENT_USER_ = { id: 'editor', role: 'admin' };
   try {
     const r = testApiKeys_();
-    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + r.scopus.message + '\nWeb of Science: ' + r.wos.message;
+    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + explainFetchError_(r.scopus.message) + '\nWeb of Science: ' + r.wos.message;
     Logger.log(msg);
     return msg;
   } finally { CURRENT_USER_ = null; }

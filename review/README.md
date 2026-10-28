@@ -100,11 +100,33 @@
 ทุกอย่างทำในหน้า **แหล่งข้อมูล/นำเข้า** (ผู้ดูแลระบบ) — กุญแจเก็บใน Script Properties ไม่อยู่ในโค้ด และสถานะจะขึ้น "เชื่อมต่อแล้ว" **เฉพาะเมื่อกดทดสอบผ่าน** ด้วยค่าตั้งค่าปัจจุบัน
 
 **Scopus และฐานข้อมูลวิชาการ**
-1. เข้า https://dev.elsevier.com ด้วยอีเมล @mahidol.ac.th → *I want an API Key* → ตั้งชื่อ → ได้ API key
-2. วางในช่อง Scopus API key → บันทึก → ระบบทดสอบให้อัตโนมัติ
-3. ถ้าขึ้น 401/403 (ใช้นอกเครือข่ายมหาวิทยาลัย) → ขอ **Institutional Token** จากหอสมุดและคลังความรู้ แล้ววางช่องถัดไป
-4. (แนะนำ) นำเข้ารายชื่อวารสาร **SJR** (scimagojr.com → Download data) และ **TCI กลุ่ม 1/2** โดยระบุ "แหล่งและปี" เช่น `SJR 2024` — ใช้จัดกลุ่ม/Quartile เมื่อ Scopus ไม่ส่ง Quartile และสำหรับวารสาร TCI
-5. PubMed, ERIC, OpenAlex, Crossref ใช้ได้ทันทีไม่ต้องมีกุญแจ · WoS ต้องมี Starter API key (ไม่บังคับ)
+
+ขั้นที่ 0 — ให้สคริปต์เชื่อมต่อภายนอกได้ (ต้องทำก่อน ไม่งั้นทุกฐานขึ้น "ขัดข้อง")
+1. Apps Script → เลือกฟังก์ชัน **testConnection** → Run → อนุญาตสิทธิ์ (มีรายการ "เชื่อมต่อกับบริการภายนอก")
+2. Execution log ต้องขึ้น `OpenAlex: เชื่อมต่อได้`, `PubMed: เชื่อมต่อได้` …
+3. Deploy → จัดการการทำให้ใช้งานได้ → ✏️ → **เวอร์ชันใหม่** → Deploy
+   (PubMed, ERIC, OpenAlex, Crossref, TCI ผ่าน Crossref ใช้ได้ทันทีหลังขั้นนี้ ไม่ต้องมี key)
+
+ขั้นที่ 1 — ขอ Scopus API key (ฟรีสำหรับมหาวิทยาลัยที่บอกรับ Scopus)
+1. เปิด https://dev.elsevier.com → กด **I want an API Key**
+2. Sign in / Register ด้วย **อีเมล @mahidol.ac.th** (บัญชี Elsevier เดียวกับที่ใช้ Scopus/ScienceDirect ได้)
+3. กด **Create API Key** → Label: `MU Academic Search` → Website URL: ใส่ลิงก์ `/exec` ของเว็บแอป (หรือ https://mahidol.ac.th) → ติ๊กยอมรับเงื่อนไข → Submit
+4. คัดลอก key (ตัวอักษร 32 ตัว)
+
+ขั้นที่ 2 — ใส่ key หลังบ้าน
+1. `Code.gs` ต้นไฟล์ → `SCOPUS_API_KEY: 'วางตรงนี้',` → 💾
+2. Run **testScopus** → ต้องขึ้น `Scopus: ผ่าน`
+3. Deploy เวอร์ชันใหม่
+
+ขั้นที่ 3 — ถ้า testScopus ขึ้น 401 / 403 / AUTHORIZATION_ERROR
+Apps Script เรียก API จากเซิร์ฟเวอร์ของ Google (ไม่ใช่เครือข่ายมหาวิทยาลัย) Elsevier จึงไม่รู้ว่าเป็นมหิดล → ต้องมี **Institutional Token**
+- ติดต่อ **หอสมุดและคลังความรู้ มหาวิทยาลัยมหิดล** แจ้งว่า "ขอ Scopus API Institutional Token (insttoken) สำหรับ API key ……" (หอสมุดประสานกับ Elsevier)
+- ได้แล้ววางที่ `SCOPUS_INSTTOKEN: '…'` → testScopus อีกครั้ง
+
+ขั้นที่ 4 (ไม่บังคับ) — Web of Science
+https://developer.clarivate.com → Register → APIs → **Web of Science Starter API** → Subscribe (แผนฟรีสำหรับสถาบันที่บอกรับ) → Applications → คัดลอก key → `WOS_API_KEY: '…'`
+
+ขั้นที่ 5 (แนะนำ) — รายชื่อวารสาร SJR/TCI สำหรับ Quartile และ TCI กลุ่ม 1/2: ปิดโหมดง่ายชั่วคราว (`SIMPLE_MODE` = false ในชีต Settings) → หน้า แหล่งข้อมูล → นำเข้ารายชื่อ → เปิดโหมดง่ายกลับ
 
 **MUREX (Elsevier Pure)** — MUREX ของมหาวิทยาลัย (murex.mahidol.ac.th) ทำงานบนระบบ Pure ของ Elsevier ซึ่งมี Pure API
 1. ขอ **Pure API key** จากผู้ดูแลระบบ MUREX (งานบริหารงานวิจัย / ทีม Pure) — กุญแจสร้างในแท็บ Administrator ของ Pure ต้องให้สิทธิ์อ่าน *persons* และ *research-outputs*

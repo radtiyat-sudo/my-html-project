@@ -513,6 +513,17 @@ t('simple search: any @mahidol.ac.th user, name + years only; API key from code'
   realLogin('owner@mahidol.ac.th');
 });
 
+t('missing permission for external requests is explained, not shown as "no results"', () => {
+  vm.runInContext("var __origFetch = UrlFetchApp.fetch; UrlFetchApp.fetch = function () { throw new Error('You do not have permission to call UrlFetchApp.fetch. Required permissions: https://www.googleapis.com/auth/script.external_request'); }; CacheService.getScriptCache().get = function () { return null; };", ctx);
+  realLogin('anyone@mahidol.ac.th');
+  const r = ok('quickSearch', { name: 'Someone Uncached', fromYear: 2565, toYear: 2569 });
+  assert.match(r.notes[0], /testConnection/);
+  assert.ok(r.status.filter(x => x.mode === 'error').every(x => /อนุญาตสิทธิ์/.test(x.message)));
+  assert.match(ctx.testConnection(), /OpenAlex: ไม่ได้ — สคริปต์ยังไม่ได้รับอนุญาต/);
+  vm.runInContext('UrlFetchApp.fetch = __origFetch;', ctx);
+  realLogin('owner@mahidol.ac.th');
+});
+
 t('fresh install run by an account outside the domain: demo data still created, no admin until configured', () => {
   const c2 = { console, TextEncoder, crypto, btoa, atob, location: { href: '' } };
   vm.createContext(c2);

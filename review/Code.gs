@@ -237,12 +237,31 @@ function setup() {
   return msg;
 }
 
+/** ▶ ตรวจการเชื่อมต่อฐานข้อมูลทั้งหมด (รันครั้งแรกจะขออนุญาตสิทธิ์ "เชื่อมต่อบริการภายนอก") — ดูผลใน Execution log */
+function testConnection() {
+  const lines = [];
+  const tryFetch = function (label, url) {
+    try {
+      const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      lines.push(label + ': ' + (r.getResponseCode() < 400 ? 'เชื่อมต่อได้' : 'ตอบกลับรหัส ' + r.getResponseCode()));
+    } catch (e) { lines.push(label + ': ไม่ได้ — ' + explainFetchError_(e.message)); }
+  };
+  tryFetch('OpenAlex', 'https://api.openalex.org/works?per_page=1');
+  tryFetch('PubMed', 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=mahidol&retmax=1&retmode=json');
+  tryFetch('ERIC', 'https://api.ies.ed.gov/eric/?search=thailand&rows=1&format=json');
+  tryFetch('Crossref', 'https://api.crossref.org/works?rows=1');
+  lines.push(testScopus());
+  const msg = lines.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
 /** ▶ ตรวจว่ากุญแจ Scopus / WoS ใช้ได้หรือไม่ (ดูผลใน Execution log) */
 function testScopus() {
   CURRENT_USER_ = { id: 'editor', role: 'admin' };
   try {
     const r = testApiKeys_();
-    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + r.scopus.message + '\nWeb of Science: ' + r.wos.message;
+    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + explainFetchError_(r.scopus.message) + '\nWeb of Science: ' + r.wos.message;
     Logger.log(msg);
     return msg;
   } finally { CURRENT_USER_ = null; }
@@ -1731,6 +1750,17 @@ function importJournalCsv_(p) {
 
 /* ---------------- ค้นหาแบบง่าย: กรอกชื่อ + ช่วงปี ---------------- */
 
+/** แปลข้อผิดพลาดการเรียกเว็บภายนอกให้ผู้ดูแลรู้ว่าต้องทำอะไร */
+function explainFetchError_(m) {
+  const s = String(m || '');
+  if (/UrlFetchApp|external_request|permission|สิทธิ์ในการเรียก|Authorization is required/i.test(s)) {
+    return 'สคริปต์ยังไม่ได้รับอนุญาตให้เชื่อมต่อบริการภายนอก — ผู้ดูแลต้องเปิด Apps Script → เลือกฟังก์ชัน testConnection → Run → อนุญาตสิทธิ์ แล้ว Deploy เวอร์ชันใหม่ (' + s.slice(0, 120) + ')';
+  }
+  if (/DNS|Address unavailable|timed out|Timeout/i.test(s)) return 'ติดต่อฐานข้อมูลไม่ได้ชั่วคราว ลองใหม่อีกครั้ง (' + s.slice(0, 120) + ')';
+  if (/Bandwidth quota|Service invoked too many times/i.test(s)) return 'ใช้โควตาการเชื่อมต่อภายนอกของ Google ต่อวันหมดแล้ว — ลองใหม่พรุ่งนี้ (' + s.slice(0, 120) + ')';
+  return s;
+}
+
 /** หาชื่อภาษาอังกฤษจากข้อมูลบุคคล (MUHR) เมื่อผู้ใช้กรอกแค่ชื่อไทย — ใช้เฉพาะเมื่อพบคนเดียว */
 function englishNameFor_(nameTh) {
   try {
@@ -1769,6 +1799,9 @@ function quickSearch_(p) {
     if (!q.nameEn) notes.push('ค้นด้วยชื่อไทยได้เฉพาะฐานไทย (TCI/ThaiJO) — ฐานนานาชาติ (Scopus/WoS/PubMed) ต้องใช้ชื่ออังกฤษ: กด "ตัวเลือกเพิ่มเติม" แล้วใส่ชื่ออังกฤษ');
   }
   const r = searchAll_(q);
+  r.status.forEach(function (s) { if (s.mode === 'error') s.message = explainFetchError_(s.message); });
+  const allDown = r.status.filter(function (s) { return s.mode === 'error'; }).length >= 3;
+  if (allDown) notes.unshift('ค้นฐานข้อมูลภายนอกไม่ได้เกือบทั้งหมด — ' + r.status.filter(function (s) { return s.mode === 'error'; })[0].message);
   audit_('quickSearch', '', '', ['name', 'years'], r.works.length + ' รายการ');
   const g = { intl: 0, tci1: 0, tci2: 0, other: 0 };
   const works = r.works.map(function (w) {
