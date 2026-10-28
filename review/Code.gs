@@ -3,7 +3,7 @@
  *  ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ
  *  ไฟล์: Code.gs  (วางทั้งไฟล์นี้ใน Apps Script ไฟล์ชื่อ "Code")
  *
- *  ส่วนต่าง ๆ ในไฟล์นี้: 1. Config  2. Db  3. Auth  4. Connectors  5. Matching  6. Criteria  7. Workflow  8. Files  9. Reports  10. Admin  11. Api  12. Code
+ *  ส่วนต่าง ๆ ในไฟล์นี้: 1. Config  2. Db  3. Auth  4. Connectors  5. ApiConnector  6. Matching  7. Scholar  8. Discovery  9. Sources  10. Criteria  11. Workflow  12. Files  13. Reports  14. Admin  15. Api  16. Code
  *
  *  หลังวางครบ 3 ไฟล์ (Code.gs, Index.html, appsscript.json):
  *  เลือกฟังก์ชัน setup → กด ▶ เรียกใช้ → อนุญาตสิทธิ์ → Deploy เป็นเว็บแอป
@@ -36,7 +36,7 @@ const APP = {
   name: 'ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ',
   short: 'ตรวจสอบผลงานและคุณสมบัติ',
   dbName: 'RV — ฐานข้อมูลระบบตรวจสอบผลงานและคุณสมบัติ',
-  schemaVersion: 1
+  schemaVersion: 2
 };
 
 /** บทบาท — ผู้ใช้หนึ่งคนมีได้หลายบทบาท แต่ทำงานทีละบทบาท (เลือกจากเมนูผู้ใช้) */
@@ -71,8 +71,10 @@ const TABLES = {
   ImportRows: ['id', 'batchId', 'rowNo', 'data', 'errors', 'action'],
   RequestTypes: ['id', 'code', 'name', 'description', 'personRole', 'requiredDocs', 'active', 'isDemo', 'createdAt', 'updatedAt'],
   CriteriaSets: ['id', 'code', 'typeId', 'name', 'version', 'effectiveDate', 'referenceSource', 'conditionsText', 'rules', 'status', 'isDemo', 'confirmedBy', 'confirmedAt', 'note', 'createdBy', 'createdAt', 'updatedAt'],
-  Requests: ['id', 'code', 'typeId', 'title', 'purpose', 'note', 'unit', 'requesterId', 'status', 'round', 'personSnap', 'identityStatus', 'identityBasis', 'identityNote', 'identityBy', 'identityAt', 'criteriaSetId', 'assigneeId', 'reviewerId', 'worksComplete', 'worksCompleteNote', 'staffSummary', 'isDemo', 'createdAt', 'updatedAt', 'submittedAt', 'decidedAt', 'closedAt', 'cancelledAt', 'cancelReason'],
-  RequestWorks: ['id', 'requestId', 'origin', 'sourceWorkId', 'title', 'type', 'year', 'pubDate', 'authors', 'venue', 'doi', 'ref', 'evidenceId', 'status', 'staffNote', 'addedBy', 'addedRound', 'createdAt', 'updatedAt'],
+  Requests: ['id', 'code', 'typeId', 'title', 'purpose', 'note', 'unit', 'requesterId', 'status', 'round', 'personSnap', 'authorIds', 'identityStatus', 'identityBasis', 'identityNote', 'identityBy', 'identityAt', 'criteriaSetId', 'assigneeId', 'reviewerId', 'worksComplete', 'worksCompleteNote', 'staffSummary', 'isDemo', 'createdAt', 'updatedAt', 'submittedAt', 'decidedAt', 'closedAt', 'cancelledAt', 'cancelReason'],
+  RequestWorks: ['id', 'requestId', 'origin', 'sourceWorkId', 'title', 'type', 'year', 'pubDate', 'authors', 'venue', 'doi', 'ref', 'evidenceId', 'status', 'staffNote', 'addedBy', 'addedRound', 'createdAt', 'updatedAt',
+    'database', 'dbGroup', 'quartile', 'quartileSource', 'proof', 'foundIn', 'links', 'dbEvidence', 'checkedAt'],
+  JournalIndex: ['issn', 'title', 'database', 'quartile', 'source', 'updatedAt'],
   DupPairs: ['id', 'requestId', 'workA', 'workB', 'basis', 'score', 'status', 'keepWorkId', 'note', 'resolvedBy', 'resolvedAt', 'createdAt'],
   Attachments: ['id', 'requestId', 'workId', 'docType', 'fileName', 'mime', 'size', 'storageId', 'status', 'uploadedBy', 'uploadedAt', 'removedBy', 'removedAt'],
   RevisionItems: ['id', 'requestId', 'round', 'section', 'workId', 'message', 'status', 'response', 'createdBy', 'createdAt', 'addressedAt', 'closedBy', 'closedAt'],
@@ -104,7 +106,11 @@ const DEFAULT_SETTINGS = {
   STALE_DAYS: '180',
   MAX_FILE_MB: '10',
   ALLOWED_EXT: 'pdf,png,jpg,jpeg',
-  EXTERNAL_NOTIFY: 'off'
+  EXTERNAL_NOTIFY: 'off',
+  OPENALEX_MAILTO: '',
+  SCHOLAR_AFFIL: 'Mahidol University',
+  MUHR_API: '',
+  MUREX_API: ''
 };
 
 /** ค่าที่ยังต้องยืนยันกับหน่วยงาน — แสดงในหน้าตั้งค่าเพื่อไม่ให้ลืม */
@@ -142,7 +148,7 @@ const RULE_KINDS = {
   person_status: { label: 'สถานะบุคลากร', params: ['allowed'] },
   min_degree: { label: 'คุณวุฒิ', params: ['allowed'] },
   academic_rank: { label: 'ตำแหน่งทางวิชาการ', params: ['allowed'] },
-  min_works: { label: 'จำนวนผลงาน', params: ['min', 'years', 'types'] },
+  min_works: { label: 'จำนวนผลงาน', params: ['min', 'years', 'types', 'databases', 'quartiles'] },
   required_documents: { label: 'เอกสารครบ', params: ['docs'] },
   manual: { label: 'ให้เจ้าหน้าที่พิจารณา', params: ['instruction'] }
 };
@@ -166,7 +172,7 @@ const SOURCES = {
 const SOURCE_MODES = {
   mock: 'ข้อมูลจำลอง (ไม่ใช่ข้อมูลจริง)',
   import: 'นำเข้าจากไฟล์ CSV',
-  api: 'เชื่อมต่อ API (ยังไม่ได้พัฒนา — ต้องได้รับข้อกำหนดจากเจ้าของระบบ)'
+  api: 'เชื่อมต่อ API ของระบบจริง (ต้องตั้งค่าและทดสอบผ่านก่อน)'
 };
 
 /** คอลัมน์ CSV ที่รับ (แถวแรกต้องเป็นชื่อคอลัมน์ตามนี้) */
@@ -573,11 +579,10 @@ function usersFor_(role, unit, isTestPool) {
 /**
  * Connectors.gs — ชั้นเชื่อมต่อแหล่งข้อมูล MUHR (บุคคล) และ MUREX (ผลงาน)
  *
- * ปัจจุบันรองรับ 2 โหมดเท่านั้น:
+ * โหมด:
  *   mock   = ข้อมูลจำลองที่ระบบสร้างให้ (ไม่ใช่ข้อมูลจริง)
  *   import = ข้อมูลที่ผู้ดูแลนำเข้าจากไฟล์ CSV (ผ่านหน้าตรวจทานก่อนบันทึก)
- * โหมด api ยังไม่ได้พัฒนา เพราะยังไม่มีข้อกำหนด API จริง — ระบบจะแจ้งว่า "ยังไม่ได้เชื่อมต่อ" และไม่แสดงว่าเชื่อมต่อแล้ว
- * จุดที่ต้องเขียนเพิ่มเมื่อได้ข้อกำหนด: fetchPersonsApi_ / fetchWorksApi_ (ดูท้ายไฟล์)
+ *   api    = เรียก API ของระบบจริง (ดู ApiConnector.gs) — ใช้ได้เมื่อตั้งค่าและ "ทดสอบการเชื่อมต่อ" ผ่านแล้วเท่านั้น
  */
 
 function sourceMode_(src) {
@@ -597,8 +602,8 @@ function sourceReady_(src) {
   if (toBool_(setting_('SIM_OUTAGE_' + src))) {
     throw sourceError_(src, 'outage', 'ระบบต้นทาง ' + src + ' ขัดข้อง/ติดต่อไม่ได้ในขณะนี้ — ข้อมูลที่ต้องใช้จากระบบนี้จะถูกสรุปว่า "ยังสรุปไม่ได้" ไม่ใช่ "ไม่ผ่าน"');
   }
-  if (mode === 'api') {
-    throw sourceError_(src, 'not_connected', 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + ' (ยังไม่มีข้อกำหนด/สิทธิ์เข้าถึง) — ใช้โหมดนำเข้าไฟล์ หรือกรอกข้อมูลให้เจ้าหน้าที่ตรวจแทน');
+  if (mode === 'api' && !apiConnected_(src)) {
+    throw sourceError_(src, 'not_connected', 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + ' (ยังไม่ได้ตั้งค่า หรือยังไม่ผ่านการทดสอบ) — กรอกข้อมูลให้เจ้าหน้าที่ตรวจแทนได้');
   }
   return mode;
 }
@@ -610,14 +615,16 @@ function sourceStatus_(src) {
   const rows = DB.all(SOURCES[src].table).filter(function (r) { return r.origin === mode; });
   const batches = DB.all('ImportBatches').filter(function (b) { return b.source === src && b.status === 'committed'; });
   const last = batches[batches.length - 1] || null;
-  let available = !outage && mode !== 'api';
+  const connected = mode === 'api' && apiConnected_(src);
+  const test = apiLastTest_(src);
+  let available = !outage && (mode !== 'api' || connected);
   let message = mode === 'mock' ? 'ใช้ข้อมูลจำลองเพื่อทดสอบ — ไม่ใช่ข้อมูลจริงจาก ' + src
     : mode === 'import' ? (last ? 'ใช้ข้อมูลที่นำเข้าเมื่อ ' + last.committedAt + ' (ไม่ได้ดึงสดจาก ' + src + ')' : 'ยังไม่มีข้อมูลนำเข้า')
-      : 'ยังไม่ได้เชื่อมต่อ API ของ ' + src;
+      : connected ? 'ดึงข้อมูลสดจาก ' + src + ' ผ่าน API (ทดสอบผ่านเมื่อ ' + test.at + ')' : 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + (test && !test.ok ? ' — ทดสอบล่าสุดไม่ผ่าน: ' + test.message : ' — ต้องตั้งค่าและทดสอบในหน้า แหล่งข้อมูล');
   if (outage) message = 'จำลองสถานการณ์ระบบต้นทางขัดข้อง (ตั้งค่าโดยผู้ดูแล)';
   return {
     source: src, label: SOURCES[src].label, desc: SOURCES[src].desc, mode: mode, modeLabel: SOURCE_MODES[mode],
-    connected: false, connectedLabel: 'ยังไม่ได้เชื่อมต่อระบบจริง', available: available, outage: outage, message: message,
+    connected: connected, connectedLabel: connected ? 'เชื่อมต่อระบบจริงแล้ว (ผ่าน API)' : 'ยังไม่ได้เชื่อมต่อระบบจริง', available: available, outage: outage, message: message,
     records: rows.length, lastImport: last ? { at: last.committedAt, fileName: last.fileName, sourceUpdatedAt: last.sourceUpdatedAt, rows: last.validCount } : null
   };
 }
@@ -631,12 +638,14 @@ function sourceRows_(src) {
 function muhrByCode_(code) {
   const c = String(code || '').trim().toUpperCase();
   if (!c) return null;
+  if (sourceReady_('MUHR') === 'api') return apiPersonByCode_('MUHR', c);
   return sourceRows_('MUHR').filter(function (p) { return String(p.staffCode).toUpperCase() === c; })[0] || null;
 }
 
 /** MUREX: ผลงานของบุคคลตามรหัสบุคลากร */
 function murexWorksFor_(code) {
   const c = String(code || '').trim().toUpperCase();
+  if (sourceReady_('MUREX') === 'api') return apiWorksFor_(c).works;
   return sourceRows_('MUREX').filter(function (w) { return String(w.staffCode).toUpperCase() === c; });
 }
 
@@ -650,7 +659,8 @@ function staleInfo_(rec) {
 
 /* ---------------- นำเข้า CSV (ตรวจทานก่อนบันทึก) ---------------- */
 
-function parseCsv_(text) {
+function parseCsv_(text, delim) {
+  const d = delim || ',';
   const s = String(text || '').replace(/^﻿/, '');
   const rows = []; let row = []; let cur = ''; let q = false;
   for (let i = 0; i < s.length; i++) {
@@ -659,7 +669,7 @@ function parseCsv_(text) {
       if (ch === '"') { if (s[i + 1] === '"') { cur += '"'; i++; } else q = false; }
       else cur += ch;
     } else if (ch === '"') q = true;
-    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === d) { row.push(cur); cur = ''; }
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && s[i + 1] === '\n') i++;
       row.push(cur); cur = '';
@@ -821,12 +831,311 @@ function importDiscard_(p) {
   return true;
 }
 
-/* ---------------- จุดต่อ API จริง (ยังไม่ได้ทำ) ----------------
- * เมื่อได้ข้อกำหนดจากเจ้าของระบบ MUHR/MUREX ให้เขียนฟังก์ชันด้านล่าง แล้วให้ sourceRows_ เรียกใช้เมื่อโหมดเป็น api
- * กุญแจ/รหัสต้องเก็บใน Script Properties เช่น MUHR_API_TOKEN — ห้ามใส่ในโค้ด
+
+/* ======================================================================
+ * ส่วน: ApiConnector.gs
+ * ====================================================================== */
+
+/**
+ * ApiConnector.gs — เชื่อมต่อ MUHR / MUREX ผ่าน API จริง (โหมด api)
+ *
+ * - MUREX ของมหาวิทยาลัยมหิดลทำงานบน Elsevier Pure → มีชุดตั้งค่าสำเร็จรูป "pure" (Pure API, ส่ง key ทาง header api-key)
+ *   คีย์ต้องขอจากผู้ดูแลระบบ Pure/MUREX (สร้างในแท็บ Administrator ของ Pure พร้อมกำหนดสิทธิ์การเห็นข้อมูล)
+ * - MUHR ยังไม่มีเอกสาร API สาธารณะ → ใช้ชุดตั้งค่า "custom": กำหนด URL, header, รูปแบบคำขอ และการจับคู่ฟิลด์เอง
+ * - กุญแจเก็บใน Script Properties (MUHR_API_TOKEN / MUREX_API_TOKEN) ไม่อยู่ในโค้ดหรือชีต และไม่ส่งกลับหน้าเว็บ
+ * - สถานะ "เชื่อมต่อแล้ว" แสดงเฉพาะเมื่อทดสอบผ่านด้วยค่าตั้งค่าปัจจุบันเท่านั้น
+ * - ข้อมูลที่ดึงมาถูกเก็บในชีต Persons / SourceWorks (origin = api) พร้อมวันที่ดึง เพื่อให้คำขอย้อนดูได้ว่าใช้ข้อมูลอะไร
  */
-function fetchPersonsApi_() { throw sourceError_('MUHR', 'not_connected', 'ยังไม่ได้พัฒนาการเชื่อมต่อ API ของ MUHR'); }
-function fetchWorksApi_() { throw sourceError_('MUREX', 'not_connected', 'ยังไม่ได้พัฒนาการเชื่อมต่อ API ของ MUREX'); }
+
+const API_PRESETS = {
+  pure: {
+    label: 'Elsevier Pure (MUREX)', base: 'https://murex.mahidol.ac.th/ws/api', authHeader: 'api-key', authPrefix: '',
+    searchReq: 'POST /persons/search {"searchString":"{q}","size":20}',
+    byCodeReq: '',
+    worksReq: 'GET /persons/{pid}/research-outputs?size=100',
+    listPath: 'items'
+  },
+  custom: {
+    label: 'กำหนดเอง (REST/JSON)', base: '', authHeader: 'Authorization', authPrefix: 'Bearer ',
+    searchReq: 'GET /persons?name={q}', byCodeReq: 'GET /persons/{code}', worksReq: 'GET /persons/{code}/works', listPath: 'items',
+    personMap: { staffCode: 'staffCode', titleTh: 'titleTh', firstNameTh: 'firstNameTh', lastNameTh: 'lastNameTh', firstNameEn: 'firstNameEn', lastNameEn: 'lastNameEn', formerNames: 'formerNames', unit: 'unit', position: 'position', academicRank: 'academicRank', highestDegree: 'highestDegree', employmentStatus: 'employmentStatus', sourceUpdatedAt: 'updatedAt' },
+    workMap: { workRef: 'id', title: 'title', type: 'type', year: 'year', pubDate: 'pubDate', authors: 'authors', venue: 'venue', doi: 'doi', ref: 'ref', sourceUpdatedAt: 'updatedAt' }
+  }
+};
+
+function apiConf_(src) {
+  const raw = parseJson_(setting_(src + '_API'), {}) || {};
+  const preset = API_PRESETS[raw.preset] ? raw.preset : (src === 'MUREX' ? 'pure' : 'custom');
+  const conf = Object.assign({}, API_PRESETS[preset], raw, { preset: preset });
+  conf.token = PropertiesService.getScriptProperties().getProperty(src + '_API_TOKEN') || '';
+  conf.configured = !!(conf.base && conf.token && (conf.searchReq || conf.byCodeReq));
+  return conf;
+}
+
+function apiConfHash_(src) {
+  const c = apiConf_(src);
+  return hashOf_([c.preset, c.base, c.authHeader, c.authPrefix, c.searchReq, c.byCodeReq, c.worksReq, c.listPath, c.personMap, c.workMap, c.token.length]);
+}
+
+function apiLastTest_(src) { return parseJson_(PropertiesService.getScriptProperties().getProperty('SRC_TEST_' + src), null); }
+
+/** เชื่อมต่อแล้ว = โหมด api + ทดสอบผ่าน + ค่าตั้งค่ายังเหมือนตอนทดสอบ */
+function apiConnected_(src) {
+  const t = apiLastTest_(src);
+  return !!(t && t.ok && t.confHash === apiConfHash_(src));
+}
+
+/** "METHOD /path {body}" → เรียก API จริง */
+function apiCall_(src, tmpl, vars) {
+  const c = apiConf_(src);
+  if (!c.configured) throw sourceError_(src, 'not_connected', 'ยังไม่ได้ตั้งค่า API ของ ' + src + ' (URL / กุญแจ / รูปแบบคำขอ)');
+  const m = String(tmpl || '').trim().match(/^(GET|POST)\s+(\S+)\s*([\s\S]*)$/i);
+  if (!m) throw sourceError_(src, 'not_connected', 'รูปแบบคำขอ API ไม่ถูกต้อง: ' + tmpl);
+  const sub = function (s, enc) { return s.replace(/\{(\w+)\}/g, function (x, k) { const v = String(vars[k] === undefined ? '' : vars[k]); return enc ? enc(v) : v; }); };
+  const url = c.base.replace(/\/+$/, '') + sub(m[2], encodeURIComponent);
+  const body = m[3] ? sub(m[3], function (v) { return JSON.stringify(v).slice(1, -1); }) : '';
+  const headers = { Accept: 'application/json' };
+  headers[c.authHeader || 'Authorization'] = (c.authPrefix || '') + c.token;
+  const opt = { method: m[1].toLowerCase(), muteHttpExceptions: true, headers: headers };
+  if (body) { opt.payload = body; opt.contentType = 'application/json'; }
+  let res;
+  try { res = UrlFetchApp.fetch(url, opt); }
+  catch (e) { throw sourceError_(src, 'outage', 'ติดต่อ ' + src + ' ไม่ได้: ' + e.message); }
+  const code = res.getResponseCode();
+  if (code === 404) return null;
+  if (code === 401 || code === 403) throw sourceError_(src, 'auth', src + ' ปฏิเสธการเข้าถึง (' + code + ') — ตรวจกุญแจ API และสิทธิ์การเห็นข้อมูลของกุญแจ');
+  if (code >= 500 || code === 429) throw sourceError_(src, 'outage', src + ' ขัดข้องหรือใช้งานเกินโควตา (' + code + ')');
+  if (code >= 400) throw sourceError_(src, 'outage', src + ' ตอบกลับผิดพลาด (' + code + ') — ตรวจรูปแบบคำขอในหน้าตั้งค่า');
+  try { return JSON.parse(res.getContentText()); }
+  catch (e) { throw sourceError_(src, 'outage', src + ' ไม่ได้ส่งข้อมูล JSON กลับมา'); }
+}
+
+/* ---------------- อ่านค่าจาก JSON ---------------- */
+
+/** "a.b.0.c|x.y" → ค่าแรกที่พบ */
+function getPath_(o, path) {
+  const alts = String(path || '').split('|');
+  for (let i = 0; i < alts.length; i++) {
+    let v = o;
+    alts[i].split('.').filter(String).forEach(function (k) { v = v === undefined || v === null ? undefined : v[k]; });
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
+/** ข้อความหลายภาษาของ Pure: "x" | {value} | {text:[{value}]} | {en_GB:"x", th_TH:"y"} */
+function locText_(x, preferTh) {
+  if (x === undefined || x === null) return '';
+  if (typeof x !== 'object') return String(x);
+  if (Array.isArray(x)) return locText_(x[0], preferTh);
+  if (x.value !== undefined) return locText_(x.value, preferTh);
+  if (x.text) return locText_(x.text, preferTh);
+  if (x.term) return locText_(x.term, preferTh);
+  const keys = Object.keys(x);
+  const th = keys.filter(function (k) { return /^th/i.test(k); })[0], en = keys.filter(function (k) { return /^en/i.test(k); })[0];
+  return String(x[preferTh && th ? th : en || th || keys[0]] || '');
+}
+
+function listOf_(json, listPath) {
+  if (Array.isArray(json)) return json;
+  const v = getPath_(json || {}, listPath || 'items');
+  return Array.isArray(v) ? v : [];
+}
+
+/* ---------------- Pure ---------------- */
+
+function purePersonCode_(it) {
+  const ids = [].concat(it.ids || [], it.identifiers || [], it.personIds || []);
+  const emp = ids.filter(function (x) { return /employee|staff|personnel|บุคลากร/i.test(locText_(x.type || x.idSource || x.typeDiscriminator)); })[0];
+  return String((emp && (emp.id || emp.value)) || it.employeeId || it.externalId || '').trim();
+}
+
+function purePerson_(it) {
+  const name = it.name || {};
+  const org = (it.staffOrganizationAssociations || it.staffOrganisationAssociations || [])[0] || {};
+  const orgName = locText_((org.organization || org.organisationalUnit || org.organisationalUnits || {}).name);
+  return {
+    staffCode: purePersonCode_(it), pureId: it.uuid || it.pureId || '',
+    firstNameEn: name.firstName || '', lastNameEn: name.lastName || '',
+    firstNameTh: '', lastNameTh: '', formerNames: (it.names || []).map(function (n) { return [n.firstName || (n.name || {}).firstName, n.lastName || (n.name || {}).lastName].filter(String).join(' '); }).filter(String).join('|'),
+    unit: orgName, position: locText_(org.jobDescription || org.jobTitle || ''), academicRank: '', highestDegree: '', employmentStatus: '',
+    sourceUpdatedAt: String(getPath_(it, 'info.modifiedDate|modifiedDate') || '').slice(0, 10)
+  };
+}
+
+function pureWorkType_(t) {
+  const s = String(t || '').toLowerCase();
+  if (/journal|article|review|letter|editorial/.test(s)) return 'journal';
+  if (/conference|proceeding|paper/.test(s)) return 'proceeding';
+  if (/chapter/.test(s)) return 'chapter';
+  if (/book|anthology|monograph/.test(s)) return 'book';
+  if (/patent/.test(s)) return 'patent';
+  if (/report/.test(s)) return 'report';
+  return 'other';
+}
+
+function pureWork_(it) {
+  const st = [].concat(it.publicationStatuses || []);
+  const cur = st.filter(function (x) { return x.current; })[0] || st[0] || {};
+  const pd = cur.publicationDate || {};
+  const ev = [].concat(it.electronicVersions || []);
+  const doiV = ev.filter(function (e) { return e.doi; })[0];
+  const ja = it.journalAssociation || {};
+  return {
+    workRef: it.uuid || it.pureId || '', title: locText_(it.title), type: pureWorkType_(locText_(it.type)),
+    year: String(pd.year || ''), pubDate: pd.year && pd.month ? pd.year + '-' + ('0' + pd.month).slice(-2) + '-' + ('0' + (pd.day || 1)).slice(-2) : '',
+    authors: [].concat(it.contributors || it.personAssociations || []).map(function (c) { const n = c.name || {}; return [n.firstName, n.lastName].filter(String).join(' '); }).filter(String).slice(0, 15).join(', '),
+    venue: locText_(ja.title) || locText_(it.hostPublicationTitle) || locText_((it.event || {}).name), doi: normDoi_(doiV ? doiV.doi : it.doi),
+    ref: locText_(ja.issn) ? 'ISSN ' + locText_(ja.issn) : (it.isbns ? 'ISBN ' + [].concat(it.isbns)[0] : ''),
+    sourceUpdatedAt: String(getPath_(it, 'info.modifiedDate|modifiedDate') || '').slice(0, 10)
+  };
+}
+
+/* ---------------- custom ---------------- */
+
+function mapFields_(it, map) {
+  const o = {};
+  Object.keys(map || {}).forEach(function (k) { const v = getPath_(it, map[k]); o[k] = Array.isArray(v) ? v.map(function (x) { return locText_(x); }).join(', ') : locText_(v); });
+  return o;
+}
+
+function normPersonCodes_(o) {
+  [['academicRank', RANKS], ['highestDegree', DEGREES], ['employmentStatus', EMP_STATUS]].forEach(function (x) {
+    const c = LABEL_TO_CODE_(x[1], o[x[0]]);
+    o[x[0]] = c || '';
+  });
+  return o;
+}
+
+/* ---------------- เก็บผลลงชีต (origin = api) ---------------- */
+
+function upsertApiRows_(table, recs, keyFn) {
+  if (!recs.length) return [];
+  const now = nowIso_();
+  const existing = {};
+  DB.all(table).filter(function (r) { return r.origin === 'api'; }).forEach(function (r) { existing[keyFn(r)] = r; });
+  const replace = {};
+  const out = recs.map(function (o) {
+    const old = existing[keyFn(o)];
+    if (old) replace[old.id] = true;
+    return Object.assign({}, o, { id: old ? old.id : undefined, origin: 'api', fetchedAt: now, createdAt: old ? old.createdAt : now });
+  });
+  DB.removeWhere(table, function (r) { return replace[r.id]; });
+  return DB.insertMany(table, out);
+}
+
+const PERSON_KEY_ = function (r) { return String(r.staffCode || '').toUpperCase(); };
+const WORK_KEY_ = function (r) { return String(r.staffCode || '').toUpperCase() + '|' + (r.workRef || r.doi || normTitle_(r.title)); };
+
+/** ค้นบุคคลผ่าน API → บันทึก → คืนระเบียน Persons (origin api) */
+function apiSearchPersons_(src, q) {
+  const c = apiConf_(src);
+  const json = apiCall_(src, c.searchReq || c.byCodeReq, { q: q, code: q });
+  const items = json && !Array.isArray(json) && !getPath_(json, c.listPath) && (json.uuid || json.staffCode) ? [json] : listOf_(json, c.listPath);
+  const recs = items.slice(0, 50).map(function (it) { return c.preset === 'pure' ? purePerson_(it) : normPersonCodes_(mapFields_(it, c.personMap)); })
+    .filter(function (r) { return r.staffCode; });
+  return upsertApiRows_('Persons', recs.map(function (r) { const o = Object.assign({}, r); delete o.pureId; return o; }), PERSON_KEY_);
+}
+
+function apiPersonByCode_(src, code) {
+  const c = apiConf_(src);
+  const rows = c.byCodeReq && c.preset !== 'pure' ? (function () {
+    const json = apiCall_(src, c.byCodeReq, { code: code, q: code });
+    if (!json) return [];
+    const it = Array.isArray(json) ? json[0] : (getPath_(json, c.listPath) ? listOf_(json, c.listPath)[0] : json);
+    return it ? upsertApiRows_('Persons', [normPersonCodes_(mapFields_(it, c.personMap))].filter(function (r) { return r.staffCode; }), PERSON_KEY_) : [];
+  })() : apiSearchPersons_(src, code);
+  return rows.filter(function (r) { return PERSON_KEY_(r) === String(code).toUpperCase(); })[0] || null;
+}
+
+/** ผลงานของบุคคลจาก MUREX — Pure: หา uuid ของบุคคลจากรหัสบุคลากรก่อน */
+function apiWorksFor_(code) {
+  const c = apiConf_('MUREX');
+  let pid = code;
+  if (c.preset === 'pure') {
+    const json = apiCall_('MUREX', c.searchReq, { q: code });
+    const hit = listOf_(json, c.listPath).filter(function (it) { return purePersonCode_(it).toUpperCase() === String(code).toUpperCase(); })[0];
+    if (!hit) return { works: [], note: 'ไม่พบบุคคลรหัส ' + code + ' ใน MUREX (Pure ต้องมีรหัสบุคลากรใน ids ของบุคคล) — เพิ่มผลงานจากฐานวิชาการหรือกรอกเองได้' };
+    pid = hit.uuid || hit.pureId;
+  }
+  const json = apiCall_('MUREX', c.worksReq, { pid: pid, code: code });
+  const recs = listOf_(json, c.listPath).slice(0, 300).map(function (it) {
+    const w = c.preset === 'pure' ? pureWork_(it) : mapFields_(it, c.workMap);
+    w.type = WORK_TYPES[w.type] ? w.type : pureWorkType_(w.type);
+    w.year = String(normYear_(w.year) || '');
+    w.doi = normDoi_(w.doi);
+    return Object.assign(w, { staffCode: code });
+  }).filter(function (w) { return w.title; });
+  return { works: upsertApiRows_('SourceWorks', recs, WORK_KEY_), note: '' };
+}
+
+/* ---------------- ผู้ดูแล: ตั้งค่าและทดสอบ ---------------- */
+
+function apiAdminView_(src) {
+  const c = apiConf_(src);
+  return {
+    source: src, preset: c.preset, presets: Object.keys(API_PRESETS).map(function (k) { return { key: k, label: API_PRESETS[k].label }; }),
+    base: c.base, authHeader: c.authHeader, authPrefix: c.authPrefix, searchReq: c.searchReq, byCodeReq: c.byCodeReq, worksReq: c.worksReq, listPath: c.listPath,
+    personMap: JSON.stringify(c.personMap || {}, null, 1), workMap: JSON.stringify(c.workMap || {}, null, 1),
+    hasToken: !!c.token, configured: c.configured, connected: apiConnected_(src), lastTest: apiLastTest_(src)
+  };
+}
+
+function saveSourceApi_(p) {
+  requirePerm_('admin.data');
+  const src = String(p.source || '');
+  if (!SOURCES[src]) throw new Error('ไม่รู้จักแหล่งข้อมูล');
+  const preset = API_PRESETS[p.preset] ? p.preset : 'custom';
+  const base = clean_(p.base, 300);
+  if (base && !/^https:\/\/[^\s/]+/i.test(base)) throw new Error('URL ต้องขึ้นต้นด้วย https://');
+  const conf = { preset: preset, base: base, authHeader: clean_(p.authHeader, 60) || 'Authorization', authPrefix: String(p.authPrefix || '').slice(0, 30),
+    searchReq: clean_(p.searchReq, 500), byCodeReq: clean_(p.byCodeReq, 500), worksReq: clean_(p.worksReq, 500), listPath: clean_(p.listPath, 100) };
+  ['searchReq', 'byCodeReq', 'worksReq'].forEach(function (k) { if (conf[k] && !/^(GET|POST)\s+\/\S*/i.test(conf[k])) throw new Error(k + ' ต้องอยู่ในรูป "GET /path" หรือ "POST /path {json}"'); });
+  if (preset === 'custom') {
+    conf.personMap = parseJson_(p.personMap, null); conf.workMap = parseJson_(p.workMap, null);
+    if (!conf.personMap || !conf.personMap.staffCode) throw new Error('การจับคู่ฟิลด์บุคคล (JSON) ต้องมี staffCode');
+    if (src === 'MUREX' && (!conf.workMap || !conf.workMap.title)) throw new Error('การจับคู่ฟิลด์ผลงาน (JSON) ต้องมี title');
+  }
+  setSettings_({ [src + '_API']: JSON.stringify(conf) });
+  const props = PropertiesService.getScriptProperties();
+  if (p.clearToken) props.deleteProperty(src + '_API_TOKEN');
+  else if (String(p.token || '').trim()) props.setProperty(src + '_API_TOKEN', String(p.token).trim());
+  audit_('source.apiConfig', 'Settings', src, ['base', 'requests', p.token ? 'token' : '', p.clearToken ? 'token-cleared' : ''].filter(String), '');
+  return apiAdminView_(src);
+}
+
+/** ทดสอบเรียก API จริงด้วยรหัสหรือชื่อตัวอย่าง — ผลการทดสอบเป็นตัวกำหนดสถานะ "เชื่อมต่อแล้ว" */
+function testSourceApi_(p) {
+  requirePerm_('admin.data');
+  const src = String(p.source || '');
+  if (!SOURCES[src]) throw new Error('ไม่รู้จักแหล่งข้อมูล');
+  const q = clean_(p.q, 100);
+  if (!q) throw new Error('ระบุรหัสบุคลากรหรือชื่อที่ใช้ทดสอบ');
+  const out = { ok: false, at: nowIso_(), message: '', sample: null };
+  try {
+    if (src === 'MUHR') {
+      const rows = /\d/.test(q) ? [apiPersonByCode_('MUHR', q)].filter(Boolean) : apiSearchPersons_('MUHR', q);
+      out.ok = true;
+      out.message = 'เรียก API สำเร็จ — พบ ' + rows.length + ' รายการ' + (rows.length ? '' : ' (ตรวจรหัส/ชื่อทดสอบ หรือการจับคู่ฟิลด์ staffCode)');
+      if (rows[0]) out.sample = { staffCode: rows[0].staffCode, unit: rows[0].unit, fields: Object.keys(rows[0]).filter(function (k) { return rows[0][k]; }) };
+    } else {
+      const persons = apiSearchPersons_('MUREX', q);
+      out.ok = true;
+      out.message = 'เรียก API สำเร็จ — พบบุคคล ' + persons.length + ' รายการที่มีรหัสบุคลากร';
+      if (persons[0]) {
+        const w = apiWorksFor_(persons[0].staffCode);
+        out.message += ' · ดึงผลงานของรหัส ' + persons[0].staffCode + ' ได้ ' + w.works.length + ' รายการ' + (w.note ? ' (' + w.note + ')' : '');
+        out.sample = { staffCode: persons[0].staffCode, works: w.works.length };
+      } else out.message += ' — ถ้าพบ 0 แต่มีบุคคลจริง แสดงว่า Pure ไม่ได้ส่งรหัสบุคลากรมาใน ids หรือกุญแจไม่มีสิทธิ์เห็นข้อมูลนี้';
+    }
+  } catch (e) {
+    out.ok = false; out.message = e.message;
+  }
+  out.confHash = apiConfHash_(src);
+  PropertiesService.getScriptProperties().setProperty('SRC_TEST_' + src, JSON.stringify(out));
+  audit_('source.apiTest', 'Settings', src, { result: out.ok ? 'pass' : 'fail' }, '');
+  return apiAdminView_(src);
+}
 
 
 /* ======================================================================
@@ -878,11 +1187,13 @@ function searchPersons_(p) {
   const code = String(p.staffCode || '').trim().toUpperCase();
   const name = normName_(p.name);
   if (!code && name.length < 2) throw new Error('กรอกรหัสบุคลากร หรือชื่ออย่างน้อย 2 ตัวอักษร');
-  const rows = sourceRows_('MUHR');
+  const live = sourceReady_('MUHR') === 'api';
+  const rows = !live ? sourceRows_('MUHR') : code ? [apiPersonByCode_('MUHR', code)].filter(Boolean) : apiSearchPersons_('MUHR', String(p.name).trim());
   const results = [];
   rows.forEach(function (r) {
     let basis = '', matchedName = '';
     if (code && String(r.staffCode).toUpperCase() === code) basis = 'staffCode';
+    else if (live && !code) { basis = 'name'; matchedName = [r.firstNameTh, r.lastNameTh].join(' ').trim() || [r.firstNameEn, r.lastNameEn].join(' '); } // ระบบต้นทางเป็นผู้ค้นด้วยชื่อ
     else if (!code && name) {
       personNames_(r).forEach(function (n) {
         const nn = normName_(n.text);
@@ -950,7 +1261,6 @@ function normDoi_(d) {
   return String(d || '').trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '').replace(/^doi:\s*/, '').trim();
 }
 
-function normTitle_(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, ''); }
 
 function dice_(a, b) {
   if (!a || !b) return 0;
@@ -1007,6 +1317,1033 @@ function openDupPairs_(requestId, works) {
 
 
 /* ======================================================================
+ * ส่วน: Scholar.gs
+ * ====================================================================== */
+
+/**
+ * Scholar.gs — ค้นผลงานจากฐานข้อมูลวิชาการ (Scopus → Web of Science → PubMed → ERIC → TCI/ThaiJO → OpenAlex)
+ *
+ * ใช้โค้ดค้นหาชุดเดียวกับระบบ MUGR (Discovery.gs + Sources.gs ซึ่งถูกรวมไว้ถัดจากไฟล์นี้)
+ * ไฟล์นี้มีเฉพาะค่าที่โค้ดชุดนั้นต้องใช้ และคำสั่งที่ผูกการค้นเข้ากับคำขอ
+ *
+ * หลักการ
+ * - ระบบแสดง "ข้อเท็จจริง" ว่าพบในฐานใด/วารสารอยู่ในฐานใด พร้อมลิงก์ยืนยัน — ไม่ให้คะแนนหรือตัดสินแทนเกณฑ์
+ * - แยกผลที่ยืนยันจากฐานโดยตรง (record) / จากรายชื่อวารสาร (journal) / ยังยืนยันไม่ได้
+ * - Quartile เก็บพร้อมแหล่งและปีที่ใช้ (CiteScore ปีใด หรือรายชื่อ SJR ที่นำเข้า) ไม่ใช้ค่าคนละแหล่งแทนกันโดยไม่บอก
+ * - API key เก็บใน Script Properties เท่านั้น
+ */
+
+/** ฐานข้อมูลตามประกาศ ก.พ.อ. 2562 (ข้อเท็จจริงด้านการจัดทำดัชนี ใช้แสดงผลและเป็นตัวเลือกในเกณฑ์) */
+const DATABASES = {
+  scopus: { label: 'Scopus', short: 'Scopus', group: 'kpa_intl', level: 'intl', quartile: true },
+  wos: { label: 'Web of Science (SCIE / SSCI / AHCI)', short: 'WoS', group: 'kpa_intl', level: 'intl', quartile: true },
+  pubmed: { label: 'PubMed', short: 'PubMed', group: 'kpa_intl', level: 'intl', quartile: true },
+  eric: { label: 'ERIC', short: 'ERIC', group: 'kpa_intl', level: 'intl', quartile: false },
+  mathscinet: { label: 'MathSciNet', short: 'MathSciNet', group: 'kpa_intl', level: 'intl', quartile: false },
+  jstor: { label: 'JSTOR', short: 'JSTOR', group: 'kpa_intl', level: 'intl', quartile: false },
+  projectmuse: { label: 'Project Muse', short: 'Muse', group: 'kpa_intl', level: 'intl', quartile: false },
+  tci1: { label: 'TCI กลุ่มที่ 1', short: 'TCI 1', group: 'tci1', level: 'nat', quartile: false },
+  tci2: { label: 'TCI กลุ่มที่ 2', short: 'TCI 2', group: 'tci2', level: 'nat', quartile: false },
+  tci3: { label: 'TCI กลุ่มที่ 3', short: 'TCI 3', group: 'none', level: 'nat', quartile: false },
+  other_intl: { label: 'วารสารนานาชาติอื่น', short: 'นานาชาติอื่น', group: 'other_intl', level: 'intl', quartile: false },
+  other_nat: { label: 'วารสารระดับชาติอื่น', short: 'ชาติอื่น', group: 'other_nat', level: 'nat', quartile: false },
+  none: { label: 'ไม่พบในฐานข้อมูล / ยังระบุไม่ได้', short: '—', group: 'none', level: '', quartile: false }
+};
+
+/** กลุ่มฐานข้อมูลที่ใช้เลือกในเกณฑ์ (ค่าที่เลือกต้องมาจากประกาศที่หน่วยงานยืนยัน) */
+const DB_GROUPS = { kpa_intl: 'ฐานนานาชาติตามประกาศ ก.พ.อ. (Scopus/WoS/PubMed/ERIC/...)', tci1: 'TCI กลุ่มที่ 1', tci2: 'TCI กลุ่มที่ 2' };
+
+const PUB_TYPES = {
+  journal: { label: 'บทความในวารสารวิชาการ' },
+  proceedings_intl: { label: 'Proceedings ระดับนานาชาติ', level: 'intl' },
+  proceedings_nat: { label: 'Proceedings ระดับชาติ', level: 'nat' },
+  textbook: { label: 'ตำรา' },
+  book: { label: 'หนังสือ' },
+  patent: { label: 'สิทธิบัตร' },
+  petty_patent: { label: 'อนุสิทธิบัตร' },
+  social: { label: 'ผลงานวิชาการรับใช้สังคม' }
+};
+const PUB_TO_WORK_TYPE_ = { journal: 'journal', proceedings_intl: 'proceeding', proceedings_nat: 'proceeding', textbook: 'book', book: 'book', patent: 'patent', petty_patent: 'patent', social: 'other' };
+
+/* ---- ฟังก์ชันที่โค้ดค้นหาของ MUGR เรียกใช้ (ระบบนี้ไม่คิดคะแนนน้ำหนัก) ---- */
+function currentBE_() { return Number(nowIso_().slice(0, 4)) + 543; }
+function evalWindow_() { const e = currentBE_(); return { start: e - 4, end: e }; }
+function pubWeight_() { return { w: '', basis: '' }; }
+function isAccepted_(p) { const g = (DATABASES[p.database] || {}).group; return g === 'kpa_intl' || g === 'tci1' || g === 'tci2'; }
+function requireRole_() { requirePerm_('admin.data'); }
+function currentUser_() { return CURRENT_USER_; }
+
+/* ---- เก็บผลค้นไว้ชั่วคราวฝั่งเซิร์ฟเวอร์ (ไม่เชื่อข้อมูลผลงานที่หน้าเว็บส่งกลับมา) ---- */
+function cachePutBig_(key, obj) {
+  const s = JSON.stringify(obj);
+  const parts = s.match(/[\s\S]{1,90000}/g) || [''];
+  const cache = CacheService.getScriptCache();
+  const all = { };
+  parts.forEach(function (p, i) { all[key + '_' + i] = p; });
+  all[key] = String(parts.length);
+  cache.putAll ? cache.putAll(all, 3600) : Object.keys(all).forEach(function (k) { cache.put(k, all[k], 3600); });
+}
+function cacheGetBig_(key) {
+  const cache = CacheService.getScriptCache();
+  const n = Number(cache.get(key));
+  if (!n) return null;
+  let s = '';
+  for (let i = 0; i < n; i++) { const p = cache.get(key + '_' + i); if (p === null) return null; s += p; }
+  return JSON.parse(s);
+}
+
+function quartileSource_(w) {
+  if (!w.quartile) return '';
+  const sr = w.direct && w.direct.scopus && w.direct.scopus.serial;
+  if ((w.evidence || []).some(function (e) { return e.indexOf('ใช้ Quartile จาก CiteScore') > -1; }) && sr) return 'CiteScore ' + sr.year + ' (Scopus API, percentile ' + sr.percentile + ')';
+  return 'รายชื่อวารสารที่นำเข้า (เช่น SJR) — ดูปีของรายชื่อในหน้า แหล่งข้อมูล';
+}
+
+/** แปลงผลค้นของ MUGR → ฟิลด์ผลงานในคำขอ */
+function scholarFields_(w) {
+  return {
+    title: clean_(w.title, 500), type: PUB_TO_WORK_TYPE_[w.type] || 'other', year: String(w.yearCE || ''), authors: clean_((w.authors || []).join(', '), 1000),
+    venue: clean_(w.journal, 300), doi: normDoi_(w.doi), ref: clean_(w.pmid ? 'PMID ' + w.pmid : (w.sourceId || ''), 200),
+    database: w.database || 'none', dbGroup: w.group || (DATABASES[w.database] || {}).group || 'none', quartile: w.quartile || '', quartileSource: quartileSource_(w),
+    proof: w.proof || '', foundIn: (w.foundIn || []).join(','), links: JSON.stringify((w.links || []).slice(0, 10)),
+    dbEvidence: clean_((w.evidence || []).join(' | '), 2000), checkedAt: nowIso_()
+  };
+}
+
+function canCollectWorks_(req) {
+  return editableSections_(req).indexOf('works') > -1 || actionsFor_(req).indexOf('verify') > -1;
+}
+
+/** ค้นทุกฐานสำหรับบุคคลในคำขอ — ผลถูกเก็บชั่วคราว แล้วให้ผู้ใช้เลือกเพิ่มเข้าคำขอ */
+function scholarSearch_(p) {
+  const req = loadRequestFor_(p.id);
+  if (!canCollectWorks_(req)) throw new Error('ค้นเพื่อเพิ่มผลงานได้เฉพาะผู้ยื่นที่แก้ส่วนผลงานได้ หรือเจ้าหน้าที่ผู้ตรวจ');
+  const snap = parseJson_(req.personSnap, {}) || {};
+  const ids = parseJson_(req.authorIds, {}) || {};
+  const q = {
+    nameEn: clean_(p.nameEn !== undefined ? p.nameEn : snap.nameEn, 150), nameTh: clean_(p.nameTh !== undefined ? p.nameTh : snap.nameTh, 150),
+    scopusId: clean_(p.scopusId !== undefined ? p.scopusId : ids.scopusId, 30).replace(/\D+/g, ''), orcid: clean_(p.orcid !== undefined ? p.orcid : ids.orcid, 60),
+    affil: clean_(p.affil !== undefined ? p.affil : setting_('SCHOLAR_AFFIL'), 150),
+    fromYear: Number(p.fromYear) || currentBE_() - 4, toYear: Number(p.toYear) || currentBE_()
+  };
+  if (q.fromYear > q.toYear) throw new Error('ปีเริ่มต้องไม่เกินปีสิ้นสุด');
+  if (q.scopusId !== (ids.scopusId || '') || q.orcid !== (ids.orcid || '')) DB.update('Requests', req.id, { authorIds: JSON.stringify({ scopusId: q.scopusId, orcid: q.orcid }) });
+  const r = searchAll_(q);
+  const existing = DB.all('RequestWorks').filter(function (w) { return w.requestId === req.id && ACTIVE_WORK_(w); });
+  const has = function (w) { return existing.some(function (x) { return (w.doi && normDoi_(x.doi) === normDoi_(w.doi)) || (!w.doi && normTitle_(x.title) === normTitle_(w.title)); }); };
+  const token = Utilities.getUuid().replace(/-/g, '');
+  cachePutBig_('sch_' + token, { requestId: req.id, userId: me_().id, works: r.works, query: q, at: nowIso_() });
+  audit_('scholar.search', 'Requests', req.id, ['nameEn', 'nameTh', 'scopusId', 'orcid', 'years'], r.works.length + ' รายการ');
+  return {
+    token: token, query: q, status: r.status, candidates: r.candidates, journalIndex: r.journalIndex, searchedAt: nowIso_(),
+    works: r.works.map(function (w, i) {
+      return { i: i, title: w.title, journal: w.journal, yearCE: w.yearCE, doi: w.doi, authors: (w.authors || []).slice(0, 6), type: w.type, typeLabel: (PUB_TYPES[w.type] || {}).label,
+        database: w.database, dbLabel: (DATABASES[w.database] || DATABASES.none).label, group: w.group, quartile: w.quartile, quartileSource: quartileSource_(w),
+        proof: w.proof, links: w.links, foundIn: w.foundIn, origins: w.origins, evidence: w.evidence, confidence: w.confidence, added: has(w) };
+    })
+  };
+}
+
+function addScholarWorks_(p) {
+  const req = loadRequestFor_(p.id);
+  if (!canCollectWorks_(req)) throw new Error('เพิ่มผลงานไม่ได้ในสถานะนี้');
+  const c = cacheGetBig_('sch_' + String(p.token || ''));
+  if (!c || c.requestId !== req.id || c.userId !== me_().id) throw new Error('ผลการค้นหมดอายุแล้ว (เก็บไว้ 1 ชั่วโมง) — กรุณาค้นใหม่');
+  const picked = [].concat(p.indexes || []).map(Number).filter(function (i, k, a) { return c.works[i] && a.indexOf(i) === k; });
+  if (!picked.length) throw new Error('ยังไม่ได้เลือกผลงาน');
+  const recs = picked.map(function (i) {
+    const w = c.works[i];
+    return Object.assign(scholarFields_(w), { requestId: req.id, origin: 'SCHOLAR', sourceWorkId: (w.origins || [w.origin]).join('+') + ':' + (w.sourceId || w.doi || ''), status: 'pending', addedBy: me_().id, addedRound: req.round });
+  });
+  DB.insertMany('RequestWorks', recs);
+  const dups = detectDuplicates_(req.id);
+  audit_('works.addScholar', 'Requests', req.id, ['works+' + recs.length], '');
+  return { added: recs.length, suspectedDuplicates: dups };
+}
+
+/** ตรวจผลงานที่มี DOI กับฐานข้อมูล (Scopus/PubMed โดยตรง + รายชื่อวารสาร) แล้วบันทึกผลไว้กับผลงาน */
+function checkWorkDb_(p) {
+  const w = DB.get('RequestWorks', p.workId);
+  if (!w) throw new Error('ไม่พบผลงาน');
+  const req = loadRequestFor_(w.requestId);
+  if (!canCollectWorks_(req)) throw new Error('ตรวจได้เฉพาะผู้ยื่นที่แก้ส่วนผลงานได้ หรือเจ้าหน้าที่ผู้ตรวจ');
+  if (!w.doi && !w.title) throw new Error('ผลงานนี้ไม่มี DOI หรือชื่อเรื่อง');
+  const r = analyzeDocument_({ doi: w.doi, title: w.doi ? '' : w.title });
+  if (!r.found) {
+    const patch = { database: 'none', dbGroup: 'none', quartile: '', quartileSource: '', proof: '', foundIn: '', links: '[]', dbEvidence: clean_(r.message, 500), checkedAt: nowIso_() };
+    DB.update('RequestWorks', w.id, patch);
+    return { found: false, message: r.message };
+  }
+  const f = scholarFields_(r.work);
+  const patch = { database: f.database, dbGroup: f.dbGroup, quartile: f.quartile, quartileSource: f.quartileSource, proof: f.proof, foundIn: f.foundIn, links: f.links, dbEvidence: clean_('จับคู่ด้วย ' + r.matchedBy + ' | ' + f.dbEvidence, 2000), checkedAt: f.checkedAt };
+  DB.update('RequestWorks', w.id, patch);
+  audit_('works.checkDb', 'RequestWorks', w.id, ['database', 'quartile', 'proof'], '');
+  return { found: true, database: f.database, quartile: f.quartile, proof: f.proof };
+}
+
+/* ---------------- ผู้ดูแล: API key และรายชื่อวารสาร ---------------- */
+
+function scholarAdmin_() {
+  requirePerm_('admin.data');
+  return { keys: apiKeysStatus_(), lastTest: lastKeyTest_(), journals: journalIndexStats_(), databases: DATABASES, affil: setting_('SCHOLAR_AFFIL'), mailto: setting_('OPENALEX_MAILTO') };
+}
+
+/** นำเข้ารายชื่อวารสารจาก CSV (SJR ใช้ ; คั่น / TCI ใช้ ,) — หาคอลัมน์ ISSN ชื่อวารสาร และ Quartile อัตโนมัติ */
+function importJournalCsv_(p) {
+  requirePerm_('admin.data');
+  const text = String(p.csv || '').replace(/^﻿/, '');
+  if (!text.trim()) throw new Error('ไฟล์ว่างเปล่า');
+  if (text.length > 15 * 1024 * 1024) throw new Error('ไฟล์ใหญ่เกิน 15 MB');
+  const first = text.split(/\r?\n/)[0];
+  const delim = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ';' : ',';
+  const rows = parseCsv_(text, delim);
+  const h = (rows[0] || []).map(function (x) { return String(x).trim().toLowerCase(); });
+  const issnCols = h.map(function (x, i) { return /issn/.test(x) ? i : -1; }).filter(function (i) { return i > -1; });
+  const titleCol = h.findIndex(function (x) { return /^title$|journal|ชื่อ|source title/.test(x); });
+  const qCol = h.findIndex(function (x) { return /quartile/.test(x); });
+  if (!issnCols.length) throw new Error('ไม่พบคอลัมน์ ISSN ในแถวแรกของไฟล์');
+  const list = rows.slice(1).map(function (r) {
+    const issns = [];
+    issnCols.forEach(function (i) { String(r[i] || '').split(/[,;\s]+/).forEach(function (s) { if (normIssn_(s)) issns.push(s); }); });
+    return { title: titleCol > -1 ? r[titleCol] : '', issns: issns, quartile: qCol > -1 ? r[qCol] : '' };
+  }).filter(function (x) { return x.issns.length; });
+  if (!list.length) throw new Error('ไม่พบ ISSN ที่ถูกต้องในไฟล์');
+  const source = clean_(p.source, 60);
+  if (!source) throw new Error('ระบุชื่อแหล่งและปีของรายชื่อ เช่น "SJR 2024" หรือ "TCI กลุ่ม 1 (ประกาศ 2568)"');
+  return importJournalIndex_({ database: p.database, source: source, replace: true, rows: list });
+}
+
+
+/* ======================================================================
+ * ส่วน: Discovery.gs (ใช้ร่วมกับระบบ MUGR)
+ * ====================================================================== */
+
+/**
+ * Discovery.gs — ค้นหาผลงานอัตโนมัติจากชื่อ (ไทย/อังกฤษ) และตรวจไฟล์ผลงานที่แนบ
+ *
+ * แหล่งข้อมูล (ฟรี ไม่ต้องใช้ API key):
+ *  - OpenAlex (api.openalex.org)  : ค้นนักวิจัยและผลงาน, ISSN ของวารสาร, PMID (บอกว่าอยู่ใน PubMed)
+ *  - Crossref (api.crossref.org)  : ค้นผลงานจากชื่อผู้แต่งภาษาไทย และค้นจาก DOI สำรอง
+ *
+ * การจัดกลุ่มฐานข้อมูลตามประกาศ ก.พ.อ. ใช้ "รายชื่อวารสาร" (ชีต JournalIndex) ที่ผู้ดูแลระบบนำเข้า
+ * เช่น SJR (Scopus + Quartile), รายชื่อ TCI กลุ่ม 1/2, Web of Science — จับคู่ด้วย ISSN
+ * ระบบไม่ตัดสินแทนผู้ตรวจ: ผลงานที่นำเข้าทุกชิ้นมีสถานะ "รอตรวจรับรอง"
+ */
+
+const OPENALEX = 'https://api.openalex.org';
+const CROSSREF = 'https://api.crossref.org';
+const DB_PRIORITY = ['scopus', 'wos', 'pubmed', 'eric', 'mathscinet', 'jstor', 'projectmuse', 'tci1', 'tci2', 'other_intl', 'other_nat', 'tci3'];
+
+/* ---------------- HTTP ---------------- */
+
+function httpJson_(url, extraHeaders) {
+  const cache = CacheService.getScriptCache();
+  const key = 'h' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url)).slice(0, 22);
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  let mail = getSettings_().OPENALEX_MAILTO || '';
+  if (!mail) { try { mail = Session.getEffectiveUser().getEmail() || ''; } catch (e) { mail = ''; } } // ไม่มีสิทธิ์อ่านอีเมล → ค้นต่อได้โดยไม่ใส่อีเมล
+  const full = url + (mail && url.indexOf(OPENALEX) === 0 ? (url.indexOf('?') > -1 ? '&' : '?') + 'mailto=' + encodeURIComponent(mail) : '');
+  const headers = Object.assign({ 'User-Agent': 'MUGR-Academic-Tracker (Apps Script; mailto:' + mail + ')' }, extraHeaders || {});
+  const res = UrlFetchApp.fetch(full, { muteHttpExceptions: true, headers: headers });
+  const code = res.getResponseCode();
+  if (code === 404) return null;
+  if (code === 401 || code === 403) {
+    let detail = '';
+    try { const b = JSON.parse(res.getContentText()); const se = b['service-error'] && b['service-error'].status; detail = se ? ' [' + se.statusCode + ': ' + se.statusText + ']' : (b.error ? ' [' + (b.error.message || b.error) + ']' : ''); } catch (e) { /* not JSON */ }
+    throw new Error('API key ไม่ถูกต้องหรือไม่มีสิทธิ์ (' + code + ')' + detail + ' — ถ้าเป็น Scopus ให้ขอ Institutional Token จากหอสมุด แล้วใส่ในหน้าตั้งค่า');
+  }
+  if (code === 429) throw new Error('ใช้งานเกินโควตาของฐานข้อมูล (429) — ลองใหม่ภายหลัง');
+  if (code >= 400) throw new Error('ฐานข้อมูลภายนอกตอบกลับผิดพลาด (' + code + ') กรุณาลองใหม่อีกครั้ง');
+  const text = res.getContentText();
+  try { if (text.length < 90000) cache.put(key, text, 21600); } catch (e) { /* cache full */ }
+  return JSON.parse(text);
+}
+
+function shortId_(id) { return String(id || '').replace(/^https?:\/\/openalex\.org\//, ''); }
+function cleanDoi_(d) {
+  return String(d || '').trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '').replace(/[.,;)\]]+$/, '').toLowerCase();
+}
+function normIssn_(s) {
+  const m = String(s || '').toUpperCase().replace(/[^0-9X]/g, '');
+  return m.length === 8 ? m : '';
+}
+function fmtIssn_(s) { return s ? s.slice(0, 4) + '-' + s.slice(4) : ''; }
+function normTitle_(t) { return String(t || '').toLowerCase().replace(/<[^>]+>/g, '').replace(/[^0-9a-z฀-๿]+/g, ''); }
+function hasThai_(s) { return /[฀-๿]/.test(String(s || '')); }
+
+/* ---------------- รายชื่อวารสาร (JournalIndex) ---------------- */
+
+let JOURNAL_MAP_ = null;
+
+/** โหลดรายชื่อวารสารครั้งเดียวต่อการเรียก → { ISSN: [{database, quartile, title, source}] } */
+function journalMap_() {
+  if (JOURNAL_MAP_) return JOURNAL_MAP_;
+  JOURNAL_MAP_ = {};
+  DB.all('JournalIndex').forEach(function (r) {
+    const k = normIssn_(r.issn);
+    if (!k) return;
+    (JOURNAL_MAP_[k] = JOURNAL_MAP_[k] || []).push({ database: r.database, quartile: r.quartile || '', title: r.title || '', source: r.source || '' });
+  });
+  return JOURNAL_MAP_;
+}
+
+function journalIndexStats_() {
+  const by = {};
+  let total = 0;
+  DB.all('JournalIndex').forEach(function (r) { by[r.database] = (by[r.database] || 0) + 1; total++; });
+  return { total: total, byDatabase: by };
+}
+
+/**
+ * จัดกลุ่มผลงาน 1 ชิ้นตามประกาศ ก.พ.อ.
+ * input: { issns:[], pmid, sourceType, workType, title, journal }
+ */
+function classify_(w) {
+  const map = journalMap_();
+  const evidence = [];
+  const hits = [];
+  (w.issns || []).map(normIssn_).filter(String).forEach(function (k) {
+    (map[k] || []).forEach(function (h) { hits.push(Object.assign({ issn: k }, h)); });
+  });
+  hits.sort(function (a, b) {
+    const d = DB_PRIORITY.indexOf(a.database) - DB_PRIORITY.indexOf(b.database);
+    return d || String(a.quartile || 'Q9').localeCompare(String(b.quartile || 'Q9'));
+  });
+  hits.forEach(function (h) {
+    const label = (DATABASES[h.database] || { label: h.database }).label;
+    const line = 'ISSN ' + fmtIssn_(h.issn) + ' อยู่ในรายชื่อ ' + label + (h.quartile ? ' (' + h.quartile + ')' : '') + (h.source ? ' — แหล่ง: ' + h.source : '');
+    if (evidence.indexOf(line) === -1) evidence.push(line);
+  });
+
+  let database = hits.length ? hits[0].database : '';
+  let quartile = hits.length && hits[0].quartile ? hits[0].quartile : '';
+  const dir = w.direct || {};
+  const direct = [];
+  // ผลที่ค้นเจอในฐานโดยตรงมาก่อนรายชื่อ ISSN — Scopus เป็นอันดับแรก
+  if (dir.scopus) {
+    direct.push('scopus');
+    evidence.unshift('พบในฐาน Scopus โดยตรง (EID ' + dir.scopus.eid + (dir.scopus.agg ? ', ' + dir.scopus.agg : '') + ')');
+    const sr = dir.scopus.serial;
+    if (sr) {
+      evidence.splice(1, 0, 'ข้อมูลวารสารจาก Scopus: ' + (sr.title || '') + (sr.citeScore ? ' · CiteScore ' + sr.citeScore : '') +
+        (sr.percentile !== '' ? ' · percentile ' + sr.percentile + (sr.subject ? ' (' + sr.subject + ')' : '') + ' → ' + sr.quartile + ' (CiteScore ' + sr.year + ')' : '') +
+        (sr.coverageEnd ? ' · อยู่ใน Scopus ถึงปี ' + sr.coverageEnd : ''));
+      if (sr.coverageEnd && w.yearCE && Number(sr.coverageEnd) < Number(w.yearCE)) evidence.push('⚠ วารสารอยู่ใน Scopus ถึงปี ' + sr.coverageEnd + ' แต่ผลงานพิมพ์ปี ' + w.yearCE + ' — ตรวจว่ายังอยู่ในฐานตอนตีพิมพ์');
+    }
+  }
+  if (dir.wos) {
+    direct.push('wos');
+    const wosListed = hits.some(function (h) { return h.database === 'wos'; });
+    evidence.push('พบใน Web of Science Core Collection (' + dir.wos.uid + ')' + (wosListed ? ' และ ISSN อยู่ในรายชื่อ SCIE/SSCI/AHCI' : ' — ตรวจ edition: นับเฉพาะ SCIE/SSCI/AHCI (ESCI ไม่นับ)'));
+  }
+  if (dir.pubmed) direct.push('pubmed');
+  if (dir.eric) { if (dir.eric.journal) { direct.push('eric'); evidence.push('พบในฐาน ERIC (' + dir.eric.id + ', บทความวารสาร)'); } else evidence.push('พบใน ERIC แต่เป็นเอกสารประเภท ED (ไม่ใช่บทความวารสาร)'); }
+  const firstDirect = DB_PRIORITY.filter(function (d) { return direct.indexOf(d) > -1; })[0];
+  if (firstDirect && (!database || DB_PRIORITY.indexOf(firstDirect) <= DB_PRIORITY.indexOf(database) || (DATABASES[database] || {}).group !== 'kpa_intl')) {
+    database = firstDirect;
+    const qHit = hits.filter(function (h) { return h.database === firstDirect && /^Q[1-4]$/.test(h.quartile); })[0] ||
+                 hits.filter(function (h) { return h.database === 'scopus' && /^Q[1-4]$/.test(h.quartile); })[0];
+    quartile = qHit ? qHit.quartile : '';
+    if (firstDirect === 'scopus' && !quartile && dir.scopus && dir.scopus.serial && dir.scopus.serial.quartile) {
+      quartile = dir.scopus.serial.quartile;
+      evidence.push('ใช้ Quartile จาก CiteScore ของ Scopus (ไม่พบในรายชื่อ SJR ที่นำเข้า)');
+    } else if (firstDirect === 'scopus' && !quartile) evidence.push('ไม่พบ Quartile ในรายชื่อ SJR ที่นำเข้า — ตรวจที่ scimagojr.com');
+  }
+  // ถ้าวารสารอยู่หลายฐาน ใช้ Quartile ที่ดีที่สุดของฐานนานาชาติ
+  const kpa = hits.filter(function (h) { return (DATABASES[h.database] || {}).group === 'kpa_intl' && /^Q[1-4]$/.test(h.quartile); });
+  if (database && (DATABASES[database] || {}).group === 'kpa_intl' && kpa.length) quartile = kpa.map(function (h) { return h.quartile; }).sort()[0];
+
+  if (w.pmid || dir.pubmed) {
+    if (direct.indexOf('pubmed') === -1) direct.push('pubmed');
+    if (!w.pmid) w.pmid = dir.pubmed.pmid;
+    evidence.push('มีรหัส PubMed (PMID ' + w.pmid + ') → อยู่ในฐานข้อมูล PubMed');
+    if (!database || DB_PRIORITY.indexOf(database) > DB_PRIORITY.indexOf('pubmed')) { database = 'pubmed'; quartile = quartile || ''; }
+  }
+
+  let type = 'journal';
+  const st = String(w.sourceType || '').toLowerCase(), wt = String(w.workType || '').toLowerCase();
+  if (dir.eric && !dir.eric.journal && !database) type = 'journal';
+  else if (st === 'conference' || /proceedings/.test(wt)) type = hasThai_(w.journal) || hasThai_(w.title) ? 'proceedings_nat' : 'proceedings_intl';
+  else if (wt === 'book' || wt === 'monograph') type = 'book';
+
+  let confidence = direct.length ? 'high' : (hits.length ? 'high' : 'unknown');
+  if (database === 'wos' && direct.indexOf('wos') > -1 && !hits.some(function (h) { return h.database === 'wos'; })) confidence = 'medium';
+  if (type === 'journal' && !database) {
+    database = 'none';
+    confidence = 'unknown';
+    if (direct.length || (dir.eric && !dir.eric.journal)) confidence = 'high';
+    evidence.push((w.issns || []).length
+      ? 'ไม่พบ ISSN ' + w.issns.map(function (s) { return fmtIssn_(normIssn_(s)); }).filter(String).join(', ') + ' ในรายชื่อวารสารที่นำเข้า — ตรวจด้วยตนเองที่ SCImago / TCI / Web of Science'
+      : 'ไม่พบ ISSN ของแหล่งเผยแพร่ — ตรวจด้วยตนเอง');
+  }
+  if (type !== 'journal') { evidence.push('ประเภท: ' + PUB_TYPES[type].label + ' (จากข้อมูลแหล่งเผยแพร่)' + (dir.scopus ? ' — อยู่ใน Scopus' : '')); confidence = 'medium'; }
+
+  const db = DATABASES[type === 'journal' ? database : 'none'] || DATABASES.none;
+  const p = { type: type, database: type === 'journal' ? database : 'none', quartile: type === 'journal' && db.quartile ? quartile : '' };
+  const wt2 = pubWeight_(p, getSettings_());
+  return Object.assign(p, {
+    level: type === 'journal' ? db.level : (PUB_TYPES[type].level || ''),
+    group: type === 'journal' ? db.group : 'other',
+    accepted: isAccepted_(p),
+    weight: wt2.w, basis: wt2.basis, confidence: confidence, evidence: evidence, foundIn: direct,
+    scopusUrl: dir.scopus ? scopusRecordUrl_(dir.scopus.eid) : '',
+    scopusSourceUrl: dir.scopus && dir.scopus.serial ? dir.scopus.serial.url : ''
+  });
+}
+
+/* ---------------- OpenAlex / Crossref → รูปแบบกลาง ---------------- */
+
+function fromOpenAlex_(w) {
+  const loc = w.primary_location || {};
+  const src = loc.source || {};
+  const issns = [].concat(src.issn || [], src.issn_l ? [src.issn_l] : []).filter(String);
+  const pmid = w.ids && w.ids.pmid ? String(w.ids.pmid).replace(/\D+/g, '') : '';
+  return {
+    sourceId: shortId_(w.id), origin: 'OpenAlex',
+    title: w.title || w.display_name || '', journal: src.display_name || '', publisher: src.host_organization_name || '',
+    yearCE: Number(w.publication_year) || 0, doi: cleanDoi_(w.doi), url: w.doi || loc.landing_page_url || '',
+    issns: issns.filter(function (v, i, a) { return a.indexOf(v) === i; }), pmid: pmid,
+    sourceType: src.type || '', workType: w.type || '',
+    authors: (w.authorships || []).map(function (a) { return a.author && a.author.display_name ? a.author.display_name : a.raw_author_name; }).filter(String).slice(0, 12)
+  };
+}
+
+function fromCrossref_(it) {
+  const parts = (it.issued && it.issued['date-parts'] && it.issued['date-parts'][0]) || (it['published-print'] && it['published-print']['date-parts'][0]) || [];
+  return {
+    sourceId: it.DOI, origin: 'Crossref',
+    title: (it.title || [])[0] || '', journal: (it['container-title'] || [])[0] || '', publisher: it.publisher || '',
+    yearCE: Number(parts[0]) || 0, doi: cleanDoi_(it.DOI), url: it.DOI ? 'https://doi.org/' + it.DOI : (it.URL || ''),
+    issns: it.ISSN || [], pmid: '',
+    sourceType: /proceedings/.test(it.type || '') ? 'conference' : 'journal', workType: it.type || '',
+    authors: (it.author || []).map(function (a) { return [a.given, a.family].filter(String).join(' ') || a.name || ''; }).filter(String).slice(0, 12)
+  };
+}
+
+/** เติมการจัดกลุ่ม + ปี พ.ศ. + ตรวจซ้ำกับผลงานในระบบ */
+function finishWorks_(list, person) {
+  const settings = getSettings_();
+  const win = evalWindow_(settings);
+  const existing = !TABLES.Publications ? [] : DB.all('Publications').filter(function (p) { return !person || (p.personType === person.personType && p.personId === person.personId); });
+  const doiSet = {}, titleSet = {};
+  existing.forEach(function (p) { if (p.doi) doiSet[cleanDoi_(p.doi)] = 1; if (normTitle_(p.title)) titleSet[normTitle_(p.title)] = 1; });
+  const seen = {};
+  return list.filter(function (w) {
+    const k = w.doi || normTitle_(w.title) || 'issn:' + (w.issns || []).join(',');
+    if (!k || seen[k]) return false;
+    seen[k] = 1; return true;
+  }).map(function (w) {
+    const c = classify_(w);
+    const year = w.yearCE ? w.yearCE + 543 : 0;
+    const v = verifyLinks_(w, c);
+    return Object.assign({}, w, c, {
+      year: year, links: v.links, proof: v.proof,
+      inWindow: year >= win.start && year <= win.end,
+      expired: year > 0 && year < win.start,
+      duplicate: !!((w.doi && doiSet[w.doi]) || (normTitle_(w.title) && titleSet[normTitle_(w.title)]))
+    });
+  }).sort(function (a, b) { return b.year - a.year; });
+}
+
+/**
+ * ลิงก์ยืนยันว่าผลงาน/วารสารอยู่ในฐานตามประกาศจริง
+ * proof: 'record'  = พบตัวบทความในฐานที่จัดกลุ่มโดยตรง
+ *        'journal' = ยืนยันจากรายชื่อวารสาร (ISSN) เท่านั้น
+ *        ''        = ยังยืนยันไม่ได้
+ */
+function verifyLinks_(w, c) {
+  const d = w.direct || {};
+  const issn = (w.issns || []).map(normIssn_).filter(String)[0] || '';
+  const fi = fmtIssn_(issn);
+  const L = [];
+  const add = function (db, kind, label, url) { if (url && !L.some(function (x) { return x.url === url; })) L.push({ db: db, kind: kind, label: label, url: url }); };
+  if (d.scopus) add('scopus', 'record', 'บทความใน Scopus', scopusRecordUrl_(d.scopus.eid));
+  if (d.scopus && d.scopus.serial && d.scopus.serial.url) add('scopus', 'journal', 'วารสารใน Scopus', d.scopus.serial.url);
+  if (d.wos) add('wos', 'record', 'บทความใน Web of Science', 'https://www.webofscience.com/wos/woscc/full-record/' + encodeURIComponent(d.wos.uid));
+  if ((d.wos || c.database === 'wos') && fi) add('wos', 'journal', 'ตรวจ SCIE/SSCI/AHCI (Master Journal List)', 'https://mjl.clarivate.com/search-results?issn=' + fi);
+  const pmid = w.pmid || (d.pubmed && d.pubmed.pmid);
+  if (pmid) add('pubmed', 'record', 'บทความใน PubMed', 'https://pubmed.ncbi.nlm.nih.gov/' + pmid + '/');
+  if (d.eric) add('eric', 'record', 'บทความใน ERIC', 'https://eric.ed.gov/?id=' + encodeURIComponent(d.eric.id));
+  if ((c.database === 'scopus' || d.scopus) && issn) add('scopus', 'journal', 'Quartile ที่ SCImago (SJR)', 'https://www.scimagojr.com/journalsearch.php?q=' + issn);
+  if (/^tci/.test(c.database) && fi) add(c.database, 'journal', 'ตรวจกลุ่มวารสาร TCI (ค้นด้วย ISSN ' + fi + ')', 'https://tci-thailand.org/');
+  if (w.doi) add('doi', 'record', 'DOI', 'https://doi.org/' + w.doi);
+  let proof = '';
+  if (c.database && c.database !== 'none' && L.some(function (x) { return x.db === c.database && x.kind === 'record'; })) proof = 'record';
+  else if (c.database && c.database !== 'none' && c.confidence !== 'unknown') proof = 'journal';
+  else if (c.type !== 'journal' && L.some(function (x) { return x.kind === 'record' && ['scopus', 'wos', 'pubmed', 'eric'].indexOf(x.db) > -1; })) proof = 'record';
+  return { links: L, proof: proof };
+}
+
+/* ---------------- Actions ---------------- */
+
+/** ค้นนักวิจัยจากชื่อภาษาอังกฤษ (OpenAlex) */
+function findAuthors_(p) {
+  const name = String(p.nameEn || '').trim();
+  if (!name) return { candidates: [], note: 'กรอกชื่อภาษาอังกฤษเพื่อค้นใน OpenAlex' };
+  const r = httpJson_(OPENALEX + '/authors?search=' + encodeURIComponent(name) + '&per_page=8&select=id,display_name,display_name_alternatives,works_count,cited_by_count,orcid,last_known_institutions');
+  const list = ((r && r.results) || []).map(function (a) {
+    const inst = (a.last_known_institutions || [])[0] || {};
+    return { id: shortId_(a.id), name: a.display_name, alt: (a.display_name_alternatives || []).slice(0, 3), works: a.works_count || 0, cited: a.cited_by_count || 0,
+      orcid: a.orcid || '', institution: inst.display_name || '', country: inst.country_code || '' };
+  });
+  // ให้ผู้ที่สังกัดในประเทศไทยขึ้นก่อน
+  list.sort(function (a, b) { return (b.country === 'TH') - (a.country === 'TH') || b.works - a.works; });
+  return { candidates: list };
+}
+
+/** ดึงผลงานของนักวิจัย (OpenAlex) + ผลงานจากชื่อไทย (Crossref) แล้วจัดกลุ่มตามประกาศ */
+function findWorks_(p) {
+  const fromYearCE = (Number(p.fromYear) || evalWindow_(getSettings_()).start) - 543;
+  const list = [];
+  const sources = [];
+  if (p.authorId) {
+    const sel = 'id,doi,title,display_name,publication_year,type,ids,primary_location,authorships';
+    const r = httpJson_(OPENALEX + '/works?filter=author.id:' + encodeURIComponent(p.authorId) + ',from_publication_date:' + fromYearCE + '-01-01&per_page=100&sort=publication_year:desc&select=' + sel);
+    ((r && r.results) || []).forEach(function (w) { list.push(fromOpenAlex_(w)); });
+    sources.push('OpenAlex ' + ((r && r.results) || []).length + ' รายการ');
+  }
+  const th = String(p.nameTh || '').trim();
+  if (th) {
+    const r2 = httpJson_(CROSSREF + '/works?query.author=' + encodeURIComponent(th) + '&filter=from-pub-date:' + fromYearCE + '&rows=40&select=DOI,title,ISSN,container-title,issued,type,author,publisher,URL');
+    const items = ((r2 && r2.message && r2.message.items) || []).filter(function (it) {
+      // Crossref ค้นแบบคลุมเครือ — เก็บเฉพาะรายการที่มีชื่อผู้แต่งตรงกับชื่อไทยจริง
+      const key = th.replace(/\s+/g, '');
+      return (it.author || []).some(function (a) { return ([a.given, a.family].join('') + (a.name || '')).replace(/\s+/g, '').indexOf(key) > -1; });
+    });
+    items.forEach(function (it) { list.push(fromCrossref_(it)); });
+    sources.push('Crossref (ชื่อไทย) ' + items.length + ' รายการ');
+  }
+  const person = p.personId ? { personType: p.personType || 'faculty', personId: p.personId } : null;
+  const works = finishWorks_(list, person);
+  return { works: works, sources: sources, summary: summarize_(works), journalIndex: journalIndexStats_() };
+}
+
+function summarize_(works) {
+  const s = { intl: 0, nat: 0, other: 0, unknown: 0, inWindow: 0 };
+  works.forEach(function (w) {
+    if (w.inWindow) s.inWindow++;
+    if (w.confidence === 'unknown') s.unknown++;
+    else if (w.group === 'kpa_intl') s.intl++;
+    else if (w.group === 'tci1' || w.group === 'tci2') s.nat++;
+    else s.other++;
+  });
+  return s;
+}
+
+/** ตรวจไฟล์ผลงาน: รับข้อความที่อ่านจากไฟล์ (หรือ DOI/ชื่อเรื่องที่พิมพ์) → หาเมทาดาทาจริง → จัดกลุ่ม */
+function analyzeDocument_(p) {
+  const text = String(p.text || '').slice(0, 60000);
+  let doi = cleanDoi_(p.doi);
+  if (!doi) { const m = text.match(/\b(10\.\d{4,9}\/[^\s"'<>]+)/i); if (m) doi = cleanDoi_(m[1]); }
+  const issnFound = [];
+  const re = /\b(\d{4}-\d{3}[\dXx])\b/g;
+  let m2;
+  while ((m2 = re.exec(text)) && issnFound.length < 6) { if (issnFound.indexOf(m2[1].toUpperCase()) === -1) issnFound.push(m2[1].toUpperCase()); }
+  [].concat(p.issns || []).forEach(function (s) { if (normIssn_(s) && issnFound.indexOf(s) === -1) issnFound.push(s); });
+
+  let work = null, matchedBy = '';
+  if (doi) {
+    const r = httpJson_(OPENALEX + '/works/doi:' + encodeURIComponent(doi));
+    if (r && r.id) { work = fromOpenAlex_(r); matchedBy = 'DOI ' + doi + ' (OpenAlex)'; }
+    else {
+      const c = httpJson_(CROSSREF + '/works/' + encodeURIComponent(doi));
+      if (c && c.message) { work = fromCrossref_(c.message); matchedBy = 'DOI ' + doi + ' (Crossref)'; }
+    }
+  }
+  const title = String(p.title || '').trim();
+  if (!work && title.length > 12) {
+    const r = httpJson_(OPENALEX + '/works?search=' + encodeURIComponent(title.slice(0, 250)) + '&per_page=3&select=id,doi,title,display_name,publication_year,type,ids,primary_location,authorships');
+    const best = ((r && r.results) || []).filter(function (w) {
+      const a = normTitle_(w.title), b = normTitle_(title);
+      return a && b && (a.indexOf(b.slice(0, 40)) > -1 || b.indexOf(a.slice(0, 40)) > -1);
+    })[0];
+    if (best) { work = fromOpenAlex_(best); matchedBy = 'ชื่อบทความ (OpenAlex)'; }
+  }
+  if (!work) {
+    if (!issnFound.length) return { found: false, doi: doi, issns: [], message: 'ไม่พบ DOI, ISSN หรือชื่อบทความที่ค้นเจอในฐานข้อมูล — ลองพิมพ์ DOI หรือชื่อบทความด้วยตนเอง' };
+    work = { title: title, journal: '', yearCE: 0, doi: doi, url: doi ? 'https://doi.org/' + doi : '', issns: issnFound, pmid: '', sourceType: 'journal', workType: 'article', authors: [], origin: 'ไฟล์' };
+    matchedBy = 'ISSN ที่พบในไฟล์';
+  } else {
+    issnFound.forEach(function (s) { if (work.issns.indexOf(s) === -1) work.issns.push(s); });
+  }
+  const dc = directChecksByDoi_(work.doi || doi);
+  work.direct = Object.assign({}, work.direct || {}, dc.direct);
+  if (!work.pmid && dc.pmid) work.pmid = dc.pmid;
+  const res = finishWorks_([work], null)[0];
+  res.evidence = res.evidence.concat(dc.evidence);
+  // เดาเจ้าของผลงานจากรายชื่อผู้แต่ง
+  const owners = [];
+  const names = (work.authors || []).map(function (a) { return String(a).toLowerCase(); }).join(' | ');
+  (TABLES.Faculty ? DB.all('Faculty').concat(DB.all('Experts').map(function (x) { return Object.assign({ _expert: true }, x); })) : []).forEach(function (f) {
+    const en = String(f.nameEn || '').toLowerCase().trim();
+    const last = en.split(/\s+/).pop();
+    if ((last && last.length > 2 && names.indexOf(last) > -1) || (f.nameTh && (work.authors || []).join(' ').indexOf(String(f.nameTh).split(/\s+/)[0]) > -1 && hasThai_(f.nameTh))) {
+      owners.push({ personType: f._expert ? 'expert' : 'faculty', personId: f.id, name: personName_(f) });
+    }
+  });
+  return { found: true, matchedBy: matchedBy, work: res, owners: owners.slice(0, 5), doi: doi, issnsInFile: issnFound };
+}
+
+/** นำผลงานที่เลือกเข้าระบบ (สถานะ: รอตรวจรับรอง) */
+function importWorks_(p) {
+  const personType = p.personType === 'expert' ? 'expert' : 'faculty';
+  if (!p.personId) throw new Error('กรุณาเลือกบุคคลที่จะนำเข้าผลงาน');
+  if (!canEditPerson_(personType, p.personId)) throw new Error('คุณไม่มีสิทธิ์เพิ่มผลงานให้บุคคลนี้');
+  const works = [].concat(p.works || []).slice(0, 200);
+  if (!works.length) throw new Error('ยังไม่ได้เลือกผลงาน');
+  const existing = DB.all('Publications').filter(function (x) { return x.personType === personType && x.personId === p.personId; });
+  const dois = {}, titles = {};
+  existing.forEach(function (x) { if (x.doi) dois[cleanDoi_(x.doi)] = 1; titles[normTitle_(x.title)] = 1; });
+  const u = currentUser_();
+  const rows = [];
+  works.forEach(function (w) {
+    const doi = cleanDoi_(w.doi);
+    if ((doi && dois[doi]) || titles[normTitle_(w.title)]) return;
+    const year = Number(w.year);
+    if (!String(w.title || '').trim() || !(year >= 2500 && year <= 2700)) return;
+    const type = PUB_TYPES[w.type] ? w.type : 'journal';
+    const db = type === 'journal' && DATABASES[w.database] ? w.database : 'none';
+    rows.push({ personType: personType, personId: p.personId, title: String(w.title).trim().slice(0, 500), source: String(w.journal || '').slice(0, 300),
+      year: year, type: type, database: db, quartile: db !== 'none' && DATABASES[db].quartile && /^Q[1-4]$/.test(w.quartile) ? w.quartile : '',
+      authorRole: '', doi: doi, url: w.url || (doi ? 'https://doi.org/' + doi : ''), status: 'pending',
+      note: ('นำเข้าอัตโนมัติ (' + (w.origin || 'ระบบ') + '): ' + [].concat(w.evidence || []).join(' / ')).slice(0, 900),
+      isSample: false, createdBy: u.email });
+    if (doi) dois[doi] = 1;
+    titles[normTitle_(w.title)] = 1;
+  });
+  DB.insertMany('Publications', rows);
+  audit_('import_works', personType + ':' + p.personId + ' +' + rows.length);
+  return { imported: rows.length, skipped: works.length - rows.length };
+}
+
+/** บันทึกไฟล์ผลงานที่แนบไว้ใน Google Drive เป็นหลักฐาน */
+function saveEvidence_(p) {
+  const u = currentUser_();
+  if (u.role === 'executive') throw new Error('คุณไม่มีสิทธิ์อัปโหลดไฟล์');
+  const bytes = Utilities.base64Decode(String(p.base64 || ''));
+  if (!bytes.length) throw new Error('ไม่พบข้อมูลไฟล์');
+  if (bytes.length > 15 * 1024 * 1024) throw new Error('ไฟล์ใหญ่เกิน 15 MB');
+  const it = DriveApp.getFoldersByName(APP.evidenceFolder);
+  const folder = it.hasNext() ? it.next() : DriveApp.createFolder(APP.evidenceFolder);
+  const name = String(p.fileName || 'ผลงาน.pdf').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 150);
+  const file = folder.createFile(Utilities.newBlob(bytes, p.mimeType || 'application/pdf', name));
+  audit_('upload_evidence', name);
+  return { url: file.getUrl(), name: name };
+}
+
+/** นำเข้ารายชื่อวารสาร (ISSN → ฐานข้อมูล/Quartile) */
+function importJournalIndex_(p) {
+  requireRole_(['admin']);
+  const database = p.database;
+  if (!DATABASES[database] || database === 'none') throw new Error('กรุณาเลือกฐานข้อมูลของรายชื่อนี้');
+  const source = String(p.source || database).slice(0, 60);
+  if (p.replace) DB.removeWhere('JournalIndex', function (r) { return r.database === database && r.source === source; });
+  const seen = {};
+  const rows = [];
+  [].concat(p.rows || []).forEach(function (r) {
+    const q = /^Q[1-4]$/i.test(String(r.quartile || '').trim()) ? String(r.quartile).trim().toUpperCase() : '';
+    [].concat(r.issns || []).forEach(function (s) {
+      const k = normIssn_(s);
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      rows.push({ issn: k, title: String(r.title || '').slice(0, 200), database: database, quartile: DATABASES[database].quartile ? q : '', source: source, updatedAt: nowIso_() });
+    });
+  });
+  DB.insertMany('JournalIndex', rows);
+  audit_('import_journals', database + ' ' + source + ' +' + rows.length);
+  return { added: rows.length, stats: journalIndexStats_() };
+}
+
+function clearJournalIndex_(p) {
+  requireRole_(['admin']);
+  const n = DB.removeWhere('JournalIndex', function (r) { return !p.database || r.database === p.database; });
+  audit_('clear_journals', (p.database || 'all') + ' -' + n);
+  return { removed: n, stats: journalIndexStats_() };
+}
+
+
+/* ======================================================================
+ * ส่วน: Sources.gs (ใช้ร่วมกับระบบ MUGR)
+ * ====================================================================== */
+
+/**
+ * Sources.gs — ค้นผลงานจากฐานข้อมูลตามประกาศ ก.พ.อ. โดยตรง เรียงตามลำดับความสำคัญ
+ *
+ *   1. Scopus          (Elsevier Scopus Search API — ต้องมี API key ของสถาบัน)
+ *   2. Web of Science  (Clarivate WoS Starter API — ต้องมี API key)
+ *   3. PubMed          (NCBI E-utilities — ฟรี)
+ *   4. ERIC            (ERIC API — ฟรี)
+ *   5. TCI / ThaiJO    (Crossref + OpenAlex ด้วยชื่อไทย แล้วจับคู่ ISSN กับรายชื่อ TCI กลุ่ม 1/2)
+ *   6. OpenAlex        (ฐานรวมขนาดใหญ่ — เก็บผลงานที่เหลือ เช่น JSTOR, MathSciNet, Project Muse ผ่านรายชื่อ ISSN)
+ *
+ * ผลงานจากทุกฐานถูกรวมและตัดรายการซ้ำด้วย DOI / ชื่อบทความ แต่ละชิ้นบอกว่า "พบในฐานใดบ้าง"
+ * API key เก็บใน Script Properties (ไม่อยู่ในชีต และไม่ถูกส่งไปหน้าเว็บ)
+ */
+
+const SCOPUS_API = 'https://api.elsevier.com/content/search/scopus';
+const WOS_API = 'https://api.clarivate.com/apis/wos-starter/v1/documents';
+const PUBMED_API = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+const ERIC_API = 'https://api.ies.ed.gov/eric/';
+
+const SOURCE_ORDER = [
+  { key: 'scopus', label: 'Scopus', step: 1 },
+  { key: 'wos', label: 'Web of Science', step: 2 },
+  { key: 'pubmed', label: 'PubMed', step: 3 },
+  { key: 'eric', label: 'ERIC', step: 4 },
+  { key: 'tci', label: 'TCI / ThaiJO (ชื่อไทย)', step: 5 },
+  { key: 'openalex', label: 'OpenAlex (ฐานรวม)', step: 6 }
+];
+
+const API_KEY_NAMES = ['SCOPUS_API_KEY', 'SCOPUS_INSTTOKEN', 'WOS_API_KEY', 'NCBI_API_KEY'];
+
+function apiKey_(name) { return PropertiesService.getScriptProperties().getProperty(name) || ''; }
+
+function apiKeysStatus_() {
+  requireRole_(['admin']);
+  const o = {};
+  API_KEY_NAMES.forEach(function (k) { o[k] = !!apiKey_(k); });
+  return o;
+}
+
+function saveApiKeys_(p) {
+  requireRole_(['admin']);
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('LAST_KEY_TEST');
+  API_KEY_NAMES.forEach(function (k) {
+    if (p['clear_' + k]) props.deleteProperty(k);
+    else if (String(p[k] || '').trim()) props.setProperty(k, String(p[k]).trim());
+  });
+  audit_('api_keys', API_KEY_NAMES.filter(function (k) { return p[k] || p['clear_' + k]; }).join(','));
+  return apiKeysStatus_();
+}
+
+/** ผลการทดสอบการเชื่อมต่อครั้งล่าสุด (แสดงในหน้าเว็บ) */
+function lastKeyTest_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_KEY_TEST') || 'null'); } catch (e) { return null; } }
+
+/** ทดสอบการเชื่อมต่อ Scopus / WoS ด้วย key ที่บันทึกไว้ */
+function testApiKeys_() {
+  requireRole_(['admin']);
+  const out = {};
+  const sk = apiKey_('SCOPUS_API_KEY');
+  if (!sk) out.scopus = { ok: false, message: 'ยังไม่ได้ใส่ Scopus API key' };
+  else {
+    try {
+      const h = { 'X-ELS-APIKey': sk, Accept: 'application/json' };
+      if (apiKey_('SCOPUS_INSTTOKEN')) h['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
+      const r = httpJson_(SCOPUS_API + '?query=' + encodeURIComponent('AFFIL(Mahidol University)') + '&count=1&field=eid&nocache=' + Date.now(), h);
+      const n = Number(r && r['search-results'] && r['search-results']['opensearch:totalResults']) || 0;
+      const ser = scopusSerial_('17441730', h);
+      out.scopus = { ok: true, message: 'เชื่อมต่อ Scopus สำเร็จ — ทดสอบค้น AFFIL(Mahidol University) พบ ' + n.toLocaleString() + ' รายการ · ' +
+        (ser ? 'ดึงข้อมูลวารสาร (CiteScore/Quartile) ได้' : 'ดึงข้อมูลวารสาร (Serial Title API) ไม่ได้ — จะใช้ Quartile จากรายชื่อ SJR ที่นำเข้าแทน') };
+    } catch (e) { out.scopus = { ok: false, message: e.message + ' · ถ้าขึ้น 401/403 ให้ขอ Institutional Token จากหอสมุด แล้วใส่ช่อง Scopus Institutional Token' }; }
+  }
+  const wk = apiKey_('WOS_API_KEY');
+  if (!wk) out.wos = { ok: false, message: 'ยังไม่ได้ใส่ Web of Science API key (ไม่บังคับ)' };
+  else {
+    try {
+      const r = httpJson_(WOS_API + '?db=WOS&limit=1&q=' + encodeURIComponent('OG=(Mahidol University)') + '&nocache=' + Date.now(), { 'X-ApiKey': wk, Accept: 'application/json' });
+      out.wos = { ok: true, message: 'เชื่อมต่อ Web of Science สำเร็จ — พบ ' + ((r && r.metadata && r.metadata.total) || 0).toLocaleString() + ' รายการ' };
+    } catch (e) { out.wos = { ok: false, message: e.message }; }
+  }
+  audit_('api_test', JSON.stringify({ scopus: out.scopus.ok, wos: out.wos.ok }));
+  out.ts = nowIso_();
+  PropertiesService.getScriptProperties().setProperty('LAST_KEY_TEST', JSON.stringify(out));
+  return out;
+}
+
+/** แยกชื่ออังกฤษ "Firstname Lastname" → { first, last, initial } */
+function splitName_(en) {
+  const parts = String(en || '').replace(/[,.]/g, ' ').trim().split(/\s+/).filter(String);
+  if (!parts.length) return null;
+  const last = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+  const first = parts.length > 1 ? parts[0] : '';
+  return { first: first, last: last, initial: first ? first.charAt(0).toUpperCase() : '' };
+}
+
+/* ---------------- 1. Scopus ---------------- */
+
+function searchScopus_(p, fromCE, toCE) {
+  const key = apiKey_('SCOPUS_API_KEY');
+  if (!key) return { mode: 'list', items: [], message: 'ยังไม่ได้ใส่ Scopus API key — ตรวจผ่านรายชื่อวารสาร SJR (ISSN) แทน' };
+  const n = splitName_(p.nameEn);
+  let q;
+  if (p.scopusId) q = 'AU-ID(' + String(p.scopusId).replace(/\D+/g, '') + ')';
+  else if (n) q = 'AUTHLASTNAME(' + n.last + ')' + (n.first ? ' AND AUTHFIRST(' + n.first + ')' : '');
+  else return { mode: 'skipped', items: [], message: 'ต้องมีชื่อภาษาอังกฤษหรือ Scopus Author ID' };
+  const affil = String(p.affil || '').trim().replace(/["()]/g, '');
+  if (affil && !p.scopusId) q += ' AND AFFIL("' + affil + '")';
+  const headers = scopusHeaders_(key);
+  const fields = 'dc:title,prism:publicationName,prism:issn,prism:eIssn,prism:coverDate,prism:doi,dc:creator,subtypeDescription,prism:aggregationType,eid,pubmed-id,source-id';
+  const items = [];
+  let total = 0;
+  for (let start = 0; start < 200; start += 25) {
+    const r = httpJson_(SCOPUS_API + '?query=' + encodeURIComponent(q) + '&date=' + fromCE + '-' + toCE + '&count=25&start=' + start + '&field=' + fields, headers);
+    const sr = (r && r['search-results']) || {};
+    total = Number(sr['opensearch:totalResults']) || 0;
+    const entries = (sr.entry || []).filter(function (e) { return !e.error; });
+    entries.forEach(function (e) {
+      const agg = String(e['prism:aggregationType'] || '');
+      items.push({
+        origin: 'Scopus', sourceId: e.eid, title: e['dc:title'] || '', journal: e['prism:publicationName'] || '',
+        yearCE: Number(String(e['prism:coverDate'] || '').slice(0, 4)) || 0, doi: cleanDoi_(e['prism:doi']),
+        url: e['prism:doi'] ? 'https://doi.org/' + e['prism:doi'] : scopusRecordUrl_(e.eid), scopusUrl: scopusRecordUrl_(e.eid),
+        issns: [e['prism:issn'], e['prism:eIssn']].filter(String), pmid: e['pubmed-id'] || '',
+        sourceType: /conference/i.test(agg) ? 'conference' : 'journal', workType: /book/i.test(agg) && !/series/i.test(agg) ? 'book' : (e.subtypeDescription || ''),
+        authors: e['dc:creator'] ? [e['dc:creator']] : [],
+        direct: { scopus: { eid: e.eid, agg: agg, sourceId: e['source-id'] || '' } }
+      });
+    });
+    if (start + 25 >= total || !entries.length) break;
+  }
+  // ยืนยันวารสารกับ Scopus โดยตรง (CiteScore / Quartile / ปีที่ยังอยู่ในฐาน)
+  const serials = {};
+  items.forEach(function (it) {
+    const k = it.issns.map(normIssn_).filter(String)[0];
+    if (!k) return;
+    if (!(k in serials)) serials[k] = Object.keys(serials).length < 40 ? scopusSerial_(k, headers) : null;
+    if (serials[k]) it.direct.scopus.serial = serials[k];
+  });
+  const verifyUrl = 'https://www.scopus.com/results/results.uri?src=s&sot=a&sdt=a&s=' + encodeURIComponent(q + ' AND PUBYEAR > ' + (fromCE - 1) + ' AND PUBYEAR < ' + (toCE + 1));
+  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + q + ' (' + total + ' รายการ)', query: q, link: verifyUrl,
+    authorUrl: p.scopusId ? 'https://www.scopus.com/authid/detail.uri?authorId=' + String(p.scopusId).replace(/\D+/g, '') : '' };
+}
+
+function scopusHeaders_(key) {
+  const h = { 'X-ELS-APIKey': key || apiKey_('SCOPUS_API_KEY'), Accept: 'application/json' };
+  if (apiKey_('SCOPUS_INSTTOKEN')) h['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
+  return h;
+}
+function scopusRecordUrl_(eid) { return eid ? 'https://www.scopus.com/record/display.uri?eid=' + encodeURIComponent(eid) + '&origin=resultslist' : ''; }
+
+/** เก็บค่า percentile ทุกตัวในข้อมูล CiteScore (โครงสร้าง JSON ซ้อนหลายชั้น) */
+function collectPercentiles_(o, out, subj) {
+  if (!o || typeof o !== 'object') return out;
+  if (Array.isArray(o)) { o.forEach(function (x) { collectPercentiles_(x, out, subj); }); return out; }
+  if (o.percentile !== undefined && !isNaN(Number(o.percentile))) out.push({ p: Number(o.percentile), code: o.subjectCode || '', rank: o.rank || '' });
+  Object.keys(o).forEach(function (k) { if (k !== 'percentile') collectPercentiles_(o[k], out, subj); });
+  return out;
+}
+
+/** ข้อมูลวารสารจาก Scopus Serial Title API → { title, quartile, percentile, citeScore, year, coverageEnd, url } */
+function scopusSerial_(issn, headers) {
+  try {
+    const r = httpJson_('https://api.elsevier.com/content/serial/title/issn/' + issn + '?view=CITESCORE', headers || scopusHeaders_());
+    const e = r && r['serial-metadata-response'] && (r['serial-metadata-response'].entry || [])[0];
+    if (!e || e.error) return null;
+    const info = e.citeScoreYearInfoList || {};
+    const years = [].concat(info.citeScoreYearInfo || []).filter(function (y) { return !y['@status'] || /complete/i.test(y['@status']); });
+    const latest = years.sort(function (a, b) { return Number(b['@year']) - Number(a['@year']); })[0];
+    const pcts = collectPercentiles_(latest || info, []);
+    const best = pcts.sort(function (a, b) { return b.p - a.p; })[0];
+    const q = !best ? '' : best.p >= 75 ? 'Q1' : best.p >= 50 ? 'Q2' : best.p >= 25 ? 'Q3' : 'Q4';
+    const subj = [].concat(e['subject-area'] || []).filter(function (s) { return best && String(s['@code']) === String(best.code); })[0];
+    const link = [].concat(e.link || []).filter(function (l) { return l['@ref'] === 'scopus-source'; })[0];
+    return {
+      title: e['dc:title'] || '', quartile: q, percentile: best ? best.p : '', subject: subj ? subj['$'] : '',
+      citeScore: info.citeScoreCurrentMetric || '', year: latest ? latest['@year'] : (info.citeScoreCurrentMetricYear || ''),
+      coverageStart: e.coverageStartYear || '', coverageEnd: e.coverageEndYear || '',
+      url: link ? link['@href'] : (e['source-id'] ? 'https://www.scopus.com/sourceid/' + e['source-id'] : '')
+    };
+  } catch (err) { return null; }
+}
+
+/* ---------------- 2. Web of Science ---------------- */
+
+function searchWos_(p, fromCE, toCE) {
+  const key = apiKey_('WOS_API_KEY');
+  if (!key) return { mode: 'list', items: [], message: 'ยังไม่ได้ใส่ Web of Science API key — ตรวจผ่านรายชื่อวารสาร WoS (ISSN) ถ้านำเข้าไว้' };
+  const n = splitName_(p.nameEn);
+  if (!n) return { mode: 'skipped', items: [], message: 'ต้องมีชื่อภาษาอังกฤษ' };
+  const q = 'AU=(' + n.last + (n.initial ? ' ' + n.initial : '') + ') AND PY=(' + fromCE + '-' + toCE + ')';
+  const r = httpJson_(WOS_API + '?db=WOS&limit=50&q=' + encodeURIComponent(q), { 'X-ApiKey': key, Accept: 'application/json' });
+  const items = ((r && r.hits) || []).map(function (h) {
+    const id = h.identifiers || {}, src = h.source || {};
+    return {
+      origin: 'Web of Science', sourceId: h.uid, title: h.title || '', journal: src.sourceTitle || '',
+      yearCE: Number(src.publishYear) || 0, doi: cleanDoi_(id.doi), url: id.doi ? 'https://doi.org/' + id.doi : '',
+      issns: [id.issn, id.eissn].filter(String), pmid: id.pmid || '',
+      sourceType: (h.sourceTypes || []).join(' ').match(/proceeding/i) ? 'conference' : 'journal', workType: (h.types || []).join(','),
+      authors: ((h.names && h.names.authors) || []).map(function (a) { return a.displayName || a.wosStandard; }).slice(0, 12),
+      direct: { wos: { uid: h.uid } }
+    };
+  });
+  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + q + ' (' + ((r && r.metadata && r.metadata.total) || items.length) + ' รายการ)', query: q };
+}
+
+/* ---------------- 3. PubMed ---------------- */
+
+function searchPubmed_(p, fromCE, toCE) {
+  const n = splitName_(p.nameEn);
+  if (!n) return { mode: 'skipped', items: [], message: 'ต้องมีชื่อภาษาอังกฤษ' };
+  const key = apiKey_('NCBI_API_KEY');
+  const term = n.last + ' ' + (n.initial || '') + '[Author] AND ' + fromCE + ':' + toCE + '[dp]';
+  const s = httpJson_(PUBMED_API + '/esearch.fcgi?db=pubmed&retmode=json&retmax=100&term=' + encodeURIComponent(term) + (key ? '&api_key=' + key : ''));
+  const ids = (s && s.esearchresult && s.esearchresult.idlist) || [];
+  if (!ids.length) return { mode: 'direct', items: [], message: 'ค้นโดยตรงด้วย ' + term + ' (0 รายการ)', query: term };
+  const d = httpJson_(PUBMED_API + '/esummary.fcgi?db=pubmed&retmode=json&id=' + ids.join(',') + (key ? '&api_key=' + key : ''));
+  const res = (d && d.result) || {};
+  const items = ids.map(function (id) {
+    const a = res[id];
+    if (!a) return null;
+    const doi = ((a.articleids || []).filter(function (x) { return x.idtype === 'doi'; })[0] || {}).value || '';
+    return {
+      origin: 'PubMed', sourceId: id, title: String(a.title || '').replace(/\.$/, ''), journal: a.fulljournalname || a.source || '',
+      yearCE: Number(String(a.pubdate || a.epubdate || '').slice(0, 4)) || 0, doi: cleanDoi_(doi),
+      url: 'https://pubmed.ncbi.nlm.nih.gov/' + id + '/', issns: [a.issn, a.essn].filter(String), pmid: id,
+      sourceType: 'journal', workType: (a.pubtype || []).join(','),
+      authors: (a.authors || []).map(function (x) { return x.name; }).slice(0, 12),
+      direct: { pubmed: { pmid: id } }
+    };
+  }).filter(Boolean);
+  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + term + ' (' + ids.length + ' รายการ)', query: term };
+}
+
+/* ---------------- 4. ERIC ---------------- */
+
+function searchEric_(p, fromCE) {
+  const n = splitName_(p.nameEn);
+  if (!n) return { mode: 'skipped', items: [], message: 'ต้องมีชื่อภาษาอังกฤษ' };
+  const q = 'author:"' + n.last + (n.first ? ', ' + n.first : '') + '" AND publicationdateyear:[' + fromCE + ' TO 3000]';
+  const r = httpJson_(ERIC_API + '?format=json&rows=50&fields=id,title,author,source,publicationdateyear,issn,peerreviewed,url&search=' + encodeURIComponent(q));
+  const docs = (r && r.response && r.response.docs) || [];
+  const items = docs.map(function (d) {
+    const isJournal = /^EJ/.test(d.id || '');
+    return {
+      origin: 'ERIC', sourceId: d.id, title: d.title || '', journal: d.source || '',
+      yearCE: Number(d.publicationdateyear) || 0, doi: '', url: 'https://eric.ed.gov/?id=' + d.id,
+      issns: [].concat(d.issn || []).map(function (s) { return String(s).replace(/^ISSN-/i, ''); }), pmid: '',
+      sourceType: isJournal ? 'journal' : 'report', workType: isJournal ? 'article' : 'report',
+      authors: [].concat(d.author || []).slice(0, 12),
+      direct: { eric: { id: d.id, journal: isJournal } }
+    };
+  });
+  return { mode: 'direct', items: items, message: 'ค้นโดยตรงด้วย ' + q + ' (' + docs.length + ' รายการ)', query: q };
+}
+
+/* ---------------- 5. TCI / ThaiJO (ชื่อไทย) ---------------- */
+
+function searchThai_(p, fromCE) {
+  const th = String(p.nameTh || '').trim();
+  if (!th) return { mode: 'skipped', items: [], message: 'ไม่ได้กรอกชื่อภาษาไทย' };
+  const items = [];
+  const key = th.replace(/\s+/g, '');
+  const r = httpJson_(CROSSREF + '/works?query.author=' + encodeURIComponent(th) + '&filter=from-pub-date:' + fromCE + '&rows=40&select=DOI,title,ISSN,container-title,issued,type,author,publisher,URL');
+  ((r && r.message && r.message.items) || []).filter(function (it) {
+    return (it.author || []).some(function (a) { return ([a.given, a.family].join('') + (a.name || '')).replace(/\s+/g, '').indexOf(key) > -1; });
+  }).forEach(function (it) { items.push(fromCrossref_(it)); });
+  const o = httpJson_(OPENALEX + '/works?filter=raw_author_name.search:' + encodeURIComponent(th) + ',from_publication_date:' + fromCE + '-01-01&per_page=50&select=id,doi,title,display_name,publication_year,type,ids,primary_location,authorships');
+  ((o && o.results) || []).forEach(function (w) { items.push(fromOpenAlex_(w)); });
+  return { mode: 'list', items: items, message: 'ค้นชื่อไทยใน Crossref/OpenAlex ' + items.length + ' รายการ แล้วจับคู่ ISSN กับรายชื่อ TCI กลุ่ม 1/2' };
+}
+
+/* ---------------- 6. OpenAlex (ฐานรวม) ---------------- */
+
+function searchOpenAlex_(p, fromCE) {
+  let authorId = p.openalexId || '', candidates = [];
+  if (p.orcid) {
+    const orcid = String(p.orcid).replace(/^https?:\/\/orcid\.org\//, '').trim();
+    const r = httpJson_(OPENALEX + '/authors/orcid:' + encodeURIComponent(orcid));
+    if (r && r.id) authorId = shortId_(r.id);
+  }
+  if (!authorId && p.nameEn) {
+    candidates = findAuthors_({ nameEn: p.nameEn }).candidates;
+    if (candidates.length) authorId = candidates[0].id;
+  }
+  if (!authorId) return { mode: 'skipped', items: [], candidates: candidates, message: 'ไม่พบนักวิจัยใน OpenAlex' };
+  const sel = 'id,doi,title,display_name,publication_year,type,ids,primary_location,authorships';
+  const r2 = httpJson_(OPENALEX + '/works?filter=author.id:' + encodeURIComponent(authorId) + ',from_publication_date:' + fromCE + '-01-01&per_page=100&sort=publication_year:desc&select=' + sel);
+  const items = ((r2 && r2.results) || []).map(fromOpenAlex_);
+  const who = candidates.filter(function (c) { return c.id === authorId; })[0];
+  return { mode: 'direct', items: items, candidates: candidates, authorId: authorId,
+    message: 'นักวิจัย ' + (who ? who.name + (who.institution ? ' (' + who.institution + ')' : '') : authorId) + ' · ' + items.length + ' รายการ' };
+}
+
+/* ---------------- รวมทุกฐาน ---------------- */
+
+function mergeWorks_(lists) {
+  const byKey = {};
+  const order = [];
+  lists.forEach(function (list) {
+    list.forEach(function (w) {
+      const k = w.doi || normTitle_(w.title);
+      if (!k) return;
+      let m = byKey[k];
+      if (!m && !w.doi) { // ลองจับคู่ด้วยชื่อเรื่องกับรายการที่มี DOI
+        const t = normTitle_(w.title);
+        m = order.map(function (x) { return byKey[x]; }).filter(function (x) { return normTitle_(x.title) === t; })[0];
+      }
+      if (!m) { byKey[k] = Object.assign({}, w, { origins: [w.origin], direct: Object.assign({}, w.direct || {}) }); order.push(k); return; }
+      if (m.origins.indexOf(w.origin) === -1) m.origins.push(w.origin);
+      Object.assign(m.direct, w.direct || {});
+      (w.issns || []).forEach(function (s) { if (m.issns.indexOf(s) === -1) m.issns.push(s); });
+      if (!m.pmid && w.pmid) m.pmid = w.pmid;
+      if (!m.doi && w.doi) m.doi = w.doi;
+      if ((!m.authors || m.authors.length < 2) && w.authors && w.authors.length > 1) m.authors = w.authors;
+      if (!m.journal) m.journal = w.journal;
+      if (!m.yearCE) m.yearCE = w.yearCE;
+    });
+  });
+  return order.map(function (k) { return byKey[k]; });
+}
+
+/** ค้นทุกฐานตามลำดับ Scopus → WoS → PubMed → ERIC → TCI → OpenAlex */
+function searchAll_(p) {
+  if (!String(p.nameEn || '').trim() && !String(p.nameTh || '').trim() && !p.scopusId && !p.orcid) throw new Error('กรุณากรอกชื่อภาษาไทยหรืออังกฤษ หรือ Scopus Author ID / ORCID');
+  const win = evalWindow_(getSettings_());
+  const fromCE = (Number(p.fromYear) || win.start) - 543;
+  const toCE = Number(p.toYear) ? Number(p.toYear) - 543 : win.end - 543 + 1;
+  const run = {
+    scopus: function () { return searchScopus_(p, fromCE, toCE); },
+    wos: function () { return searchWos_(p, fromCE, toCE); },
+    pubmed: function () { return searchPubmed_(p, fromCE, toCE); },
+    eric: function () { return searchEric_(p, fromCE); },
+    tci: function () { return searchThai_(p, fromCE); },
+    openalex: function () { return searchOpenAlex_(p, fromCE); }
+  };
+  const status = [], lists = [];
+  let candidates = [], authorId = '';
+  SOURCE_ORDER.forEach(function (s) {
+    let r;
+    try { r = run[s.key](); }
+    catch (e) { r = { mode: 'error', items: [], message: e.message }; }
+    status.push({ key: s.key, label: s.label, step: s.step, mode: r.mode, count: r.items.length, message: r.message, link: r.link || '', authorUrl: r.authorUrl || '' });
+    lists.push(r.items);
+    if (s.key === 'openalex') { candidates = r.candidates || []; authorId = r.authorId || ''; }
+  });
+  const person = p.personId ? { personType: p.personType || 'faculty', personId: p.personId } : null;
+  const works = finishWorks_(mergeWorks_(lists), person);
+  return { works: works, status: status, summary: summarize_(works), candidates: candidates, openalexId: authorId, journalIndex: journalIndexStats_() };
+}
+
+/** ตรวจ DOI กับ Scopus / PubMed โดยตรง (ใช้ตอนแนบไฟล์ผลงาน) */
+function directChecksByDoi_(doi) {
+  const out = { direct: {}, pmid: '', evidence: [] };
+  if (!doi) return out;
+  try {
+    const key = apiKey_('SCOPUS_API_KEY');
+    if (key) {
+      const headers = { 'X-ELS-APIKey': key, Accept: 'application/json' };
+      if (apiKey_('SCOPUS_INSTTOKEN')) headers['X-ELS-Insttoken'] = apiKey_('SCOPUS_INSTTOKEN');
+      const r = httpJson_(SCOPUS_API + '?query=' + encodeURIComponent('DOI(' + doi + ')') + '&field=eid,prism:aggregationType,prism:issn,prism:eIssn', headers);
+      const e = ((r && r['search-results'] && r['search-results'].entry) || []).filter(function (x) { return !x.error; })[0];
+      if (e) {
+        out.direct.scopus = { eid: e.eid, agg: e['prism:aggregationType'] || '' };
+        const k = [e['prism:issn'], e['prism:eIssn']].map(normIssn_).filter(String)[0];
+        if (k) { const ser = scopusSerial_(k, headers); if (ser) out.direct.scopus.serial = ser; }
+      }
+    }
+  } catch (err) { out.evidence.push('ตรวจ Scopus ไม่สำเร็จ: ' + err.message); }
+  try {
+    const s = httpJson_(PUBMED_API + '/esearch.fcgi?db=pubmed&retmode=json&term=' + encodeURIComponent(doi + '[doi]'));
+    const id = ((s && s.esearchresult && s.esearchresult.idlist) || [])[0];
+    if (id) { out.direct.pubmed = { pmid: id }; out.pmid = id; }
+  } catch (err) { out.evidence.push('ตรวจ PubMed ไม่สำเร็จ: ' + err.message); }
+  return out;
+}
+
+
+/* ======================================================================
  * ส่วน: Criteria.gs
  * ====================================================================== */
 
@@ -1057,6 +2394,8 @@ function validateRules_(rules) {
       params.min = Math.max(1, Math.floor(Number(pr.min) || 0));
       params.years = Math.max(0, Math.floor(Number(pr.years) || 0));
       params.types = [].concat(pr.types || []).filter(function (x) { return WORK_TYPES[x]; });
+      params.databases = [].concat(pr.databases || []).filter(function (x) { return DB_GROUPS[x] || (DATABASES[x] && x !== 'none'); });
+      params.quartiles = [].concat(pr.quartiles || []).filter(function (x) { return /^Q[1-4]$/.test(x); });
       if (!Number(pr.min)) throw new Error('ข้อ ' + id + ': กรอกจำนวนผลงานขั้นต่ำ');
     }
     if (kind === 'required_documents') {
@@ -1202,20 +2541,31 @@ const RULE_EVAL_ = {
   min_works: function (rule, ctx) {
     const pr = rule.params;
     const fromYear = pr.years ? currentYearCE_() - pr.years + 1 : 0;
-    const inScope = ctx.works.filter(function (w) {
+    const dbs = pr.databases || [], qs = pr.quartiles || [];
+    const typed = ctx.works.filter(function (w) {
       if (w.status === 'excluded_duplicate' || w.status === 'rejected') return false;
       if (pr.types.length && pr.types.indexOf(w.type) === -1) return false;
       const y = normYear_(w.year);
       return !fromYear || (y && y >= fromYear);
     });
+    // เงื่อนไขฐานข้อมูล/Quartile: ผลงานที่ยังไม่ได้ตรวจกับฐานข้อมูล หรือไม่มีข้อมูล Quartile → ยังสรุปไม่ได้ (ไม่ใช่ไม่ผ่าน)
+    const dbOk = function (w) { return !dbs.length || dbs.indexOf(w.dbGroup) > -1 || dbs.indexOf(w.database) > -1; };
+    const unchecked = dbs.length ? typed.filter(function (w) { return !w.checkedAt; }) : [];
+    const noQuartile = qs.length ? typed.filter(function (w) { return w.checkedAt && dbOk(w) && !w.quartile; }) : [];
+    const inScope = typed.filter(function (w) { return (!dbs.length || w.checkedAt) && dbOk(w) && (!qs.length || qs.indexOf(w.quartile) > -1); });
     const verified = inScope.filter(function (w) { return w.status === 'verified'; });
     const pending = inScope.filter(function (w) { return w.status === 'pending'; });
-    const cond = 'ต้องมีอย่างน้อย ' + pr.min + ' รายการ' + (pr.types.length ? ' ประเภท ' + pr.types.map(function (t) { return WORK_TYPES[t]; }).join('/') : '') + (fromYear ? ' ตั้งแต่ปี ค.ศ. ' + fromYear + ' (พ.ศ. ' + (fromYear + 543) + ')' : '');
-    const used = ['ผลงานที่เจ้าหน้าที่ยืนยันและเข้าเงื่อนไข: ' + verified.length + ' รายการ', 'รอตรวจ: ' + pending.length + ' รายการ', cond];
+    const dbText = dbs.map(function (d) { return DB_GROUPS[d] || (DATABASES[d] || {}).label || d; }).join(' / ');
+    const cond = 'ต้องมีอย่างน้อย ' + pr.min + ' รายการ' + (pr.types.length ? ' ประเภท ' + pr.types.map(function (t) { return WORK_TYPES[t]; }).join('/') : '') + (fromYear ? ' ตั้งแต่ปี ค.ศ. ' + fromYear + ' (พ.ศ. ' + (fromYear + 543) + ')' : '') +
+      (dbs.length ? ' ในฐาน ' + dbText : '') + (qs.length ? ' Quartile ' + qs.join('/') : '');
+    const used = ['ผลงานที่เจ้าหน้าที่ยืนยันและเข้าเงื่อนไข: ' + verified.length + ' รายการ', 'รอตรวจ: ' + pending.length + ' รายการ', cond]
+      .concat(dbs.length ? verified.map(function (w) { return '• ' + String(w.title).slice(0, 60) + ' — ' + ((DATABASES[w.database] || {}).label || w.database) + (w.quartile ? ' ' + w.quartile + ' (' + w.quartileSource + ')' : ''); }) : []);
     const ev = verified.map(function (w) { return 'work:' + w.id; });
     if (verified.length >= pr.min) return R_('pass', 'มีผลงานที่ยืนยันแล้ว ' + verified.length + ' รายการ ครบตามเกณฑ์ (' + cond + ')', used, ev);
     const gaps = [];
     if (pending.length) gaps.push('มีผลงานรอเจ้าหน้าที่ตรวจ ' + pending.length + ' รายการ');
+    if (unchecked.length) gaps.push('ผลงาน ' + unchecked.length + ' รายการยังไม่ได้ตรวจกับฐานข้อมูล (กด "ตรวจกับฐานข้อมูล")');
+    if (noQuartile.length) gaps.push('ไม่มีข้อมูล Quartile ' + noQuartile.length + ' รายการ (ต้องนำเข้ารายชื่อ SJR หรือใส่ Scopus API key)');
     if (ctx.openDups.length) gaps.push('มีผลงานที่สงสัยว่าซ้ำรอตัดสิน ' + ctx.openDups.length + ' คู่');
     if (!ctx.sources.MUREX.ok) gaps.push('ระบบผลงาน MUREX ไม่พร้อมใช้งาน (' + (ctx.sources.MUREX.code === 'outage' ? 'ขัดข้อง' : 'ยังไม่ได้เชื่อมต่อ') + ')');
     if (ctx.works.some(function (w) { return !normYear_(w.year); })) gaps.push('มีผลงานที่ไม่ระบุปี');
@@ -1245,7 +2595,7 @@ function snapshotOf_(ctx) {
   return {
     person: ctx.personInfo.person, personState: ctx.personInfo.state, personNote: ctx.personInfo.note,
     identityStatus: ctx.req.identityStatus, worksComplete: toBool_(ctx.req.worksComplete),
-    works: ctx.works.map(function (w) { return { id: w.id, title: w.title, type: w.type, year: w.year, doi: w.doi, ref: w.ref, origin: w.origin, status: w.status, evidenceId: w.evidenceId }; }),
+    works: ctx.works.map(function (w) { return { id: w.id, title: w.title, type: w.type, year: w.year, doi: w.doi, ref: w.ref, origin: w.origin, status: w.status, evidenceId: w.evidenceId, database: w.database, quartile: w.quartile, quartileSource: w.quartileSource, proof: w.proof }; }),
     attachments: ctx.attachments.map(function (a) { return { id: a.id, docType: a.docType, workId: a.workId, fileName: a.fileName, uploadedAt: a.uploadedAt }; }),
     openDups: ctx.openDups.map(function (d) { return d.id; }),
     staffChecks: ctx.staffChecks.map(function (s) { return { ruleId: s.ruleId, result: s.result, at: s.at }; })
@@ -1511,8 +2861,11 @@ function sourceWorksFor_(p) {
   if (!snap || snap.kind !== 'source') return { works: [], source: sourceStatus_('MUREX'), note: 'บุคคลที่ไม่อยู่ใน MUHR ไม่มีรายการผลงานจาก MUREX ให้ดึง — เพิ่มผลงานเองได้' };
   const added = {};
   DB.all('RequestWorks').filter(function (w) { return w.requestId === req.id && ACTIVE_WORK_(w); }).forEach(function (w) { if (w.sourceWorkId) added[w.sourceWorkId] = true; });
-  const works = murexWorksFor_(snap.staffCode).map(function (w) { return Object.assign({}, w, { added: !!added[w.id], staleness: staleInfo_(w) }); });
-  return { works: works, source: sourceStatus_('MUREX') };
+  let note = '', list;
+  if (sourceReady_('MUREX') === 'api') { const r = apiWorksFor_(snap.staffCode); list = r.works; note = r.note; }
+  else list = murexWorksFor_(snap.staffCode);
+  const works = list.map(function (w) { return Object.assign({}, w, { added: !!added[w.id], staleness: staleInfo_(w) }); });
+  return { works: works, source: sourceStatus_('MUREX'), note: note };
 }
 
 function addSourceWorks_(p) {
@@ -1526,7 +2879,7 @@ function addSourceWorks_(p) {
   DB.all('RequestWorks').filter(function (w) { return w.requestId === req.id && ACTIVE_WORK_(w); }).forEach(function (w) { if (w.sourceWorkId) exist[w.sourceWorkId] = true; });
   const recs = [].concat(p.workIds || []).filter(function (id) { return avail[id] && !exist[id]; }).map(function (id) {
     const w = avail[id];
-    return { requestId: req.id, origin: 'MUREX-' + w.origin, sourceWorkId: w.id, title: w.title, type: w.type || 'other', year: w.year, pubDate: w.pubDate, authors: w.authors, venue: w.venue, doi: normDoi_(w.doi), ref: w.workRef || w.ref, status: 'pending', addedBy: me_().id, addedRound: req.round };
+    return { requestId: req.id, origin: 'MUREX-' + w.origin, checkedAt: '', sourceWorkId: w.id, title: w.title, type: w.type || 'other', year: w.year, pubDate: w.pubDate, authors: w.authors, venue: w.venue, doi: normDoi_(w.doi), ref: w.workRef || w.ref, status: 'pending', addedBy: me_().id, addedRound: req.round };
   });
   if (!recs.length) throw new Error('ไม่มีรายการใหม่ให้เพิ่ม');
   DB.insertMany('RequestWorks', recs);
@@ -2230,7 +3583,8 @@ function purgeDemo_(p) {
  */
 
 /** คำสั่งที่อ่านอย่างเดียว (ไม่ต้องล็อก) */
-const READ_ONLY_ = ['boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
+// คำสั่งที่ใช้เวลานาน (เรียกฐานข้อมูลภายนอก) ไม่ล็อกทั้งสคริปต์ เพื่อไม่ให้ผู้ใช้อื่นต้องรอ
+const READ_ONLY_ = ['scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
 
 const ACTIONS_ = {
   boot: boot_,
@@ -2252,6 +3606,9 @@ const ACTIONS_ = {
   removeFile: removeFile_,
   downloadFile: downloadFile_,
   respondRevision: respondRevision_,
+  scholarSearch: scholarSearch_,
+  addScholarWorks: addScholarWorks_,
+  checkWorkDb: checkWorkDb_,
   submit: submit_,
   cancel: cancel_,
 
@@ -2295,7 +3652,16 @@ const ACTIONS_ = {
   importCommit: importCommit_,
   importDiscard: importDiscard_,
   listAudit: listAudit_,
-  purgeDemo: purgeDemo_
+  purgeDemo: purgeDemo_,
+  scholarAdmin: scholarAdmin_,
+  saveApiKeys: function (p) { requirePerm_('admin.data'); return saveApiKeys_(p); },
+  testApiKeys: function () { requirePerm_('admin.data'); return testApiKeys_(); },
+  saveScholarSettings: function (p) { requirePerm_('admin.data'); setSettings_({ SCHOLAR_AFFIL: clean_(p.affil, 150), OPENALEX_MAILTO: clean_(p.mailto, 120) }); return scholarAdmin_(); },
+  importJournalCsv: importJournalCsv_,
+  clearJournals: function (p) { return clearJournalIndex_(p); },
+  sourceApi: function () { requirePerm_('admin.data'); return { MUHR: apiAdminView_('MUHR'), MUREX: apiAdminView_('MUREX') }; },
+  saveSourceApi: saveSourceApi_,
+  testSourceApi: testSourceApi_
 };
 
 function api(action, payload) {
@@ -2324,7 +3690,7 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
     testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });
@@ -2333,7 +3699,8 @@ function boot_(p, who) {
     meta: {
       roles: ROLES, statuses: STATUSES, sections: SECTIONS, workTypes: WORK_TYPES, degrees: DEGREES, ranks: RANKS, empStatus: EMP_STATUS,
       ruleKinds: RULE_KINDS, results: RESULT_LABEL, decisions: DECISION_LABEL, identity: IDENTITY_LABEL, sourceModes: SOURCE_MODES,
-      allowedExt: splitList_(s.ALLOWED_EXT), maxFileMb: Number(s.MAX_FILE_MB), staleDays: Number(s.STALE_DAYS)
+      allowedExt: splitList_(s.ALLOWED_EXT), maxFileMb: Number(s.MAX_FILE_MB), staleDays: Number(s.STALE_DAYS),
+      databases: DATABASES, dbGroups: DB_GROUPS, currentBE: currentBE_()
     },
     units: DB.all('Units').filter(function (u) { return toBool_(u.active); }),
     types: DB.all('RequestTypes').filter(function (t) { return toBool_(t.active); }).map(function (t) {

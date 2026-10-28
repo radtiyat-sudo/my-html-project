@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const rd = (dir, f) => readFileSync(join(root, dir, f), 'utf8');
-const ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'Matching', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
+// ไฟล์จาก src/ (โค้ดค้นฐานข้อมูลวิชาการของ MUGR) ใช้ร่วมกัน ระบุด้วย ../src/
+const ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
 const bar = '='.repeat(70);
 
 const code = `/**
@@ -15,7 +16,7 @@ const code = `/**
  *  ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ
  *  ไฟล์: Code.gs  (วางทั้งไฟล์นี้ใน Apps Script ไฟล์ชื่อ "Code")
  *
- *  ส่วนต่าง ๆ ในไฟล์นี้: ${ORDER.map((f, i) => (i + 1) + '. ' + f).join('  ')}
+ *  ส่วนต่าง ๆ ในไฟล์นี้: ${ORDER.map((f, i) => (i + 1) + '. ' + f.replace('../src/', '')).join('  ')}
  *
  *  หลังวางครบ 3 ไฟล์ (Code.gs, Index.html, appsscript.json):
  *  เลือกฟังก์ชัน setup → กด ▶ เรียกใช้ → อนุญาตสิทธิ์ → Deploy เป็นเว็บแอป
@@ -23,7 +24,7 @@ const code = `/**
  * ${bar}
  */
 
-` + ORDER.map(f => `/* ${bar}\n * ส่วน: ${f}.gs\n * ${bar} */\n\n${rd('review-src', f + '.gs').trim()}\n`).join('\n\n');
+` + ORDER.map(f => `/* ${bar}\n * ส่วน: ${f.replace('../src/', '')}.gs${f.startsWith('../') ? ' (ใช้ร่วมกับระบบ MUGR)' : ''}\n * ${bar} */\n\n${rd('review-src', f + '.gs').trim()}\n`).join('\n\n');
 
 function appLoader(html) {
   const js = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
@@ -56,7 +57,7 @@ for (const [name, text] of [['Index.html', index], ['Code.gs', code]]) {
 }
 const manifest = {
   timeZone: 'Asia/Bangkok', dependencies: {}, exceptionLogging: 'STACKDRIVER', runtimeVersion: 'V8',
-  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email'],
+  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/script.external_request'],
   webapp: { executeAs: 'USER_DEPLOYING', access: 'DOMAIN' }
 };
 mkdirSync(join(root, 'review'), { recursive: true });
@@ -76,6 +77,7 @@ ${code}
 return { api: api, setup: setup };
 })(${services.map(s => '__gas.' + s).join(', ')});
 __server.setup();
+if (__q.has('key')) __gas.PropertiesService.getScriptProperties().setProperty('SCOPUS_API_KEY', 'demo'); // ?key = จำลองว่ามี Scopus API key
 if (__q.get('email')) __opts.email = __q.get('email'); // ?email=... จำลองผู้ใช้อื่นที่ยังไม่ได้ลงทะเบียน
 window.google = { script: { run: (function mk(ok, fail) { return new Proxy({}, { get(_, prop) {
   if (prop === 'withSuccessHandler') return h => mk(h, fail); if (prop === 'withFailureHandler') return h => mk(ok, h);

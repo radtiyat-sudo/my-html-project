@@ -197,8 +197,11 @@ function sourceWorksFor_(p) {
   if (!snap || snap.kind !== 'source') return { works: [], source: sourceStatus_('MUREX'), note: 'บุคคลที่ไม่อยู่ใน MUHR ไม่มีรายการผลงานจาก MUREX ให้ดึง — เพิ่มผลงานเองได้' };
   const added = {};
   DB.all('RequestWorks').filter(function (w) { return w.requestId === req.id && ACTIVE_WORK_(w); }).forEach(function (w) { if (w.sourceWorkId) added[w.sourceWorkId] = true; });
-  const works = murexWorksFor_(snap.staffCode).map(function (w) { return Object.assign({}, w, { added: !!added[w.id], staleness: staleInfo_(w) }); });
-  return { works: works, source: sourceStatus_('MUREX') };
+  let note = '', list;
+  if (sourceReady_('MUREX') === 'api') { const r = apiWorksFor_(snap.staffCode); list = r.works; note = r.note; }
+  else list = murexWorksFor_(snap.staffCode);
+  const works = list.map(function (w) { return Object.assign({}, w, { added: !!added[w.id], staleness: staleInfo_(w) }); });
+  return { works: works, source: sourceStatus_('MUREX'), note: note };
 }
 
 function addSourceWorks_(p) {
@@ -212,7 +215,7 @@ function addSourceWorks_(p) {
   DB.all('RequestWorks').filter(function (w) { return w.requestId === req.id && ACTIVE_WORK_(w); }).forEach(function (w) { if (w.sourceWorkId) exist[w.sourceWorkId] = true; });
   const recs = [].concat(p.workIds || []).filter(function (id) { return avail[id] && !exist[id]; }).map(function (id) {
     const w = avail[id];
-    return { requestId: req.id, origin: 'MUREX-' + w.origin, sourceWorkId: w.id, title: w.title, type: w.type || 'other', year: w.year, pubDate: w.pubDate, authors: w.authors, venue: w.venue, doi: normDoi_(w.doi), ref: w.workRef || w.ref, status: 'pending', addedBy: me_().id, addedRound: req.round };
+    return { requestId: req.id, origin: 'MUREX-' + w.origin, checkedAt: '', sourceWorkId: w.id, title: w.title, type: w.type || 'other', year: w.year, pubDate: w.pubDate, authors: w.authors, venue: w.venue, doi: normDoi_(w.doi), ref: w.workRef || w.ref, status: 'pending', addedBy: me_().id, addedRound: req.round };
   });
   if (!recs.length) throw new Error('ไม่มีรายการใหม่ให้เพิ่ม');
   DB.insertMany('RequestWorks', recs);

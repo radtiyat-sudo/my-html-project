@@ -1,11 +1,10 @@
 /**
  * Connectors.gs — ชั้นเชื่อมต่อแหล่งข้อมูล MUHR (บุคคล) และ MUREX (ผลงาน)
  *
- * ปัจจุบันรองรับ 2 โหมดเท่านั้น:
+ * โหมด:
  *   mock   = ข้อมูลจำลองที่ระบบสร้างให้ (ไม่ใช่ข้อมูลจริง)
  *   import = ข้อมูลที่ผู้ดูแลนำเข้าจากไฟล์ CSV (ผ่านหน้าตรวจทานก่อนบันทึก)
- * โหมด api ยังไม่ได้พัฒนา เพราะยังไม่มีข้อกำหนด API จริง — ระบบจะแจ้งว่า "ยังไม่ได้เชื่อมต่อ" และไม่แสดงว่าเชื่อมต่อแล้ว
- * จุดที่ต้องเขียนเพิ่มเมื่อได้ข้อกำหนด: fetchPersonsApi_ / fetchWorksApi_ (ดูท้ายไฟล์)
+ *   api    = เรียก API ของระบบจริง (ดู ApiConnector.gs) — ใช้ได้เมื่อตั้งค่าและ "ทดสอบการเชื่อมต่อ" ผ่านแล้วเท่านั้น
  */
 
 function sourceMode_(src) {
@@ -25,8 +24,8 @@ function sourceReady_(src) {
   if (toBool_(setting_('SIM_OUTAGE_' + src))) {
     throw sourceError_(src, 'outage', 'ระบบต้นทาง ' + src + ' ขัดข้อง/ติดต่อไม่ได้ในขณะนี้ — ข้อมูลที่ต้องใช้จากระบบนี้จะถูกสรุปว่า "ยังสรุปไม่ได้" ไม่ใช่ "ไม่ผ่าน"');
   }
-  if (mode === 'api') {
-    throw sourceError_(src, 'not_connected', 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + ' (ยังไม่มีข้อกำหนด/สิทธิ์เข้าถึง) — ใช้โหมดนำเข้าไฟล์ หรือกรอกข้อมูลให้เจ้าหน้าที่ตรวจแทน');
+  if (mode === 'api' && !apiConnected_(src)) {
+    throw sourceError_(src, 'not_connected', 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + ' (ยังไม่ได้ตั้งค่า หรือยังไม่ผ่านการทดสอบ) — กรอกข้อมูลให้เจ้าหน้าที่ตรวจแทนได้');
   }
   return mode;
 }
@@ -38,14 +37,16 @@ function sourceStatus_(src) {
   const rows = DB.all(SOURCES[src].table).filter(function (r) { return r.origin === mode; });
   const batches = DB.all('ImportBatches').filter(function (b) { return b.source === src && b.status === 'committed'; });
   const last = batches[batches.length - 1] || null;
-  let available = !outage && mode !== 'api';
+  const connected = mode === 'api' && apiConnected_(src);
+  const test = apiLastTest_(src);
+  let available = !outage && (mode !== 'api' || connected);
   let message = mode === 'mock' ? 'ใช้ข้อมูลจำลองเพื่อทดสอบ — ไม่ใช่ข้อมูลจริงจาก ' + src
     : mode === 'import' ? (last ? 'ใช้ข้อมูลที่นำเข้าเมื่อ ' + last.committedAt + ' (ไม่ได้ดึงสดจาก ' + src + ')' : 'ยังไม่มีข้อมูลนำเข้า')
-      : 'ยังไม่ได้เชื่อมต่อ API ของ ' + src;
+      : connected ? 'ดึงข้อมูลสดจาก ' + src + ' ผ่าน API (ทดสอบผ่านเมื่อ ' + test.at + ')' : 'ยังไม่ได้เชื่อมต่อ API ของ ' + src + (test && !test.ok ? ' — ทดสอบล่าสุดไม่ผ่าน: ' + test.message : ' — ต้องตั้งค่าและทดสอบในหน้า แหล่งข้อมูล');
   if (outage) message = 'จำลองสถานการณ์ระบบต้นทางขัดข้อง (ตั้งค่าโดยผู้ดูแล)';
   return {
     source: src, label: SOURCES[src].label, desc: SOURCES[src].desc, mode: mode, modeLabel: SOURCE_MODES[mode],
-    connected: false, connectedLabel: 'ยังไม่ได้เชื่อมต่อระบบจริง', available: available, outage: outage, message: message,
+    connected: connected, connectedLabel: connected ? 'เชื่อมต่อระบบจริงแล้ว (ผ่าน API)' : 'ยังไม่ได้เชื่อมต่อระบบจริง', available: available, outage: outage, message: message,
     records: rows.length, lastImport: last ? { at: last.committedAt, fileName: last.fileName, sourceUpdatedAt: last.sourceUpdatedAt, rows: last.validCount } : null
   };
 }
@@ -59,12 +60,14 @@ function sourceRows_(src) {
 function muhrByCode_(code) {
   const c = String(code || '').trim().toUpperCase();
   if (!c) return null;
+  if (sourceReady_('MUHR') === 'api') return apiPersonByCode_('MUHR', c);
   return sourceRows_('MUHR').filter(function (p) { return String(p.staffCode).toUpperCase() === c; })[0] || null;
 }
 
 /** MUREX: ผลงานของบุคคลตามรหัสบุคลากร */
 function murexWorksFor_(code) {
   const c = String(code || '').trim().toUpperCase();
+  if (sourceReady_('MUREX') === 'api') return apiWorksFor_(c).works;
   return sourceRows_('MUREX').filter(function (w) { return String(w.staffCode).toUpperCase() === c; });
 }
 
@@ -78,7 +81,8 @@ function staleInfo_(rec) {
 
 /* ---------------- นำเข้า CSV (ตรวจทานก่อนบันทึก) ---------------- */
 
-function parseCsv_(text) {
+function parseCsv_(text, delim) {
+  const d = delim || ',';
   const s = String(text || '').replace(/^﻿/, '');
   const rows = []; let row = []; let cur = ''; let q = false;
   for (let i = 0; i < s.length; i++) {
@@ -87,7 +91,7 @@ function parseCsv_(text) {
       if (ch === '"') { if (s[i + 1] === '"') { cur += '"'; i++; } else q = false; }
       else cur += ch;
     } else if (ch === '"') q = true;
-    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === d) { row.push(cur); cur = ''; }
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && s[i + 1] === '\n') i++;
       row.push(cur); cur = '';
@@ -248,10 +252,3 @@ function importDiscard_(p) {
   audit_('import.discard', 'ImportBatches', b.id, { status: 'discarded' }, '');
   return true;
 }
-
-/* ---------------- จุดต่อ API จริง (ยังไม่ได้ทำ) ----------------
- * เมื่อได้ข้อกำหนดจากเจ้าของระบบ MUHR/MUREX ให้เขียนฟังก์ชันด้านล่าง แล้วให้ sourceRows_ เรียกใช้เมื่อโหมดเป็น api
- * กุญแจ/รหัสต้องเก็บใน Script Properties เช่น MUHR_API_TOKEN — ห้ามใส่ในโค้ด
- */
-function fetchPersonsApi_() { throw sourceError_('MUHR', 'not_connected', 'ยังไม่ได้พัฒนาการเชื่อมต่อ API ของ MUHR'); }
-function fetchWorksApi_() { throw sourceError_('MUREX', 'not_connected', 'ยังไม่ได้พัฒนาการเชื่อมต่อ API ของ MUREX'); }

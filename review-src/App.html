@@ -124,6 +124,8 @@ function originBadge(o) {
   if (/mock/.test(s)) return '<span class="badge gray" title="ข้อมูลจำลอง ไม่ใช่ข้อมูลจริง">' + ic('database', 'sm') + (s.indexOf('MUREX') === 0 ? 'MUREX ' : '') + 'จำลอง</span>';
   if (/import/.test(s)) return '<span class="badge blue" title="ข้อมูลที่ผู้ดูแลนำเข้าจากไฟล์">' + ic('upload', 'sm') + (s.indexOf('MUREX') === 0 ? 'MUREX ' : '') + 'นำเข้า</span>';
   if (s === 'manual') return '<span class="badge purple">' + ic('edit', 'sm') + 'กรอกเอง</span>';
+  if (s === 'SCHOLAR') return '<span class="badge teal" title="ค้นพบจากฐานข้อมูลวิชาการ (Scopus/WoS/PubMed/ERIC/TCI/OpenAlex)">' + ic('search', 'sm') + 'ฐานข้อมูลวิชาการ</span>';
+  if (/api$/.test(s) || s === 'api') return '<span class="badge green" title="ดึงสดจากระบบจริงผ่าน API">' + ic('database', 'sm') + (s.indexOf('MUREX') === 0 ? 'MUREX ' : '') + 'ระบบจริง</span>';
   return '<span class="badge gray">' + esc(s) + '</span>';
 }
 function workStatusBadge(st) {
@@ -134,6 +136,18 @@ function workStatusBadge(st) {
 function identityBadge(st) {
   const ok = st === 'code_match' || st === 'staff_confirmed';
   return `<span class="badge ${ok ? 'green' : 'amber'}">${ic(ok ? 'ok' : 'q', 'sm')}${esc(M().identity[st || ''] || st)}</span>`;
+}
+function dbCell(w) {
+  if (!w.checkedAt) return '<span class="badge gray">' + ic('q', 'sm') + 'ยังไม่ได้ตรวจฐานข้อมูล</span>';
+  const db = (M().databases[w.database] || M().databases.none);
+  const proof = w.proof === 'record' ? '<span class="badge green">' + ic('ok', 'sm') + 'พบบทความในฐานโดยตรง</span>'
+    : w.proof === 'journal' ? '<span class="badge blue">' + ic('ok', 'sm') + 'ยืนยันจากรายชื่อวารสาร</span>' : '<span class="badge gray">' + ic('q', 'sm') + 'ยังยืนยันไม่ได้</span>';
+  const links = (typeof w.links === 'string' ? (function () { try { return JSON.parse(w.links || '[]'); } catch (e) { return []; } })() : (w.links || []));
+  if (w.database === 'none') return `<b>ไม่พบในฐานที่ตรวจได้</b><div><span class="badge gray">${ic('q', 'sm')}ยังยืนยันไม่ได้</span></div><span class="sub">ไม่ได้แปลว่าไม่อยู่ในฐาน — ตรวจด้วยตนเอง หรือแนบหลักฐาน${w.dbEvidence ? ' · ' + esc(String(w.dbEvidence).slice(0, 160)) : ''}</span>${w.checkedAt ? `<span class="sub">ตรวจเมื่อ ${thaiDate(w.checkedAt, true)}</span>` : ''}`;
+  return `<b>${esc(db.label)}</b>${w.quartile ? ` <span class="badge purple" title="${esc(w.quartileSource)}">${esc(w.quartile)}</span>` : ''}<div>${proof}</div>
+    ${w.quartile ? `<span class="sub">Quartile จาก: ${esc(w.quartileSource)}</span>` : ''}
+    ${links.length ? `<span class="sub">${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ${ic('external', 'sm')}</a>`).join(' · ')}</span>` : ''}
+    ${w.checkedAt ? `<span class="sub">ตรวจเมื่อ ${thaiDate(w.checkedAt, true)}</span>` : ''}`;
 }
 const empty = (msg, icon) => `<div class="empty">${ic(icon || 'list')}<div>${esc(msg)}</div></div>`;
 const doiLink = d => d ? `<a href="https://doi.org/${encodeURI(d)}" target="_blank" rel="noopener">${esc(d)} ${ic('external', 'sm')}</a>` : '';
@@ -599,7 +613,7 @@ TABS.person = d => {
 };
 function sourceTag(src) {
   const s = (B().sources || []).find(x => x.source === src) || {};
-  return `<span class="badge ${s.available ? (s.mode === 'mock' ? 'gray' : 'blue') : 'red'}" title="${esc(s.message)}">${ic('database', 'sm')}${esc(src)}: ${esc(s.mode === 'mock' ? 'ข้อมูลจำลอง' : s.mode === 'import' ? 'ข้อมูลนำเข้า' : 'ยังไม่เชื่อมต่อ')}${s.outage ? ' (ขัดข้อง)' : ''}</span>`;
+  return `<span class="badge ${s.available ? (s.mode === 'mock' ? 'gray' : s.connected ? 'green' : 'blue') : 'red'}" title="${esc(s.message)}">${ic('database', 'sm')}${esc(src)}: ${esc(s.mode === 'mock' ? 'ข้อมูลจำลอง' : s.mode === 'import' ? 'ข้อมูลนำเข้า' : s.connected ? 'เชื่อมต่อระบบจริง' : 'ยังไม่เชื่อมต่อ')}${s.outage ? ' (ขัดข้อง)' : ''}</span>`;
 }
 BIND.person = d => {
   const R = d.request;
@@ -650,8 +664,9 @@ TABS.works = d => {
   const wBrief = w => `<b>${esc(w.title)}</b><div class="small muted">${esc(M().workTypes[w.type] || '')} · ${esc(w.year)} · ${esc(w.venue || '')}</div><div class="small">${w.doi ? 'DOI ' + esc(w.doi) : esc(w.ref || 'ไม่มี DOI/รหัสอ้างอิง')}</div><div>${originBadge(w.origin)}</div>`;
   return `<div class="stack">
     ${!ed && d.actions.indexOf('edit') > -1 ? lockNote('works') : ''}
-    ${ed ? `<div class="row"><button class="btn primary" id="w-src">${ic('database')} ดึงผลงานจาก MUREX</button><button class="btn" id="w-add">${ic('plus')} เพิ่มผลงานเอง</button>${sourceTag('MUREX')}</div>
-      <div class="small muted">ผลงานจาก MUREX เลือกยืนยันรายการได้เลย ผลงานที่กรอกเองต้องมี DOI/เลขอ้างอิง หรือแนบหลักฐาน · ระบบตรวจรายการซ้ำ (DOI ก่อน แล้วชื่อเรื่อง+ปี) แต่ไม่รวมรายการให้เอง</div>` : ''}
+    ${ed || staff ? `<div class="row">${ed ? `<button class="btn primary" id="w-src">${ic('database')} ดึงผลงานจาก MUREX</button>` : ''}<button class="btn ${ed ? '' : 'primary'}" id="w-sch">${ic('search')} ค้นจาก Scopus / ฐานข้อมูลวิชาการ</button>${ed ? `<button class="btn" id="w-add">${ic('plus')} เพิ่มผลงานเอง</button>` : ''}${sourceTag('MUREX')}</div>` : ''}
+    ${ed ? `
+<div class="small muted">ผลงานจาก MUREX เลือกยืนยันรายการได้เลย ผลงานที่กรอกเองต้องมี DOI/เลขอ้างอิง หรือแนบหลักฐาน · ระบบตรวจรายการซ้ำ (DOI ก่อน แล้วชื่อเรื่อง+ปี) แต่ไม่รวมรายการให้เอง</div>` : ''}
     ${openPairs.length ? `<div><h3 style="margin:0 0 8px">${ic('layers')} ผลงานที่สงสัยว่าซ้ำ (${openPairs.length} คู่) — ${staff ? 'โปรดตัดสิน' : 'รอเจ้าหน้าที่ตัดสิน'}</h3>
       ${openPairs.map(p => `<div class="dup"><b>${esc(basis[p.basis] || p.basis)}</b> <span class="small">(ความคล้าย ${Math.round(Number(p.score) * 100)}%)</span>
         <div class="pair"><div>${wBrief(wById(p.workA))}</div><div>${wBrief(wById(p.workB))}</div></div>
@@ -659,12 +674,12 @@ TABS.works = d => {
     ${staff ? `<div class="banner ${R.worksComplete ? 'green' : 'blue'}">${ic(R.worksComplete ? 'ok' : 'info')}<div style="flex:1"><b>${R.worksComplete ? 'ยืนยันแล้วว่ารายการผลงานครบถ้วน' : 'ยังไม่ได้ยืนยันว่ารายการผลงานครบถ้วน'}</b>
       <div class="sub">${R.worksComplete ? esc(R.worksCompleteNote) : 'ถ้าจำนวนผลงานไม่ถึงเกณฑ์ ระบบจะสรุปว่า "ไม่ผ่าน" ได้ก็ต่อเมื่อเจ้าหน้าที่ยืนยันว่ารายการครบถ้วนแล้วเท่านั้น มิฉะนั้นจะเป็น "ยังสรุปไม่ได้"'}</div>
       <button class="btn sm mt-s" id="w-complete">${R.worksComplete ? 'ยกเลิกการยืนยัน' : 'ยืนยันว่ารายการครบถ้วน'}</button></div></div>` : ''}
-    ${active.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>#</th><th>ผลงาน</th><th>ปี</th><th>แหล่งเผยแพร่</th><th>DOI/รหัสอ้างอิง</th><th>ที่มา</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${active.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>#</th><th>ผลงาน</th><th>ปี</th><th>แหล่งเผยแพร่</th><th>DOI/รหัสอ้างอิง</th><th>ฐานข้อมูล / หลักฐาน</th><th>ที่มา</th><th>สถานะ</th><th></th></tr></thead><tbody>
       ${active.map((w, i) => `<tr><td>${i + 1}</td><td><div class="title">${esc(w.title)}</div><span class="sub">${esc(M().workTypes[w.type] || w.type)}${w.authors ? ' · ' + esc(w.authors) : ''}</span>
           ${w.evidence.length ? `<span class="sub">${w.evidence.map(f => `<a href="#" data-file="${esc(f.id)}">${ic('file', 'sm')} ${esc(f.fileName)}</a>`).join(' ')}</span>` : ''}
           ${w.staffNote ? `<span class="sub">หมายเหตุ: ${esc(w.staffNote)}</span>` : ''}</td>
         <td>${esc(w.year)}${Number(w.year) ? '<span class="sub">พ.ศ. ' + (Number(w.year) + 543) + '</span>' : ''}</td><td>${esc(w.venue || '—')}</td>
-        <td>${w.doi ? doiLink(w.doi) : esc(w.ref || '—')}</td><td>${originBadge(w.origin)}</td><td>${workStatusBadge(w.status)}</td>
+        <td>${w.doi ? doiLink(w.doi) : esc(w.ref || '—')}</td><td class="small" style="min-width:190px">${dbCell(w)}${(ed || staff) && (w.doi || w.title) ? `<div><button class="btn sm mt-s" data-chk="${esc(w.id)}">${ic('refresh', 'sm')} ${w.checkedAt ? 'ตรวจซ้ำ' : 'ตรวจกับฐานข้อมูล'}</button></div>` : ''}</td><td>${originBadge(w.origin)}</td><td>${workStatusBadge(w.status)}</td>
         <td><div class="actions">
           ${staff && ['pending', 'verified', 'rejected'].indexOf(w.status) > -1 ? `${w.status !== 'verified' ? `<button class="btn sm" data-verify="${esc(w.id)}" title="ยืนยันผลงาน">${ic('check', 'sm')} ยืนยัน</button>` : ''}${w.status !== 'rejected' ? `<button class="btn sm ghost-danger" data-reject="${esc(w.id)}">ไม่รับ</button>` : ''}` : ''}
           ${ed && w.origin === 'manual' ? `<button class="btn sm icon" data-wedit="${esc(w.id)}" aria-label="แก้ไข">${ic('edit', 'sm')}</button>` : ''}
@@ -692,11 +707,19 @@ BIND.works = d => {
     catch (e) { return modal({ title: 'ดึงผลงานจาก MUREX', body: `<div class="banner amber">${ic('alert')}<div><b>ดึงจากระบบต้นทางไม่ได้</b><div class="sub pre">${esc(e.message)}</div><div class="sub">เพิ่มผลงานเองได้ — การดึงไม่ได้ไม่ถือว่าไม่มีผลงาน</div></div></div>`, cancelLabel: 'ปิด' }); }
     const list = res.works;
     modal({ title: 'ผลงานจาก MUREX', wide: true, okLabel: list.some(w => !w.added) ? 'เพิ่มรายการที่เลือก' : '',
-      body: `<div class="small muted mb">${esc(res.source.modeLabel)} · ${esc(res.source.message)}${res.note ? '<br>' + esc(res.note) : ''}</div>
+      body: `<div class="small muted mb">${esc(res.source.modeLabel)} · ${esc(res.source.message)}${res.note ? '<br><b>' + esc(res.note) + '</b>' : ''}</div>
         ${list.length ? list.map(w => `<label class="check" style="display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)"><input type="checkbox" value="${esc(w.id)}" ${w.added ? 'disabled checked' : 'checked'}>
           <span><b>${esc(w.title)}</b><br><span class="small muted">${esc(M().workTypes[w.type] || w.type)} · ${esc(w.year)} · ${esc(w.venue)} · ${w.doi ? 'DOI ' + esc(w.doi) : esc(w.workRef)}</span> ${originBadge(w.origin)} ${w.added ? '<span class="badge green">เพิ่มแล้ว</span>' : ''}</span></label>`).join('') : empty('ไม่พบผลงานของบุคคลนี้ใน MUREX — เพิ่มเองได้')}`,
       onOk: async bg => { const ids = $$('input[type=checkbox]:not(:disabled):checked', bg).map(x => x.value); if (!ids.length) return false; const r = await call('addSourceWorks', { id: R.id, workIds: ids }); toast('เพิ่ม ' + r.added + ' รายการ' + (r.suspectedDuplicates ? ' · พบรายการสงสัยว่าซ้ำ ' + r.suspectedDuplicates + ' คู่' : ''), 'ok'); reload(); } });
   });
+  const sch = $('#w-sch');
+  if (sch) sch.onclick = () => scholarModal(d);
+  $$('[data-chk]').forEach(b => b.onclick = () => run(async () => {
+    b.disabled = true; b.textContent = 'กำลังตรวจ…';
+    const r = await call('checkWorkDb', { workId: b.dataset.chk });
+    toast(r.found ? 'ตรวจแล้ว: ' + (M().databases[r.database] || {}).label + (r.quartile ? ' ' + r.quartile : '') : 'ไม่พบในฐานข้อมูล — ' + r.message, r.found ? 'ok' : '');
+    reload();
+  }));
   const add = $('#w-add');
   if (add) add.onclick = () => modal({ title: 'เพิ่มผลงาน', wide: true, okLabel: 'บันทึก', body: workForm(), onOk: async bg => { const r = await call('saveManualWork', { id: R.id, work: workVals(bg) }); toast('บันทึกแล้ว' + (r.suspectedDuplicates ? ' · สงสัยว่าซ้ำกับรายการเดิม — เจ้าหน้าที่จะตรวจ' : ''), 'ok'); reload(); } });
   $$('[data-wedit]').forEach(b => b.onclick = () => { const w = d.works.find(x => x.id === b.dataset.wedit); modal({ title: 'แก้ไขผลงาน', wide: true, okLabel: 'บันทึก', body: workForm(w), onOk: async bg => { await call('saveManualWork', { id: R.id, workId: w.id, work: workVals(bg) }); toast('บันทึกแล้ว', 'ok'); reload(); } }); });
@@ -713,6 +736,47 @@ BIND.works = d => {
   if (wc) wc.onclick = () => R.worksComplete ? run(async () => { await call('setWorksComplete', { id: R.id, value: false }); reload(); })
     : askReason('ยืนยันว่ารายการผลงานครบถ้วน', 'ตรวจความครบถ้วนจากแหล่งใด (เช่น ตรวจกับ MUREX และ CV ฉบับล่าสุด)', 'ยืนยัน', async r => { await call('setWorksComplete', { id: R.id, value: true, note: r }); reload(); });
 };
+
+/* --- ค้นจากฐานข้อมูลวิชาการ --- */
+function scholarModal(d) {
+  const R = d.request, p = R.personSnap || {}, ids = (() => { try { return JSON.parse(R.authorIds || '{}'); } catch (e) { return {}; } })();
+  const be = M().currentBE;
+  const bg = modal({ title: 'ค้นผลงานจาก Scopus และฐานข้อมูลตามประกาศ', wide: true, okLabel: '', cancelLabel: 'ปิด',
+    body: `<div class="banner blue mb">${ic('info')}<div><div class="sub">ค้นตามลำดับ Scopus → Web of Science → PubMed → ERIC → TCI/ThaiJO → OpenAlex ระบบแสดงว่าพบในฐานใด พร้อมลิงก์ให้กดยืนยันเอง — <strong>Scopus Author ID หรือ ORCID แม่นยำที่สุด</strong> การค้นด้วยชื่ออาจได้ผลงานของคนชื่อเดียวกัน ต้องตรวจทุกรายการ</div></div></div>
+      <div class="form-grid">${field('ชื่อ-นามสกุลภาษาอังกฤษ (ที่ใช้ตีพิมพ์)', `<input class="input" id="s-en" value="${esc(p.nameEn || '')}">`)}${field('ชื่อ-นามสกุลภาษาไทย', `<input class="input" id="s-th" value="${esc(p.nameTh || '')}">`)}
+        ${field('Scopus Author ID', `<input class="input" id="s-sid" value="${esc(ids.scopusId || '')}" inputmode="numeric" placeholder="เช่น 57190000000">`, 'ดูได้จาก scopus.com/authid')}${field('ORCID', `<input class="input" id="s-orcid" value="${esc(ids.orcid || '')}" placeholder="0000-0000-0000-0000">`)}
+        ${field('สังกัด (ใช้กรองใน Scopus เมื่อค้นด้วยชื่อ)', `<input class="input" id="s-aff" value="${esc(B().scholarAffil || 'Mahidol University')}">`)}
+        <div class="row" style="align-items:flex-end">${field('ปี พ.ศ. ตั้งแต่', `<input class="input" id="s-from" type="number" value="${be - 4}">`)}${field('ถึง', `<input class="input" id="s-to" type="number" value="${be}">`)}</div></div>
+      <div class="row mt"><button class="btn primary" id="s-go">${ic('search')} ค้นหา</button><span class="small muted">อาจใช้เวลา 10–40 วินาที</span></div><div id="s-out" class="mt"></div>` });
+  $('#s-go', bg).onclick = () => run(async () => {
+    const out = $('#s-out', bg);
+    out.innerHTML = '<div class="loading" style="min-height:120px"><div><div class="spinner"></div>กำลังค้นทุกฐาน…</div></div>';
+    let r;
+    try { r = await call('scholarSearch', { id: R.id, nameEn: val('#s-en', bg), nameTh: val('#s-th', bg), scopusId: val('#s-sid', bg), orcid: val('#s-orcid', bg), affil: val('#s-aff', bg), fromYear: val('#s-from', bg), toYear: val('#s-to', bg) }); }
+    catch (e) { out.innerHTML = `<div class="banner red">${ic('alert')}<div><b>ค้นไม่สำเร็จ</b><div class="sub">${esc(e.message)}</div></div></div>`; return; }
+    const modeB = m => m === 'direct' ? '<span class="badge green">ค้นในฐานโดยตรง</span>' : m === 'list' ? '<span class="badge amber">ไม่มี API key — ตรวจผ่านรายชื่อวารสาร</span>' : m === 'error' ? '<span class="badge red">ผิดพลาด</span>' : '<span class="badge gray">ข้าม</span>';
+    const proofB = w => w.proof === 'record' ? '<span class="badge green">' + ic('ok', 'sm') + 'พบบทความในฐานโดยตรง</span>' : w.proof === 'journal' ? '<span class="badge blue">ยืนยันจากรายชื่อวารสาร</span>' : '<span class="badge gray">ยังยืนยันไม่ได้</span>';
+    out.innerHTML = `<div class="card mb"><div class="card-b tight"><table class="t"><thead><tr><th>ลำดับ</th><th>ฐาน</th><th>วิธี</th><th class="num">พบ</th><th>รายละเอียด</th></tr></thead><tbody>
+        ${r.status.map(s => `<tr><td>${s.step}</td><td><b>${esc(s.label)}</b></td><td>${modeB(s.mode)}</td><td class="num">${s.count}</td><td class="small">${esc(s.message || '')}${s.link ? ` · <a href="${esc(s.link)}" target="_blank" rel="noopener">ค้นซ้ำบนเว็บ Scopus ${ic('external', 'sm')}</a>` : ''}${s.authorUrl ? ` · <a href="${esc(s.authorUrl)}" target="_blank" rel="noopener">โปรไฟล์ผู้แต่ง ${ic('external', 'sm')}</a>` : ''}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="small muted mb">ค้นเมื่อ ${thaiDate(r.searchedAt, true)} · ช่วงปี พ.ศ. ${r.query.fromYear}–${r.query.toYear} · รายชื่อวารสารในระบบ ${r.journalIndex.total.toLocaleString()} ISSN · การค้นไม่พบไม่ได้แปลว่าไม่มีผลงาน</div>
+      ${r.works.length ? `<div class="table-wrap"><table class="t"><thead><tr><th></th><th>ผลงาน</th><th>ปี</th><th>ฐานข้อมูล / Quartile</th><th>หลักฐาน</th></tr></thead><tbody>
+        ${r.works.map(w => `<tr><td><input type="checkbox" class="s-pick" value="${w.i}" ${w.added ? 'disabled checked' : ''} aria-label="เลือก"></td>
+          <td style="min-width:240px"><div class="title">${esc(w.title)}</div><span class="sub">${esc(w.typeLabel || '')} · ${esc(w.journal)}${w.doi ? ' · DOI ' + esc(w.doi) : ''}</span><span class="sub">${esc((w.authors || []).join(', '))}</span>${w.added ? '<span class="badge teal">อยู่ในคำขอแล้ว</span>' : ''}</td>
+          <td>${w.yearCE || '—'}<span class="sub">${w.yearCE ? 'พ.ศ. ' + (w.yearCE + 543) : ''}</span></td>
+          <td><b>${esc(w.dbLabel)}</b>${w.quartile ? ` <span class="badge purple">${esc(w.quartile)}</span><span class="sub">${esc(w.quartileSource)}</span>` : ''}<span class="sub">พบใน: ${esc((w.foundIn || []).join(', ') || '—')} · ที่มา: ${esc((w.origins || []).join(', '))}</span></td>
+          <td class="small">${proofB(w)}<div>${(w.links || []).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ${ic('external', 'sm')}</a>`).join('<br>')}</div></td></tr>`).join('')}</tbody></table></div>
+        <div class="row mt"><button class="btn primary" id="s-add">${ic('plus')} เพิ่มรายการที่เลือกเข้าคำขอ</button><span class="small muted">ผลงานที่เพิ่มมีสถานะ "รอตรวจ" เจ้าหน้าที่ต้องยืนยันว่าเป็นของบุคคลนี้</span></div>`
+        : empty('ไม่พบผลงานในช่วงปีที่ค้น — ตรวจการสะกด ลองใส่ Scopus Author ID/ORCID หรือเพิ่มผลงานเอง')}`;
+    const add = $('#s-add', bg);
+    if (add) add.onclick = () => run(async () => {
+      const idx = $$('.s-pick:not(:disabled):checked', bg).map(x => Number(x.value));
+      if (!idx.length) return toast('ยังไม่ได้เลือกผลงาน', 'err');
+      const a = await call('addScholarWorks', { id: R.id, token: r.token, indexes: idx });
+      toast('เพิ่ม ' + a.added + ' รายการ' + (a.suspectedDuplicates ? ' · สงสัยว่าซ้ำ ' + a.suspectedDuplicates + ' คู่' : ''), 'ok');
+      closeModal(); reload();
+    });
+  });
+}
 
 /* --- เอกสารแนบ --- */
 TABS.docs = d => {
@@ -913,7 +977,9 @@ function ruleRow(r) {
     person_status: field('สถานะที่ยอมรับ', multi('allowed', M().empStatus, p.allowed)),
     min_degree: field('คุณวุฒิที่ยอมรับ', multi('allowed', M().degrees, p.allowed)),
     academic_rank: field('ตำแหน่งที่ยอมรับ', multi('allowed', M().ranks, p.allowed)),
-    min_works: `<div class="form-grid">${field('จำนวนขั้นต่ำ', `<input class="input" data-p="min" type="number" min="1" value="${esc(p.min || '')}">`)}${field('ย้อนหลังกี่ปี (0 = ไม่จำกัด)', `<input class="input" data-p="years" type="number" min="0" value="${esc(p.years || 0)}">`, 'นับรวมปีปัจจุบัน')}</div>` + field('ประเภทผลงานที่นับ (ไม่เลือก = ทุกประเภท)', multi('types', M().workTypes, p.types)),
+    min_works: `<div class="form-grid">${field('จำนวนขั้นต่ำ', `<input class="input" data-p="min" type="number" min="1" value="${esc(p.min || '')}">`)}${field('ย้อนหลังกี่ปี (0 = ไม่จำกัด)', `<input class="input" data-p="years" type="number" min="0" value="${esc(p.years || 0)}">`, 'นับรวมปีปัจจุบัน')}</div>` + field('ประเภทผลงานที่นับ (ไม่เลือก = ทุกประเภท)', multi('types', M().workTypes, p.types))
+      + field('ต้องอยู่ในฐานข้อมูล (ไม่เลือก = ไม่กำหนด)', multi('databases', Object.assign({}, M().dbGroups, Object.keys(M().databases).filter(k => k !== 'none').reduce((o, k) => { o[k] = M().databases[k].label; return o; }, {})), p.databases), 'ผลงานต้องผ่าน "ตรวจกับฐานข้อมูล" ก่อน มิฉะนั้นข้อนี้จะเป็น "ยังสรุปไม่ได้"')
+      + field('Quartile ที่ยอมรับ (ไม่เลือก = ไม่กำหนด)', multi('quartiles', { Q1: 'Q1', Q2: 'Q2', Q3: 'Q3', Q4: 'Q4' }, p.quartiles), 'ระบุในข้อความเกณฑ์ด้วยว่าใช้ Quartile จากแหล่งใดและปีใด ตามประกาศ'),
     required_documents: field('รหัสเอกสารที่ต้องมี (คั่นด้วย ,)', `<input class="input" data-p="docs" value="${esc((p.docs || []).join(','))}">`, 'ตรงกับรหัสเอกสารในประเภทคำขอ เช่น cv'),
     manual: field('คำแนะนำให้เจ้าหน้าที่', `<input class="input" data-p="instruction" value="${esc(p.instruction || '')}">`),
     identity_verified: ''
@@ -999,7 +1065,7 @@ PAGES.data = async () => {
   const s = a.settings;
   const pv = S.cache.preview;
   view(`<div class="stack">
-    <div class="banner amber">${ic('alert')}<div><b>ยังไม่ได้เชื่อมต่อ MUHR และ MUREX จริง</b><div class="sub">ระบบใช้ข้อมูลจำลอง หรือข้อมูลที่นำเข้าจากไฟล์ CSV เท่านั้น โหมด API ยังไม่ได้พัฒนาเพราะยังไม่มีข้อกำหนด/สิทธิ์เข้าถึงจากเจ้าของระบบ — ดูรายการข้อมูลที่ต้องขอในคู่มือ</div></div></div>
+    ${a.sources.every(x => x.connected) ? '' : `<div class="banner amber">${ic('alert')}<div><b>${a.sources.filter(x => !x.connected).map(x => esc(x.label)).join(' และ ')} ยังไม่ได้เชื่อมต่อระบบจริง</b><div class="sub">วิธีเชื่อม: (1) ขอกุญแจ API จากผู้ดูแลระบบนั้น (2) กรอกในส่วน "เชื่อมต่อ API" ด้านล่าง (3) กด "ทดสอบการเชื่อมต่อ" ให้ผ่าน (4) เปลี่ยนโหมดเป็น "เชื่อมต่อ API" — ระหว่างรอใช้นำเข้า CSV ได้</div></div></div>`}
     <div class="grid g2">${a.sources.map(x => `<div class="card"><div class="card-h"><h3>${ic('database')} ${esc(x.label)}</h3><span class="small muted">${esc(x.desc)}</span></div><div class="card-b">
       <dl class="kv"><dt>การเชื่อมต่อจริง</dt><dd><span class="badge red">${ic('x', 'sm')} ${esc(x.connectedLabel)}</span></dd>
         <dt>โหมดที่ใช้</dt><dd><select class="select" data-mode="${x.source}">${Object.keys(M().sourceModes).map(k => opt(k, M().sourceModes[k], x.mode)).join('')}</select></dd>
@@ -1007,6 +1073,8 @@ PAGES.data = async () => {
         <dt>จำนวนระเบียน</dt><dd>${x.records} (ในโหมดปัจจุบัน)</dd>
         <dt>นำเข้าล่าสุด</dt><dd>${x.lastImport ? `${thaiDate(x.lastImport.at, true)} · ${esc(x.lastImport.fileName)} · ${x.lastImport.rows} แถว · ข้อมูลต้นทางวันที่ ${thaiDate(x.lastImport.sourceUpdatedAt)}` : '—'}</dd>
         <dt>ทดสอบกรณีขัดข้อง</dt><dd><label class="check"><input type="checkbox" data-outage="${x.source}" ${x.outage ? 'checked' : ''}> จำลองว่าระบบต้นทางขัดข้อง</label></dd></dl></div></div>`).join('')}</div>
+    <div id="api-box"></div>
+    <div id="sch-box"></div>
     <div class="card"><div class="card-h"><h3>${ic('upload')} นำเข้าไฟล์ CSV</h3></div><div class="card-b">
       <div class="inline-form">${field('แหล่งข้อมูล', `<select class="select" id="im-src">${opt('MUHR', 'MUHR (บุคคล)')}${opt('MUREX', 'MUREX (ผลงาน)')}</select>`)}${field('วันที่ข้อมูลต้นทาง', '<input class="input" type="date" id="im-date">', 'วันที่ส่งออกจากระบบต้นทาง')}
         ${field('หมายเหตุ', '<input class="input" id="im-note">')}<button class="btn primary" id="im-file">${ic('upload')} เลือกไฟล์และตรวจทาน</button></div>
@@ -1019,6 +1087,7 @@ PAGES.data = async () => {
       ${a.batches.map(b => `<tr><td>${thaiDate(b.createdAt, true)}</td><td>${esc(b.source)}</td><td>${esc(b.fileName)}</td><td>${b.status === 'committed' ? '<span class="badge green">นำเข้าแล้ว</span>' : b.status === 'preview' ? '<span class="badge amber">รอตรวจทาน</span>' : '<span class="badge gray">ยกเลิก</span>'}</td>
         <td class="num">${esc(b.validCount)} / ${esc(b.errorCount)}</td><td>${esc(b.createdByName)}</td><td>${b.status === 'preview' ? `<button class="btn sm" data-bview="${esc(b.id)}">ตรวจทาน</button>` : ''}</td></tr>`).join('') || '<tr><td class="muted" colspan="7">ยังไม่มี</td></tr>'}</tbody></table></div></div>
   </div>`);
+  run(renderApiBox); run(renderScholarBox);
   $$('[data-mode]').forEach(x => x.onchange = () => run(async () => { await call('saveSettings', { settings: { [x.dataset.mode + '_MODE']: x.value } }); toast('เปลี่ยนโหมดแล้ว', 'ok'); S.boot = await call('boot'); render(); }));
   $$('[data-outage]').forEach(x => x.onchange = () => run(async () => { await call('saveSettings', { settings: { ['SIM_OUTAGE_' + x.dataset.outage]: x.checked } }); S.boot = await call('boot'); render(); }));
   $('#im-file').onclick = () => run(async () => {
@@ -1032,6 +1101,81 @@ PAGES.data = async () => {
   const cm = $('#im-commit'); if (cm) cm.onclick = () => run(async () => { const r = await call('importCommit', { batchId: pv.batch.id }); S.cache.preview = null; toast('นำเข้า ' + r.written + ' แถวแล้ว', 'ok'); S.boot = await call('boot'); render(); });
   const dc = $('#im-discard'); if (dc) dc.onclick = () => run(async () => { await call('importDiscard', { batchId: pv.batch.id }); S.cache.preview = null; render(); });
 };
+async function renderApiBox() {
+  const box = $('#api-box'); if (!box) return;
+  const v = await call('sourceApi');
+  const form = c => `<div class="card"><div class="card-h"><h3>${ic('database')} เชื่อมต่อ API: ${esc(c.source)}</h3><span class="spacer"></span>${c.connected ? `<span class="badge green">${ic('ok', 'sm')} เชื่อมต่อแล้ว</span>` : `<span class="badge red">${ic('x', 'sm')} ยังไม่ได้เชื่อมต่อ</span>`}</div><div class="card-b" data-api="${c.source}">
+    ${c.source === 'MUREX' ? `<div class="banner blue mb">${ic('info')}<div><div class="sub">MUREX ของมหาวิทยาลัยทำงานบน <strong>Elsevier Pure</strong> ใช้ชุดตั้งค่า "Elsevier Pure" ได้เลย — ต้องขอ <strong>Pure API key</strong> จากผู้ดูแลระบบ MUREX (งานบริหารงานวิจัย/ฝ่ายดูแลระบบ Pure) โดยให้สิทธิ์อ่าน persons และ research-outputs และต้องมี<strong>รหัสบุคลากร</strong>ในข้อมูลบุคคลของ Pure เพื่อจับคู่คน · URL และรูปแบบคำขอเป็นค่าเริ่มต้นที่ต้องยืนยันกับผู้ดูแล Pure (Pure แต่ละเวอร์ชันต่างกัน)</div></div></div>`
+      : `<div class="banner blue mb">${ic('info')}<div><div class="sub">ยังไม่พบเอกสาร API สาธารณะของ MUHR — ต้องขอจากกองทรัพยากรบุคคล/ฝ่ายเทคโนโลยีสารสนเทศ: URL, วิธียืนยันตัวตน (header), รูปแบบคำขอ และชื่อฟิลด์ แล้วกรอกด้านล่าง (JSON path เช่น <code>name.first</code>, ใช้ <code>|</code> คั่นทางเลือก)</div></div></div>`}
+    <div class="form-grid">
+      ${field('ชุดตั้งค่า', `<select class="select" data-k="preset">${c.presets.map(x => opt(x.key, x.label, c.preset)).join('')}</select>`)}
+      ${field('URL ฐาน (https://)', `<input class="input" data-k="base" value="${esc(c.base)}">`)}
+      ${field('ชื่อ header ของกุญแจ', `<input class="input" data-k="authHeader" value="${esc(c.authHeader)}">`)}${field('คำนำหน้ากุญแจ', `<input class="input" data-k="authPrefix" value="${esc(c.authPrefix)}" placeholder="เช่น Bearer (เว้นวรรคท้าย)">`)}
+      ${field('กุญแจ API', `<input class="input" data-k="token" type="password" autocomplete="off" placeholder="${c.hasToken ? 'มีกุญแจแล้ว — เว้นว่างเพื่อใช้ตัวเดิม' : 'วางกุญแจที่ได้รับ'}">`, 'เก็บใน Script Properties ไม่แสดงกลับและไม่อยู่ในโค้ด')}
+      ${field('ฟิลด์รายการในผลลัพธ์', `<input class="input" data-k="listPath" value="${esc(c.listPath)}">`)}
+      ${field('คำขอค้นบุคคล', `<input class="input" data-k="searchReq" value="${esc(c.searchReq)}">`, 'ใช้ {q} แทนคำค้น', 'full')}
+      ${field('คำขอบุคคลตามรหัส', `<input class="input" data-k="byCodeReq" value="${esc(c.byCodeReq)}">`, 'ใช้ {code}', 'full')}
+      ${c.source === 'MUREX' ? field('คำขอผลงานของบุคคล', `<input class="input" data-k="worksReq" value="${esc(c.worksReq)}">`, 'ใช้ {pid} (รหัสใน Pure) หรือ {code}', 'full') : ''}
+      ${c.preset === 'custom' ? field('จับคู่ฟิลด์บุคคล (JSON)', `<textarea class="input" data-k="personMap" rows="5">${esc(c.personMap)}</textarea>`, '', 'full') + (c.source === 'MUREX' ? field('จับคู่ฟิลด์ผลงาน (JSON)', `<textarea class="input" data-k="workMap" rows="5">${esc(c.workMap)}</textarea>`, '', 'full') : '') : ''}
+    </div>
+    <div class="row mt"><button class="btn primary" data-api-save>${ic('save')} บันทึก</button>${c.hasToken ? '<label class="check"><input type="checkbox" data-k="clearToken"> ลบกุญแจ</label>' : ''}</div>
+    <div class="inline-form mt">${field('ทดสอบด้วยรหัสบุคลากร/ชื่อจริง 1 คน', '<input class="input" data-k="q" placeholder="เช่น รหัสบุคลากรของคุณ">')}<button class="btn" data-api-test>${ic('refresh')} ทดสอบการเชื่อมต่อ</button></div>
+    ${c.lastTest ? `<div class="banner ${c.lastTest.ok && c.connected ? 'green' : c.lastTest.ok ? 'amber' : 'red'} mt">${ic(c.lastTest.ok ? 'ok' : 'alert')}<div><b>ทดสอบล่าสุด ${thaiDate(c.lastTest.at, true)}: ${c.lastTest.ok ? 'ผ่าน' : 'ไม่ผ่าน'}${c.lastTest.ok && !c.connected ? ' (ค่าตั้งค่าเปลี่ยนหลังทดสอบ — ต้องทดสอบใหม่)' : ''}</b><div class="sub">${esc(c.lastTest.message)}</div></div></div>` : ''}
+  </div></div>`;
+  box.innerHTML = `<div class="grid g2">${form(v.MUHR)}${form(v.MUREX)}</div>`;
+  $$('[data-api]', box).forEach(el => {
+    const src = el.dataset.api;
+    const vals = () => { const o = { source: src }; $$('[data-k]', el).forEach(x => { o[x.dataset.k] = x.type === 'checkbox' ? x.checked : x.value; }); return o; };
+    $('[data-k=preset]', el).onchange = () => run(async () => { await call('saveSourceApi', Object.assign(vals(), { preset: $('[data-k=preset]', el).value })); renderApiBox(); });
+    $('[data-api-save]', el).onclick = () => run(async () => { await call('saveSourceApi', vals()); toast('บันทึกแล้ว — กดทดสอบการเชื่อมต่อ', 'ok'); renderApiBox(); });
+    $('[data-api-test]', el).onclick = () => run(async () => {
+      const q = $('[data-k=q]', el).value.trim(); if (!q) return toast('ระบุรหัสหรือชื่อที่ใช้ทดสอบ', 'err');
+      const r = await call('testSourceApi', { source: src, q });
+      toast(r.connected ? 'เชื่อมต่อ ' + src + ' สำเร็จ' : 'ทดสอบไม่ผ่าน: ' + (r.lastTest || {}).message, r.connected ? 'ok' : 'err');
+      S.boot = await call('boot'); render();
+    });
+  });
+}
+
+async function renderScholarBox() {
+  const box = $('#sch-box'); if (!box) return;
+  const v = await call('scholarAdmin');
+  const k = v.keys, t = v.lastTest || {};
+  const dbOpts = Object.keys(v.databases).filter(x => x !== 'none').map(x => opt(x, v.databases[x].label)).join('');
+  box.innerHTML = `<div class="card"><div class="card-h"><h3>${ic('search')} ฐานข้อมูลวิชาการ (Scopus / WoS / PubMed / ERIC / TCI / OpenAlex)</h3></div><div class="card-b">
+    <div class="grid g2"><div>
+      <div class="form-grid">
+        ${field('Scopus API key ' + (k.SCOPUS_API_KEY ? '<span class="badge green">มีแล้ว</span>' : '<span class="badge gray">ยังไม่มี</span>'), '<input class="input" id="k-sc" type="password" autocomplete="off" placeholder="จาก dev.elsevier.com (ใช้บัญชี @mahidol)">')}
+        ${field('Scopus Institutional Token ' + (k.SCOPUS_INSTTOKEN ? '<span class="badge green">มีแล้ว</span>' : ''), '<input class="input" id="k-it" type="password" autocomplete="off" placeholder="ขอจากหอสมุด ถ้าทดสอบขึ้น 401/403">')}
+        ${field('Web of Science Starter API key ' + (k.WOS_API_KEY ? '<span class="badge green">มีแล้ว</span>' : ''), '<input class="input" id="k-wos" type="password" autocomplete="off" placeholder="ไม่บังคับ">')}
+        ${field('NCBI (PubMed) API key ' + (k.NCBI_API_KEY ? '<span class="badge green">มีแล้ว</span>' : ''), '<input class="input" id="k-ncbi" type="password" autocomplete="off" placeholder="ไม่บังคับ">')}
+        ${field('สังกัดเริ่มต้น (กรองใน Scopus)', `<input class="input" id="k-aff" value="${esc(v.affil)}">`)}${field('อีเมลติดต่อสำหรับ OpenAlex', `<input class="input" id="k-mail" value="${esc(v.mailto)}">`)}
+      </div>
+      <div class="row mt"><button class="btn primary" id="k-save">${ic('save')} บันทึก</button><button class="btn" id="k-test">${ic('refresh')} ทดสอบการเชื่อมต่อ</button></div>
+      ${t.ts ? `<div class="small mt">ทดสอบล่าสุด ${thaiDate(t.ts, true)}<br>Scopus: ${t.scopus && t.scopus.ok ? '<span class="res pass">' + ic('ok', 'sm') + 'ผ่าน</span>' : '<span class="res fail">' + ic('bad', 'sm') + 'ไม่ผ่าน</span>'} ${esc((t.scopus || {}).message)}<br>WoS: ${esc((t.wos || {}).message)}</div>` : ''}
+      <p class="small muted">PubMed, ERIC, OpenAlex, Crossref ใช้ได้ฟรีโดยไม่ต้องมีกุญแจ · Scopus ไม่มีค่าใช้จ่ายเพิ่มสำหรับสถาบันที่บอกรับ แต่มีโควตาการเรียกต่อสัปดาห์</p>
+    </div><div>
+      <b>รายชื่อวารสารสำหรับจัดกลุ่ม/Quartile</b> <span class="small muted">(ใช้เมื่อไม่มี Scopus key หรือสำหรับ TCI/WoS)</span>
+      <div class="small mt-s">${Object.keys(v.journals.byDatabase).map(x => `${esc((v.databases[x] || {}).label || x)}: <b>${v.journals.byDatabase[x].toLocaleString()}</b> ISSN`).join(' · ') || 'ยังไม่มีรายชื่อ'}</div>
+      <div class="form-grid mt-s">${field('ฐานข้อมูลของรายชื่อ', `<select class="select" id="j-db">${dbOpts}</select>`)}${field('แหล่งและปีของรายชื่อ', '<input class="input" id="j-src" placeholder="เช่น SJR 2024 / TCI กลุ่ม 1 (2568)">', 'จำเป็น — ใช้อ้างอิงที่มาของ Quartile')}</div>
+      <div class="row mt-s"><button class="btn" id="j-up">${ic('upload')} นำเข้า CSV</button><button class="btn ghost-danger" id="j-clear">ล้างรายชื่อของฐานนี้</button></div>
+      <p class="small muted">SJR: ดาวน์โหลดจาก scimagojr.com/journalrank.php (ปุ่ม Download data) · TCI: รายชื่อวารสารกลุ่ม 1/2 จาก tci-thailand.org · ไฟล์ต้องมีคอลัมน์ ISSN</p>
+    </div></div></div></div>`;
+  $('#k-save').onclick = () => run(async () => {
+    await call('saveApiKeys', { SCOPUS_API_KEY: val('#k-sc'), SCOPUS_INSTTOKEN: val('#k-it'), WOS_API_KEY: val('#k-wos'), NCBI_API_KEY: val('#k-ncbi') });
+    await call('saveScholarSettings', { affil: val('#k-aff'), mailto: val('#k-mail') });
+    toast('บันทึกแล้ว กำลังทดสอบ…', 'ok'); await call('testApiKeys'); renderScholarBox();
+  });
+  $('#k-test').onclick = () => run(async () => { await call('testApiKeys'); renderScholarBox(); });
+  $('#j-up').onclick = () => run(async () => {
+    if (!val('#j-src')) return toast('ระบุแหล่งและปีของรายชื่อก่อน', 'err');
+    const f = await pickFile('.csv'); if (!f) return;
+    const r = await call('importJournalCsv', { database: val('#j-db'), source: val('#j-src'), csv: await f.text() });
+    toast('นำเข้า ' + r.added.toLocaleString() + ' ISSN', 'ok'); renderScholarBox();
+  });
+  $('#j-clear').onclick = () => run(async () => { const r = await call('clearJournals', { database: val('#j-db') }); toast('ลบ ' + r.removed + ' รายการ', 'ok'); renderScholarBox(); });
+}
+
 function previewCard(pv) {
   const actLabel = { new: '<span class="badge green">เพิ่มใหม่</span>', update: '<span class="badge blue">ปรับปรุง</span>', skip: '<span class="badge red">ข้าม (ผิดพลาด)</span>' };
   const cols = pv.rows.length ? Object.keys(pv.rows[0].data).slice(0, 6) : [];

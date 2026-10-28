@@ -4,7 +4,8 @@
  */
 
 /** คำสั่งที่อ่านอย่างเดียว (ไม่ต้องล็อก) */
-const READ_ONLY_ = ['boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
+// คำสั่งที่ใช้เวลานาน (เรียกฐานข้อมูลภายนอก) ไม่ล็อกทั้งสคริปต์ เพื่อไม่ให้ผู้ใช้อื่นต้องรอ
+const READ_ONLY_ = ['scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
 
 const ACTIONS_ = {
   boot: boot_,
@@ -26,6 +27,9 @@ const ACTIONS_ = {
   removeFile: removeFile_,
   downloadFile: downloadFile_,
   respondRevision: respondRevision_,
+  scholarSearch: scholarSearch_,
+  addScholarWorks: addScholarWorks_,
+  checkWorkDb: checkWorkDb_,
   submit: submit_,
   cancel: cancel_,
 
@@ -69,7 +73,16 @@ const ACTIONS_ = {
   importCommit: importCommit_,
   importDiscard: importDiscard_,
   listAudit: listAudit_,
-  purgeDemo: purgeDemo_
+  purgeDemo: purgeDemo_,
+  scholarAdmin: scholarAdmin_,
+  saveApiKeys: function (p) { requirePerm_('admin.data'); return saveApiKeys_(p); },
+  testApiKeys: function () { requirePerm_('admin.data'); return testApiKeys_(); },
+  saveScholarSettings: function (p) { requirePerm_('admin.data'); setSettings_({ SCHOLAR_AFFIL: clean_(p.affil, 150), OPENALEX_MAILTO: clean_(p.mailto, 120) }); return scholarAdmin_(); },
+  importJournalCsv: importJournalCsv_,
+  clearJournals: function (p) { return clearJournalIndex_(p); },
+  sourceApi: function () { requirePerm_('admin.data'); return { MUHR: apiAdminView_('MUHR'), MUREX: apiAdminView_('MUREX') }; },
+  saveSourceApi: saveSourceApi_,
+  testSourceApi: testSourceApi_
 };
 
 function api(action, payload) {
@@ -98,7 +111,7 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
     testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });
@@ -107,7 +120,8 @@ function boot_(p, who) {
     meta: {
       roles: ROLES, statuses: STATUSES, sections: SECTIONS, workTypes: WORK_TYPES, degrees: DEGREES, ranks: RANKS, empStatus: EMP_STATUS,
       ruleKinds: RULE_KINDS, results: RESULT_LABEL, decisions: DECISION_LABEL, identity: IDENTITY_LABEL, sourceModes: SOURCE_MODES,
-      allowedExt: splitList_(s.ALLOWED_EXT), maxFileMb: Number(s.MAX_FILE_MB), staleDays: Number(s.STALE_DAYS)
+      allowedExt: splitList_(s.ALLOWED_EXT), maxFileMb: Number(s.MAX_FILE_MB), staleDays: Number(s.STALE_DAYS),
+      databases: DATABASES, dbGroups: DB_GROUPS, currentBE: currentBE_()
     },
     units: DB.all('Units').filter(function (u) { return toBool_(u.active); }),
     types: DB.all('RequestTypes').filter(function (t) { return toBool_(t.active); }).map(function (t) {

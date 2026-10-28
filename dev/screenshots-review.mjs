@@ -27,7 +27,7 @@ await shot(s.page, '01-test-accounts'); await s.ctx.close();
 s = await open('outside-domain', null, null, '?email=someone@gmail.com', { wait: '.banner.red' });
 await shot(s.page, '00-outside-domain-blocked', false); await s.ctx.close();
 
-s = await open('req-dash', 'UT-REQ1', 'requester');
+s = await open('req-dash', 'UT-REQ1', 'requester', '?key');
 await shot(s.page, '02-requester-dashboard');
 await s.page.click('[data-nav="new"]'); await s.page.waitForSelector('[data-type]');
 await s.page.click('[data-type] >> nth=1'); await s.page.fill('#n-purpose', 'ทดสอบสร้างคำขอจากหน้าเว็บ');
@@ -41,6 +41,12 @@ await s.page.click('[data-tab="works"]'); await s.page.click('#w-src'); await s.
 await shot(s.page, '05-murex-works', false);
 await s.page.click('[data-ok]'); await s.page.waitForSelector('.dup');
 await shot(s.page, '06-works-duplicates');
+await s.page.click('#w-sch'); await s.page.waitForSelector('#s-go'); await s.page.fill('#s-en', 'Napa Tuayangdee'); await s.page.fill('#s-from', '2560');
+await s.page.click('#s-go'); await s.page.waitForSelector('.s-pick', { timeout: 20000 });
+await shot(s.page, '27-scholar-search', false);
+await s.page.click('.s-pick >> nth=0'); await s.page.click('#s-add'); await s.page.waitForTimeout(800);
+await s.page.click('[data-chk] >> nth=0'); await s.page.waitForTimeout(1500);
+await shot(s.page, '28-works-with-database');
 await s.page.click('[data-tab="check"]'); await s.page.waitForSelector('#do-submit');
 await shot(s.page, '07-completeness-check');
 await s.page.click('[data-nav="requests"]'); await s.page.waitForSelector('tr[data-open]');

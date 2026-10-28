@@ -43,11 +43,13 @@ function searchPersons_(p) {
   const code = String(p.staffCode || '').trim().toUpperCase();
   const name = normName_(p.name);
   if (!code && name.length < 2) throw new Error('กรอกรหัสบุคลากร หรือชื่ออย่างน้อย 2 ตัวอักษร');
-  const rows = sourceRows_('MUHR');
+  const live = sourceReady_('MUHR') === 'api';
+  const rows = !live ? sourceRows_('MUHR') : code ? [apiPersonByCode_('MUHR', code)].filter(Boolean) : apiSearchPersons_('MUHR', String(p.name).trim());
   const results = [];
   rows.forEach(function (r) {
     let basis = '', matchedName = '';
     if (code && String(r.staffCode).toUpperCase() === code) basis = 'staffCode';
+    else if (live && !code) { basis = 'name'; matchedName = [r.firstNameTh, r.lastNameTh].join(' ').trim() || [r.firstNameEn, r.lastNameEn].join(' '); } // ระบบต้นทางเป็นผู้ค้นด้วยชื่อ
     else if (!code && name) {
       personNames_(r).forEach(function (n) {
         const nn = normName_(n.text);
@@ -115,7 +117,6 @@ function normDoi_(d) {
   return String(d || '').trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '').replace(/^doi:\s*/, '').trim();
 }
 
-function normTitle_(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, ''); }
 
 function dice_(a, b) {
   if (!a || !b) return 0;

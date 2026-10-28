@@ -19,7 +19,7 @@ const APP = {
   name: 'ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ',
   short: 'ตรวจสอบผลงานและคุณสมบัติ',
   dbName: 'RV — ฐานข้อมูลระบบตรวจสอบผลงานและคุณสมบัติ',
-  schemaVersion: 1
+  schemaVersion: 2
 };
 
 /** บทบาท — ผู้ใช้หนึ่งคนมีได้หลายบทบาท แต่ทำงานทีละบทบาท (เลือกจากเมนูผู้ใช้) */
@@ -54,8 +54,10 @@ const TABLES = {
   ImportRows: ['id', 'batchId', 'rowNo', 'data', 'errors', 'action'],
   RequestTypes: ['id', 'code', 'name', 'description', 'personRole', 'requiredDocs', 'active', 'isDemo', 'createdAt', 'updatedAt'],
   CriteriaSets: ['id', 'code', 'typeId', 'name', 'version', 'effectiveDate', 'referenceSource', 'conditionsText', 'rules', 'status', 'isDemo', 'confirmedBy', 'confirmedAt', 'note', 'createdBy', 'createdAt', 'updatedAt'],
-  Requests: ['id', 'code', 'typeId', 'title', 'purpose', 'note', 'unit', 'requesterId', 'status', 'round', 'personSnap', 'identityStatus', 'identityBasis', 'identityNote', 'identityBy', 'identityAt', 'criteriaSetId', 'assigneeId', 'reviewerId', 'worksComplete', 'worksCompleteNote', 'staffSummary', 'isDemo', 'createdAt', 'updatedAt', 'submittedAt', 'decidedAt', 'closedAt', 'cancelledAt', 'cancelReason'],
-  RequestWorks: ['id', 'requestId', 'origin', 'sourceWorkId', 'title', 'type', 'year', 'pubDate', 'authors', 'venue', 'doi', 'ref', 'evidenceId', 'status', 'staffNote', 'addedBy', 'addedRound', 'createdAt', 'updatedAt'],
+  Requests: ['id', 'code', 'typeId', 'title', 'purpose', 'note', 'unit', 'requesterId', 'status', 'round', 'personSnap', 'authorIds', 'identityStatus', 'identityBasis', 'identityNote', 'identityBy', 'identityAt', 'criteriaSetId', 'assigneeId', 'reviewerId', 'worksComplete', 'worksCompleteNote', 'staffSummary', 'isDemo', 'createdAt', 'updatedAt', 'submittedAt', 'decidedAt', 'closedAt', 'cancelledAt', 'cancelReason'],
+  RequestWorks: ['id', 'requestId', 'origin', 'sourceWorkId', 'title', 'type', 'year', 'pubDate', 'authors', 'venue', 'doi', 'ref', 'evidenceId', 'status', 'staffNote', 'addedBy', 'addedRound', 'createdAt', 'updatedAt',
+    'database', 'dbGroup', 'quartile', 'quartileSource', 'proof', 'foundIn', 'links', 'dbEvidence', 'checkedAt'],
+  JournalIndex: ['issn', 'title', 'database', 'quartile', 'source', 'updatedAt'],
   DupPairs: ['id', 'requestId', 'workA', 'workB', 'basis', 'score', 'status', 'keepWorkId', 'note', 'resolvedBy', 'resolvedAt', 'createdAt'],
   Attachments: ['id', 'requestId', 'workId', 'docType', 'fileName', 'mime', 'size', 'storageId', 'status', 'uploadedBy', 'uploadedAt', 'removedBy', 'removedAt'],
   RevisionItems: ['id', 'requestId', 'round', 'section', 'workId', 'message', 'status', 'response', 'createdBy', 'createdAt', 'addressedAt', 'closedBy', 'closedAt'],
@@ -87,7 +89,11 @@ const DEFAULT_SETTINGS = {
   STALE_DAYS: '180',
   MAX_FILE_MB: '10',
   ALLOWED_EXT: 'pdf,png,jpg,jpeg',
-  EXTERNAL_NOTIFY: 'off'
+  EXTERNAL_NOTIFY: 'off',
+  OPENALEX_MAILTO: '',
+  SCHOLAR_AFFIL: 'Mahidol University',
+  MUHR_API: '',
+  MUREX_API: ''
 };
 
 /** ค่าที่ยังต้องยืนยันกับหน่วยงาน — แสดงในหน้าตั้งค่าเพื่อไม่ให้ลืม */
@@ -125,7 +131,7 @@ const RULE_KINDS = {
   person_status: { label: 'สถานะบุคลากร', params: ['allowed'] },
   min_degree: { label: 'คุณวุฒิ', params: ['allowed'] },
   academic_rank: { label: 'ตำแหน่งทางวิชาการ', params: ['allowed'] },
-  min_works: { label: 'จำนวนผลงาน', params: ['min', 'years', 'types'] },
+  min_works: { label: 'จำนวนผลงาน', params: ['min', 'years', 'types', 'databases', 'quartiles'] },
   required_documents: { label: 'เอกสารครบ', params: ['docs'] },
   manual: { label: 'ให้เจ้าหน้าที่พิจารณา', params: ['instruction'] }
 };
@@ -149,7 +155,7 @@ const SOURCES = {
 const SOURCE_MODES = {
   mock: 'ข้อมูลจำลอง (ไม่ใช่ข้อมูลจริง)',
   import: 'นำเข้าจากไฟล์ CSV',
-  api: 'เชื่อมต่อ API (ยังไม่ได้พัฒนา — ต้องได้รับข้อกำหนดจากเจ้าของระบบ)'
+  api: 'เชื่อมต่อ API ของระบบจริง (ต้องตั้งค่าและทดสอบผ่านก่อน)'
 };
 
 /** คอลัมน์ CSV ที่รับ (แถวแรกต้องเป็นชื่อคอลัมน์ตามนี้) */

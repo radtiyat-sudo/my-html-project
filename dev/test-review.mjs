@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const root = new URL('..', import.meta.url).pathname;
-export const RV_ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'Matching', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
+export const RV_ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
 const code = process.env.BUNDLE ? readFileSync(root + 'review/Code.gs', 'utf8') : RV_ORDER.map(f => readFileSync(root + 'review-src/' + f + '.gs', 'utf8')).join('\n');
 
 const ctx = { console, TextEncoder, crypto, btoa, atob, localStorage: undefined, location: { href: '' } };
@@ -362,6 +362,132 @@ t('test mode off: test accounts refused, real users still work', () => {
   assert.equal(b.testAccounts.length, 0); assert.equal(b.user.role, 'admin');
   realLogin('another@mahidol.ac.th');
   assert.equal(ok('boot').user.role, 'requester', 'real domain users still auto-registered');
+});
+
+// ---- ระบบภายนอกจำลอง: Pure (MUREX) และ HR (MUHR) ----
+let pureDown = false;
+ctx.__fake = (url, opts) => {
+  const h = (opts && opts.headers) || {};
+  const J = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
+  if (url.indexOf('https://pure.test/ws/api') === 0) {
+    if (pureDown) return J(503, {});
+    if (h['api-key'] !== 'pure-key') return J(401, { message: 'invalid key' });
+    if (/\/persons\/search$/.test(url)) {
+      const q = JSON.parse(opts.payload).searchString;
+      const P = { uuid: 'u-1', name: { firstName: 'Anong', lastName: 'Testpure' }, ids: [{ typeDiscriminator: 'ClassifiedId', id: 'P1001', type: { term: { en_GB: 'Employee ID' } } }],
+        staffOrganizationAssociations: [{ organization: { name: { en_GB: 'Faculty of Test' } } }] };
+      return J(200, { count: 1, items: /P1001|Anong/i.test(q) ? [P] : [] });
+    }
+    if (/\/persons\/u-1\/research-outputs/.test(url)) return J(200, { items: [
+      { uuid: 'ro-1', title: { value: 'Fertility Decline in Southeast Asia (Sample)' }, type: { term: { en_GB: 'Contribution to journal/Article' } }, publicationStatuses: [{ current: true, publicationDate: { year: 2023, month: 5 } }],
+        electronicVersions: [{ doi: '10.9999/w1' }], journalAssociation: { title: { value: 'Asian Population Studies' }, issn: { value: '1744-1730' } }, contributors: [{ name: { firstName: 'Anong', lastName: 'Testpure' } }] },
+      { uuid: 'ro-2', title: { value: 'Pure Conference Paper' }, type: { term: { en_GB: 'Chapter in Book/Report/Conference proceeding/Conference contribution' } }, publicationStatuses: [{ current: true, publicationDate: { year: 2024 } }] }] });
+    return J(404, {});
+  }
+  if (url.indexOf('https://hr.test/api') === 0) {
+    if (h.Authorization !== 'Bearer hr-token') return J(403, {});
+    const rec = { emp: { code: 'H001' }, th: { first: 'อนงค์', last: 'ทดสอบเอพีไอ' }, en: { first: 'Anong', last: 'Testapi' }, org: 'FAC-A', degree: 'ปริญญาเอก', rank: 'asst_prof', status: 'active', updated: '2026-09-01' };
+    if (/\/staff\/H001$/.test(url)) return J(200, rec);
+    if (/\/staff\?name=/.test(url)) return J(200, { data: [rec, Object.assign({}, rec, { emp: { code: 'H002' }, org: 'FAC-B' })] });
+    return J(404, {});
+  }
+  return null;
+};
+vm.runInContext('(function (orig) { UrlFetchApp.fetch = function (u, o) { return __fake(u, o) || orig.call(UrlFetchApp, u, o); }; })(UrlFetchApp.fetch);', ctx);
+
+t('Scopus + databases: search for the request person, add with verification links', () => {
+  realLogin('owner@mahidol.ac.th'); ok('saveSettings', { settings: { TEST_MODE: true } }); // การทดสอบก่อนหน้าปิดโหมดทดสอบไว้
+  login('UT-ADMIN', 'admin');
+  ok('saveApiKeys', { SCOPUS_API_KEY: 'k1' });
+  assert.equal(ok('testApiKeys').scopus.ok, true);
+  login('UT-REQ1', 'requester');
+  const draft = byPurpose('ร่างคำขอ');
+  const r = ok('scholarSearch', { id: draft.id, nameEn: 'Napa Tuayangdee', nameTh: 'นภา ตัวอย่างดี', scopusId: '', fromYear: 2560, toYear: 2570 });
+  assert.equal(r.status[0].key, 'scopus'); assert.equal(r.status[0].mode, 'direct');
+  const i = r.works.findIndex(w => /^Fertility/.test(w.title));
+  assert.equal(r.works[i].database, 'scopus'); assert.equal(r.works[i].proof, 'record'); assert.equal(r.works[i].quartile, 'Q2');
+  assert.match(r.works[i].quartileSource, /CiteScore 2024/);
+  login('UT-REQ2', 'requester'); no('addScholarWorks', { id: draft.id, token: r.token, indexes: [i] }, /ไม่มีสิทธิ์/);
+  login('UT-REQ1', 'requester');
+  no('addScholarWorks', { id: draft.id, token: 'forged', indexes: [i] }, /หมดอายุ/);
+  assert.equal(ok('addScholarWorks', { id: draft.id, token: r.token, indexes: [i] }).added, 1);
+  const w = rows('RequestWorks').find(x => x.requestId === draft.id && x.origin === 'SCHOLAR');
+  assert.equal(w.database, 'scopus'); assert.equal(w.proof, 'record'); assert.ok(JSON.parse(w.links).some(l => /scopus\.com\/record/.test(l.url)));
+  assert.equal(ok('scholarSearch', { id: draft.id, fromYear: 2560, toYear: 2570 }).works[i].added, true, 'marks already-added');
+  // ผลงานกรอกเองที่มี DOI → ตรวจกับฐานข้อมูล
+  const mw = ok('saveManualWork', { id: draft.id, work: { title: 'Ageing Society paper', type: 'journal', year: 2024, doi: '10.9999/w2' } }).work;
+  const c = ok('checkWorkDb', { workId: mw.id });
+  assert.equal(c.found, true); assert.ok(['scopus', 'wos', 'pubmed'].includes(c.database));
+});
+
+t('rule with database + quartile: unchecked works are inconclusive, never fail', () => {
+  login('UT-ADMIN', 'admin');
+  const type = ok('saveType', { name: 'สาธิต ฐานข้อมูล', requiredDocs: [], isDemo: true });
+  const rules = [{ id: 'R1', kind: 'min_works', label: '[สาธิต] ผลงานในฐานนานาชาติ Q1-Q2', params: { min: 1, years: 10, types: ['journal'], databases: ['kpa_intl'], quartiles: ['Q1', 'Q2'] } }];
+  const cs = ok('saveCriteria', { typeId: type.id, name: 'สาธิต Q', rules, isDemo: true, effectiveDate: '2020-01-01' });
+  assert.deepEqual(cs.rules[0].params.databases, ['kpa_intl']);
+  ok('activateCriteria', { id: cs.id });
+  login('UT-REQ1', 'requester');
+  const r = ok('createRequest', { typeId: type.id, unit: 'FAC-A', purpose: 'ทดสอบเกณฑ์ฐานข้อมูล' });
+  ok('setPerson', { id: r.id, personId: ok('searchPersons', { staffCode: 'T0003' }).results[0].personId, staffCode: 'T0003' });
+  const w = ok('saveManualWork', { id: r.id, work: { title: 'Fertility Decline in Southeast Asia (Sample)', type: 'journal', year: 2023, doi: '10.9999/w1' } }).work;
+  let ev = ok('submit', { id: r.id }).evaluation;
+  assert.equal(ev.items[0].result, 'inconclusive'); assert.match(ev.items[0].reason, /ยังไม่ได้ตรวจกับฐานข้อมูล/);
+  login('UT-STAFF1', 'staff');
+  ok('claim', { id: r.id });
+  ok('checkWorkDb', { workId: w.id });
+  ok('verifyWork', { workId: w.id, status: 'verified' });
+  ev = ok('rerun', { id: r.id, reason: 'ตรวจฐานข้อมูลแล้ว' });
+  assert.equal(ev.items[0].result, 'pass', ev.items[0].reason);
+  assert.ok(ev.items[0].dataUsed.some(x => /Scopus Q2 \(CiteScore 2024/.test(x)));
+});
+
+t('MUREX via Pure API: not connected until tested; live works with source label', () => {
+  login('UT-ADMIN', 'admin');
+  ok('saveSettings', { settings: { MUREX_MODE: 'api' } });
+  let st = ok('adminOverview').sources.find(x => x.source === 'MUREX');
+  assert.equal(st.connected, false); assert.equal(st.available, false);
+  let v = ok('saveSourceApi', { source: 'MUREX', preset: 'pure', base: 'https://pure.test/ws/api', authHeader: 'api-key', searchReq: 'POST /persons/search {"searchString":"{q}","size":20}', worksReq: 'GET /persons/{pid}/research-outputs?size=100', listPath: 'items', token: 'wrong' });
+  v = ok('testSourceApi', { source: 'MUREX', q: 'P1001' });
+  assert.equal(v.connected, false); assert.match(v.lastTest.message, /ปฏิเสธ/);
+  ok('saveSourceApi', { source: 'MUREX', preset: 'pure', base: 'https://pure.test/ws/api', authHeader: 'api-key', searchReq: 'POST /persons/search {"searchString":"{q}","size":20}', worksReq: 'GET /persons/{pid}/research-outputs?size=100', listPath: 'items', token: 'pure-key' });
+  assert.equal(ok('sourceApi').MUREX.connected, false, 'changed config needs a new test');
+  v = ok('testSourceApi', { source: 'MUREX', q: 'P1001' });
+  assert.equal(v.connected, true, v.lastTest.message); assert.equal(JSON.stringify(ok('sourceApi')).indexOf('pure-key'), -1, 'key never returned');
+  st = ok('adminOverview').sources.find(x => x.source === 'MUREX');
+  assert.equal(st.connected, true); assert.match(st.connectedLabel, /เชื่อมต่อระบบจริงแล้ว/);
+  // คำขอของบุคคลรหัส P1001 (ข้อมูลบุคคลกรอกเอง แต่ผลงานดึงจาก MUREX จริงไม่ได้ถ้าไม่ได้มาจาก MUHR) → ใช้ staffCode จาก MUHR จำลองที่เพิ่ม
+  vm.runInContext("DB.insert('Persons', { origin: 'mock', staffCode: 'P1001', firstNameTh: 'อนงค์', lastNameTh: 'เพียวทดสอบ', firstNameEn: 'Anong', lastNameEn: 'Testpure', unit: 'FAC-A', highestDegree: 'doctorate', employmentStatus: 'active', fetchedAt: nowIso_(), sourceUpdatedAt: nowIso_().slice(0,10) })", ctx);
+  login('UT-REQ1', 'requester');
+  const fac = ok('boot').types.find(x => x.code === 'DEMO-FACULTY');
+  const r = ok('createRequest', { typeId: fac.id, unit: 'FAC-A', purpose: 'ทดสอบ MUREX API' });
+  ok('setPerson', { id: r.id, personId: ok('searchPersons', { staffCode: 'P1001' }).results[0].personId, staffCode: 'P1001' });
+  const sw = ok('sourceWorks', { id: r.id });
+  assert.equal(sw.works.length, 2); assert.equal(sw.works[0].origin, 'api'); assert.equal(sw.works[0].doi, '10.9999/w1'); assert.equal(sw.works[1].type, 'proceeding');
+  assert.equal(sw.source.connected, true);
+  assert.equal(ok('addSourceWorks', { id: r.id, workIds: sw.works.map(w => w.id) }).added, 2);
+  assert.equal(rows('RequestWorks').filter(w => w.requestId === r.id)[0].origin, 'MUREX-api');
+  pureDown = true;
+  const e = no('sourceWorks', { id: r.id }, /ขัดข้อง/); assert.equal(e.sourceError.code, 'outage');
+  pureDown = false;
+  login('UT-ADMIN', 'admin'); ok('saveSettings', { settings: { MUREX_MODE: 'mock' } });
+});
+
+t('MUHR via custom REST API with field mapping; name results still need staff check', () => {
+  login('UT-ADMIN', 'admin');
+  no('saveSourceApi', { source: 'MUHR', preset: 'custom', base: 'http://hr.test', searchReq: 'GET /x', personMap: '{}' }, /https/);
+  ok('saveSourceApi', { source: 'MUHR', preset: 'custom', base: 'https://hr.test/api', authHeader: 'Authorization', authPrefix: 'Bearer ', token: 'hr-token',
+    searchReq: 'GET /staff?name={q}', byCodeReq: 'GET /staff/{code}', listPath: 'data',
+    personMap: JSON.stringify({ staffCode: 'emp.code', firstNameTh: 'th.first', lastNameTh: 'th.last', firstNameEn: 'en.first', lastNameEn: 'en.last', unit: 'org', highestDegree: 'degree', academicRank: 'rank', employmentStatus: 'status', sourceUpdatedAt: 'updated' }) });
+  const v = ok('testSourceApi', { source: 'MUHR', q: 'H001' });
+  assert.equal(v.connected, true, v.lastTest.message);
+  ok('saveSettings', { settings: { MUHR_MODE: 'api' } });
+  login('UT-REQ1', 'requester');
+  const byCode = ok('searchPersons', { staffCode: 'H001' });
+  assert.equal(byCode.results[0].origin, 'api'); assert.equal(byCode.results[0].highestDegree, 'doctorate'); assert.equal(byCode.results[0].matchBasis, 'staffCode');
+  const byName = ok('searchPersons', { name: 'อนงค์ ทดสอบเอพีไอ' });
+  assert.equal(byName.results.length, 2); assert.ok(byName.results.every(x => x.matchBasis === 'name')); assert.equal(byName.ambiguous, true);
+  login('UT-ADMIN', 'admin'); ok('saveSettings', { settings: { MUHR_MODE: 'mock' } });
 });
 
 t('fresh install run by an account outside the domain: demo data still created, no admin until configured', () => {

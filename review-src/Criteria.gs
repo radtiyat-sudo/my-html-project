@@ -45,6 +45,8 @@ function validateRules_(rules) {
       params.min = Math.max(1, Math.floor(Number(pr.min) || 0));
       params.years = Math.max(0, Math.floor(Number(pr.years) || 0));
       params.types = [].concat(pr.types || []).filter(function (x) { return WORK_TYPES[x]; });
+      params.databases = [].concat(pr.databases || []).filter(function (x) { return DB_GROUPS[x] || (DATABASES[x] && x !== 'none'); });
+      params.quartiles = [].concat(pr.quartiles || []).filter(function (x) { return /^Q[1-4]$/.test(x); });
       if (!Number(pr.min)) throw new Error('ข้อ ' + id + ': กรอกจำนวนผลงานขั้นต่ำ');
     }
     if (kind === 'required_documents') {
@@ -190,20 +192,31 @@ const RULE_EVAL_ = {
   min_works: function (rule, ctx) {
     const pr = rule.params;
     const fromYear = pr.years ? currentYearCE_() - pr.years + 1 : 0;
-    const inScope = ctx.works.filter(function (w) {
+    const dbs = pr.databases || [], qs = pr.quartiles || [];
+    const typed = ctx.works.filter(function (w) {
       if (w.status === 'excluded_duplicate' || w.status === 'rejected') return false;
       if (pr.types.length && pr.types.indexOf(w.type) === -1) return false;
       const y = normYear_(w.year);
       return !fromYear || (y && y >= fromYear);
     });
+    // เงื่อนไขฐานข้อมูล/Quartile: ผลงานที่ยังไม่ได้ตรวจกับฐานข้อมูล หรือไม่มีข้อมูล Quartile → ยังสรุปไม่ได้ (ไม่ใช่ไม่ผ่าน)
+    const dbOk = function (w) { return !dbs.length || dbs.indexOf(w.dbGroup) > -1 || dbs.indexOf(w.database) > -1; };
+    const unchecked = dbs.length ? typed.filter(function (w) { return !w.checkedAt; }) : [];
+    const noQuartile = qs.length ? typed.filter(function (w) { return w.checkedAt && dbOk(w) && !w.quartile; }) : [];
+    const inScope = typed.filter(function (w) { return (!dbs.length || w.checkedAt) && dbOk(w) && (!qs.length || qs.indexOf(w.quartile) > -1); });
     const verified = inScope.filter(function (w) { return w.status === 'verified'; });
     const pending = inScope.filter(function (w) { return w.status === 'pending'; });
-    const cond = 'ต้องมีอย่างน้อย ' + pr.min + ' รายการ' + (pr.types.length ? ' ประเภท ' + pr.types.map(function (t) { return WORK_TYPES[t]; }).join('/') : '') + (fromYear ? ' ตั้งแต่ปี ค.ศ. ' + fromYear + ' (พ.ศ. ' + (fromYear + 543) + ')' : '');
-    const used = ['ผลงานที่เจ้าหน้าที่ยืนยันและเข้าเงื่อนไข: ' + verified.length + ' รายการ', 'รอตรวจ: ' + pending.length + ' รายการ', cond];
+    const dbText = dbs.map(function (d) { return DB_GROUPS[d] || (DATABASES[d] || {}).label || d; }).join(' / ');
+    const cond = 'ต้องมีอย่างน้อย ' + pr.min + ' รายการ' + (pr.types.length ? ' ประเภท ' + pr.types.map(function (t) { return WORK_TYPES[t]; }).join('/') : '') + (fromYear ? ' ตั้งแต่ปี ค.ศ. ' + fromYear + ' (พ.ศ. ' + (fromYear + 543) + ')' : '') +
+      (dbs.length ? ' ในฐาน ' + dbText : '') + (qs.length ? ' Quartile ' + qs.join('/') : '');
+    const used = ['ผลงานที่เจ้าหน้าที่ยืนยันและเข้าเงื่อนไข: ' + verified.length + ' รายการ', 'รอตรวจ: ' + pending.length + ' รายการ', cond]
+      .concat(dbs.length ? verified.map(function (w) { return '• ' + String(w.title).slice(0, 60) + ' — ' + ((DATABASES[w.database] || {}).label || w.database) + (w.quartile ? ' ' + w.quartile + ' (' + w.quartileSource + ')' : ''); }) : []);
     const ev = verified.map(function (w) { return 'work:' + w.id; });
     if (verified.length >= pr.min) return R_('pass', 'มีผลงานที่ยืนยันแล้ว ' + verified.length + ' รายการ ครบตามเกณฑ์ (' + cond + ')', used, ev);
     const gaps = [];
     if (pending.length) gaps.push('มีผลงานรอเจ้าหน้าที่ตรวจ ' + pending.length + ' รายการ');
+    if (unchecked.length) gaps.push('ผลงาน ' + unchecked.length + ' รายการยังไม่ได้ตรวจกับฐานข้อมูล (กด "ตรวจกับฐานข้อมูล")');
+    if (noQuartile.length) gaps.push('ไม่มีข้อมูล Quartile ' + noQuartile.length + ' รายการ (ต้องนำเข้ารายชื่อ SJR หรือใส่ Scopus API key)');
     if (ctx.openDups.length) gaps.push('มีผลงานที่สงสัยว่าซ้ำรอตัดสิน ' + ctx.openDups.length + ' คู่');
     if (!ctx.sources.MUREX.ok) gaps.push('ระบบผลงาน MUREX ไม่พร้อมใช้งาน (' + (ctx.sources.MUREX.code === 'outage' ? 'ขัดข้อง' : 'ยังไม่ได้เชื่อมต่อ') + ')');
     if (ctx.works.some(function (w) { return !normYear_(w.year); })) gaps.push('มีผลงานที่ไม่ระบุปี');
@@ -233,7 +246,7 @@ function snapshotOf_(ctx) {
   return {
     person: ctx.personInfo.person, personState: ctx.personInfo.state, personNote: ctx.personInfo.note,
     identityStatus: ctx.req.identityStatus, worksComplete: toBool_(ctx.req.worksComplete),
-    works: ctx.works.map(function (w) { return { id: w.id, title: w.title, type: w.type, year: w.year, doi: w.doi, ref: w.ref, origin: w.origin, status: w.status, evidenceId: w.evidenceId }; }),
+    works: ctx.works.map(function (w) { return { id: w.id, title: w.title, type: w.type, year: w.year, doi: w.doi, ref: w.ref, origin: w.origin, status: w.status, evidenceId: w.evidenceId, database: w.database, quartile: w.quartile, quartileSource: w.quartileSource, proof: w.proof }; }),
     attachments: ctx.attachments.map(function (a) { return { id: a.id, docType: a.docType, workId: a.workId, fileName: a.fileName, uploadedAt: a.uploadedAt }; }),
     openDups: ctx.openDups.map(function (d) { return d.id; }),
     staffChecks: ctx.staffChecks.map(function (s) { return { ruleId: s.ruleId, result: s.result, at: s.at }; })
