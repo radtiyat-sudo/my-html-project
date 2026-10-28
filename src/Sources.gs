@@ -261,15 +261,21 @@ function searchEric_(p, fromCE) {
 function searchThai_(p, fromCE) {
   const th = String(p.nameTh || '').trim();
   if (!th) return { mode: 'skipped', items: [], message: 'ไม่ได้กรอกชื่อภาษาไทย' };
-  const items = [];
+  const items = [], errors = [];
   const key = th.replace(/\s+/g, '');
-  const r = httpJson_(CROSSREF + '/works?query.author=' + encodeURIComponent(th) + '&filter=from-pub-date:' + fromCE + '&rows=40&select=DOI,title,ISSN,container-title,issued,type,author,publisher,URL');
-  ((r && r.message && r.message.items) || []).filter(function (it) {
-    return (it.author || []).some(function (a) { return ([a.given, a.family].join('') + (a.name || '')).replace(/\s+/g, '').indexOf(key) > -1; });
-  }).forEach(function (it) { items.push(fromCrossref_(it)); });
-  const o = httpJson_(OPENALEX + '/works?filter=raw_author_name.search:' + encodeURIComponent(th) + ',from_publication_date:' + fromCE + '-01-01&per_page=50&select=id,doi,title,display_name,publication_year,type,ids,primary_location,authorships');
-  ((o && o.results) || []).forEach(function (w) { items.push(fromOpenAlex_(w)); });
-  return { mode: 'list', items: items, message: 'ค้นชื่อไทยใน Crossref/OpenAlex ' + items.length + ' รายการ แล้วจับคู่ ISSN กับรายชื่อ TCI กลุ่ม 1/2' };
+  // แต่ละแหล่งแยกกัน — แหล่งหนึ่งล้มไม่ทำให้อีกแหล่งหายไป
+  try {
+    const r = httpJson_(CROSSREF + '/works?query.author=' + encodeURIComponent(th) + '&filter=from-pub-date:' + fromCE + '&rows=40&select=DOI,title,ISSN,container-title,issued,type,author,publisher,URL');
+    ((r && r.message && r.message.items) || []).filter(function (it) {
+      return (it.author || []).some(function (a) { return ([a.given, a.family].join('') + (a.name || '')).replace(/\s+/g, '').indexOf(key) > -1; });
+    }).forEach(function (it) { items.push(fromCrossref_(it)); });
+  } catch (e) { errors.push('Crossref: ' + e.message); }
+  try {
+    const o = httpJson_(OPENALEX + '/works?filter=raw_author_name.search:' + encodeURIComponent(th) + ',from_publication_date:' + fromCE + '-01-01&per_page=50&select=id,doi,title,display_name,publication_year,type,ids,primary_location,authorships');
+    ((o && o.results) || []).forEach(function (w) { items.push(fromOpenAlex_(w)); });
+  } catch (e) { errors.push('OpenAlex: ' + e.message); }
+  if (errors.length === 2) throw new Error(errors.join(' · '));
+  return { mode: 'list', items: items, message: 'ค้นชื่อไทยใน Crossref/OpenAlex ' + items.length + ' รายการ แล้วจับคู่ ISSN กับรายชื่อ TCI กลุ่ม 1/2' + (errors.length ? ' (ค้นบางแหล่งไม่ได้: ' + errors.join(' · ') + ')' : '') };
 }
 
 /* ---------------- 6. OpenAlex (ฐานรวม) ---------------- */

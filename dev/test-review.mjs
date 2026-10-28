@@ -13,7 +13,7 @@ ctx.__opts = { email: 'owner@mahidol.ac.th', reset: true };
 vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger={log(){}}, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp, CacheService=__g.CacheService, UrlFetchApp=__g.UrlFetchApp;', ctx);
 vm.runInContext(code, ctx);
 
-const fresh = () => vm.runInContext('for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k]; for (const k in USER_NAME_CACHE_) delete USER_NAME_CACHE_[k];', ctx);
+const fresh = () => vm.runInContext('JOURNAL_MAP_ = null; for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k]; for (const k in USER_NAME_CACHE_) delete USER_NAME_CACHE_[k];', ctx);
 let as = null, role = null;
 const login = (id, r) => { as = id; role = r; };
 const realLogin = email => { as = null; role = null; ctx.__opts.email = email; };
@@ -521,6 +521,34 @@ t('missing permission for external requests is explained, not shown as "no resul
   assert.ok(r.status.filter(x => x.mode === 'error').every(x => /อนุญาตสิทธิ์/.test(x.message)));
   assert.match(ctx.testConnection(), /OpenAlex: ไม่ได้ — สคริปต์ยังไม่ได้รับอนุญาต/);
   vm.runInContext('UrlFetchApp.fetch = __origFetch;', ctx);
+  realLogin('owner@mahidol.ac.th');
+});
+
+t('Thai name only: English name found from OpenAlex, then all databases searched; SJR list import', () => {
+  const TH = encodeURIComponent('กมล ทดสอบไทย');
+  const prev = ctx.__fake;
+  ctx.__fake = (url, opts) => {
+    const J = (code, body, hdr) => ({ getResponseCode: () => code, getContentText: () => typeof body === 'string' ? body : JSON.stringify(body), getHeaders: () => hdr || {} });
+    if (url.indexOf('api.openalex.org/authors?search=' + TH) > -1) return J(200, { results: [
+      { id: 'https://openalex.org/A9', display_name: 'Kamon Testthai', display_name_alternatives: ['กมล ทดสอบไทย', 'K. Testthai'], works_count: 5, last_known_institutions: [{ display_name: 'Mahidol University', country_code: 'TH' }] },
+      { id: 'https://openalex.org/A8', display_name: 'Someone Else', display_name_alternatives: [], works_count: 9 }] });
+    if (url.indexOf('raw_author_name.search:' + TH) > -1) return J(200, { results: [] });
+    if (/scimagojr\.com/.test(url)) return J(200, 'Rank;Sourceid;Title;Type;Issn;SJR;SJR Best Quartile\n1;1;"Asian Population Studies";journal;"17441730, 17441749";1,2;Q2\n2;2;"Population Studies";journal;"00324728";2,1;Q1\n', { 'Content-Disposition': 'attachment; filename="scimagojr 2024.csv"' });
+    return prev(url, opts);
+  };
+  realLogin('anyone@mahidol.ac.th');
+  const r = ok('quickSearch', { name: 'กมล ทดสอบไทย', fromYear: 2560, toYear: 2570 });
+  assert.equal(r.query.nameEn, 'Kamon Testthai'); assert.equal(r.query.openalexId, 'A9');
+  assert.match(r.notes.join(' '), /พบชื่อ "Kamon Testthai".*OpenAlex/);
+  assert.equal(r.enCandidates.length, 1, 'only authors whose Thai name matches');
+  assert.ok(r.status.find(x => x.key === 'pubmed').mode === 'direct', 'PubMed searched with the English name');
+  assert.match(r.notes.join(' '), /importSjr/);
+  assert.match(ctx.importSjr(), /SJR 2024.*3 ISSN/);
+  const r2 = ok('quickSearch', { name: 'Napa Tuayangdee', fromYear: 2560, toYear: 2570 });
+  assert.doesNotMatch(r2.notes.join(' '), /importSjr/);
+  const w = r2.works.find(x => /^Fertility/.test(x.title));
+  assert.equal(w.database, 'scopus'); assert.equal(w.quartile, 'Q2'); assert.match(w.quartileSource, /รายชื่อวารสาร/);
+  ctx.__fake = prev;
   realLogin('owner@mahidol.ac.th');
 });
 

@@ -216,6 +216,51 @@ function englishNameFor_(nameTh) {
   return { nameEn: '', note: '' };
 }
 
+/**
+ * หาชื่ออังกฤษ (และรหัสนักวิจัย OpenAlex) จากชื่อไทย โดยใช้ข้อมูลจริงใน OpenAlex — ไม่ใช่การแปลงอักษรเอง
+ *  1) นักวิจัยที่มีชื่อไทยนี้เป็นชื่อสำรอง (display_name_alternatives)
+ *  2) ผลงานที่ระบุชื่อผู้แต่งเป็นภาษาไทยตรงกับชื่อนี้ → โปรไฟล์ผู้แต่งของผลงานนั้น (มักเป็นชื่ออังกฤษ)
+ * คืนรายชื่อผู้ที่เป็นไปได้ ให้ผู้ใช้เลือกถ้ามีมากกว่า 1 คน
+ */
+function englishFromOpenAlex_(nameTh, affil) {
+  const key = String(nameTh || '').replace(/\s+/g, '');
+  const byId = {};
+  const add = function (id, name, inst, country, works, how) {
+    id = shortId_(id);
+    if (!id || !name || hasThai_(name)) return;
+    const c = byId[id] || (byId[id] = { id: id, name: name, institution: inst || '', country: country || '', works: works || 0, hits: 0, how: how });
+    c.hits++;
+    if (!c.institution && inst) { c.institution = inst; c.country = country || ''; }
+    if (works > c.works) c.works = works;
+  };
+  try {
+    const a = httpJson_(OPENALEX + '/authors?search=' + encodeURIComponent(nameTh) + '&per_page=10&select=id,display_name,display_name_alternatives,works_count,last_known_institutions');
+    ((a && a.results) || []).forEach(function (x) {
+      const alts = [x.display_name].concat(x.display_name_alternatives || []).map(function (n) { return String(n).replace(/\s+/g, ''); });
+      if (alts.indexOf(key) === -1) return;
+      const inst = (x.last_known_institutions || [])[0] || {};
+      add(x.id, hasThai_(x.display_name) ? (x.display_name_alternatives || []).filter(function (n) { return !hasThai_(n); })[0] : x.display_name, inst.display_name, inst.country_code, x.works_count, 'ชื่อสำรองของนักวิจัย');
+    });
+  } catch (e) { /* ค้นวิธีถัดไป */ }
+  try {
+    const w = httpJson_(OPENALEX + '/works?filter=raw_author_name.search:' + encodeURIComponent(nameTh) + '&per_page=50&select=id,authorships');
+    ((w && w.results) || []).forEach(function (r) {
+      (r.authorships || []).forEach(function (au) {
+        if (String(au.raw_author_name || '').replace(/\s+/g, '').indexOf(key) === -1 || !au.author) return;
+        const inst = (au.institutions || [])[0] || {};
+        add(au.author.id, au.author.display_name, inst.display_name, inst.country_code, 0, 'ผู้แต่งในผลงานภาษาไทย');
+      });
+    });
+  } catch (e) { /* ไม่มีข้อมูล */ }
+  const af = String(affil || '').toLowerCase();
+  const list = Object.keys(byId).map(function (k) { return byId[k]; });
+  list.sort(function (x, y) {
+    const sx = (af && x.institution.toLowerCase().indexOf(af) > -1 ? 4 : 0) + (x.country === 'TH' ? 2 : 0), sy = (af && y.institution.toLowerCase().indexOf(af) > -1 ? 4 : 0) + (y.country === 'TH' ? 2 : 0);
+    return sy - sx || y.hits - x.hits || y.works - x.works;
+  });
+  return list.slice(0, 8);
+}
+
 function quickSearch_(p) {
   me_();
   const cache = CacheService.getScriptCache();
@@ -236,11 +281,20 @@ function quickSearch_(p) {
   if (q.fromYear > q.toYear) throw new Error('ปีเริ่มต้องไม่เกินปีสิ้นสุด');
   if (q.toYear - q.fromYear > 30) throw new Error('ช่วงปีกว้างเกินไป (ไม่เกิน 30 ปี)');
   const notes = [];
+  let enCandidates = [];
   if (q.nameTh && !q.nameEn && !q.scopusId && !q.orcid) {
     const en = englishNameFor_(q.nameTh);
     if (en.nameEn) q.nameEn = en.nameEn;
     if (en.note) notes.push(en.note);
-    if (!q.nameEn) notes.push('ค้นด้วยชื่อไทยได้เฉพาะฐานไทย (TCI/ThaiJO) — ฐานนานาชาติ (Scopus/WoS/PubMed) ต้องใช้ชื่ออังกฤษ: กด "ตัวเลือกเพิ่มเติม" แล้วใส่ชื่ออังกฤษ');
+    if (!q.nameEn) {
+      enCandidates = englishFromOpenAlex_(q.nameTh, q.affil);
+      const pick = q.openalexId ? enCandidates.filter(function (c) { return c.id === q.openalexId; })[0] : enCandidates[0];
+      if (pick) {
+        q.nameEn = pick.name; q.openalexId = pick.id;
+        notes.push('ไม่ได้กรอกชื่ออังกฤษ — ระบบพบชื่อ "' + pick.name + '"' + (pick.institution ? ' (' + pick.institution + ')' : '') + ' จาก OpenAlex (' + pick.how + ') แล้วใช้ค้นฐานนานาชาติต่อ' +
+          (enCandidates.length > 1 ? ' · พบ ' + enCandidates.length + ' คน ถ้าไม่ใช่คนนี้ให้เลือกคนที่ถูกต้องด้านล่าง' : ' · ตรวจว่าเป็นคนเดียวกัน'));
+      } else notes.push('ไม่พบชื่ออังกฤษของ "' + q.nameTh + '" ใน OpenAlex — ค้นได้เฉพาะฐานไทย (TCI/ThaiJO) · ใส่ชื่ออังกฤษใน "ตัวเลือกเพิ่มเติม" เพื่อค้น Scopus/WoS/PubMed');
+    }
   }
   const r = searchAll_(q);
   r.status.forEach(function (s) { if (s.mode === 'error') s.message = explainFetchError_(s.message); });
@@ -255,5 +309,7 @@ function quickSearch_(p) {
       group: grp, database: w.database, dbLabel: (DATABASES[w.database] || DATABASES.none).label, quartile: w.quartile, quartileSource: quartileSource_(w),
       proof: w.proof, links: w.links, foundIn: w.foundIn, origins: w.origins };
   });
-  return { query: q, notes: notes, works: works, counts: g, status: r.status, candidates: r.candidates, openalexId: r.openalexId, searchedAt: nowIso_(), scopusKey: !!apiKey_('SCOPUS_API_KEY') };
+  const ji = journalIndexStats_();
+  if (!apiKey_('SCOPUS_API_KEY') && !(ji.byDatabase.scopus > 0)) notes.push('ยังไม่มี Scopus API key และยังไม่มีรายชื่อวารสาร Scopus (SJR) — ผลงานจะยังระบุไม่ได้ว่าอยู่ใน Scopus หรือไม่ (ผู้ดูแลรันฟังก์ชัน importSjr ครั้งเดียว)');
+  return { query: q, notes: notes, works: works, counts: g, status: r.status, enCandidates: enCandidates, journalIndex: ji, candidates: r.candidates, openalexId: r.openalexId, searchedAt: nowIso_(), scopusKey: !!apiKey_('SCOPUS_API_KEY') };
 }

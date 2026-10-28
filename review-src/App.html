@@ -402,11 +402,12 @@ function renderQuickResult(f) {
     <div class="print-only" style="display:none"><h2>ผลงานวิชาการ: ${esc(who)} (พ.ศ. ${q.fromYear}–${q.toYear})</h2></div>
     ${r.notes.map(n => `<div class="banner amber mt-s">${ic('info')}<div><div class="sub" style="color:var(--text)">${esc(n)}</div></div></div>`).join('')}
     ${!r.scopusKey ? `<div class="banner blue mt-s no-print">${ic('info')}<div><div class="sub" style="color:var(--text)">ยังไม่ได้ใส่ Scopus API key ในระบบหลังบ้าน — ผลจาก Scopus จึงตรวจผ่านรายชื่อวารสารเท่านั้น (แจ้งผู้ดูแลระบบ)</div></div></div>` : ''}
-    ${r.candidates && r.candidates.length > 1 ? `<div class="banner amber mt-s no-print">${ic('users')}<div style="flex:1"><b>พบนักวิจัยชื่อนี้หลายคนใน OpenAlex</b><div class="sub">ระบบเลือกคนแรกให้ ถ้าไม่ใช่ เลือกคนที่ถูกต้องแล้วค้นใหม่</div>
+    ${r.enCandidates && r.enCandidates.length > 1 ? `<div class="banner amber mt-s no-print">${ic('users')}<div style="flex:1"><b>ชื่อไทยนี้ตรงกับนักวิจัยหลายคน</b><div class="sub">เลือกคนที่ถูกต้องแล้วค้นใหม่</div>
+      <div class="row mt-s"><select class="select" id="qs-encand" style="width:auto;max-width:100%">${r.enCandidates.map(c => opt(c.id, c.name + (c.institution ? ' — ' + c.institution : ''), r.query.openalexId)).join('')}</select><button class="btn sm" id="qs-reen">ค้นใหม่ด้วยคนนี้</button></div></div></div>` : r.candidates && r.candidates.length > 1 ? `<div class="banner amber mt-s no-print">${ic('users')}<div style="flex:1"><b>พบนักวิจัยชื่อนี้หลายคนใน OpenAlex</b><div class="sub">ระบบเลือกคนแรกให้ ถ้าไม่ใช่ เลือกคนที่ถูกต้องแล้วค้นใหม่</div>
       <div class="row mt-s"><select class="select" id="qs-cand" style="width:auto;max-width:100%">${r.candidates.map(c => opt(c.id, c.name + (c.institution ? ' — ' + c.institution : '') + ' (' + c.works + ' ผลงาน)', r.openalexId)).join('')}</select><button class="btn sm" id="qs-recand">ค้นใหม่ด้วยคนนี้</button></div></div></div>` : ''}
     <div class="qs-tiles no-print">${Object.keys(QS_GROUPS).map(k => `<button class="qs-tile ${f.filter === k ? 'on' : ''}" data-filter="${k}" aria-pressed="${f.filter === k}"><div class="n">${k === 'all' ? r.works.length : r.counts[k]}</div><div class="l">${ic(QS_GROUPS[k][1], 'sm')} ${QS_GROUPS[k][0]}</div></button>`).join('')}</div>
     <div class="qs-src no-print"><span class="muted">ค้นจาก:</span>${r.status.map(modeIcon).join('')}</div>
-    ${r.status.some(s => s.mode === 'error') ? `<details class="qs-more no-print"><summary>${ic('info', 'sm')} ดูสาเหตุที่ค้นบางฐานไม่ได้</summary><ul class="ul-tight">${r.status.filter(s => s.mode === 'error').map(s => `<li><b>${esc(s.label)}</b>: ${esc(s.message)}</li>`).join('')}</ul></details>` : ''}
+    ${r.status.some(s => s.mode === 'error') ? `<div class="banner red mt-s no-print">${ic('alert')}<div><b>ค้นบางฐานไม่ได้</b><ul class="ul-tight">${r.status.filter(s => s.mode === 'error').map(s => `<li><b>${esc(s.label)}</b>: ${esc(s.message)}</li>`).join('')}</ul></div></div>` : ''}
     ${list.length ? list.map(w => `<div class="wcard"><div class="yr"><b>${w.yearCE ? w.yearCE + 543 : '—'}</b><span>${w.yearCE || ''}</span></div><div class="body">
         <div class="t">${esc(w.title)}</div>
         <div class="m">${esc(w.journal || '—')}${w.typeLabel ? ' · ' + esc(w.typeLabel) : ''}</div>
@@ -420,6 +421,7 @@ function renderQuickResult(f) {
   $('#qs-new').onclick = () => { if (S.qsClear) S.qsClear(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   $$('[data-filter]', out).forEach(b => b.onclick = () => { f.filter = b.dataset.filter; renderQuickResult(f); });
   const rc = $('#qs-recand'); if (rc) rc.onclick = () => doQuickSearch(f, val('#qs-cand'));
+  const re = $('#qs-reen'); if (re) re.onclick = () => doQuickSearch(f, val('#qs-encand'));
   $('#qs-csv').onclick = () => {
     const cols = ['ปี พ.ศ.', 'ชื่อผลงาน', 'แหล่งเผยแพร่', 'ประเภท', 'ฐานข้อมูล', 'Quartile', 'ที่มาของ Quartile', 'การยืนยัน', 'DOI', 'ผู้แต่ง', 'ลิงก์ยืนยัน'];
     const proofTxt = w => w.proof === 'record' ? 'พบบทความในฐานโดยตรง' : w.proof === 'journal' ? 'วารสารอยู่ในรายชื่อฐาน' : 'ยังยืนยันไม่ได้';

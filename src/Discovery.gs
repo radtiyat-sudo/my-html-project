@@ -431,6 +431,7 @@ function importJournalIndex_(p) {
     });
   });
   DB.insertMany('JournalIndex', rows);
+  JOURNAL_MAP_ = null;
   audit_('import_journals', database + ' ' + source + ' +' + rows.length);
   return { added: rows.length, stats: journalIndexStats_() };
 }
@@ -438,6 +439,7 @@ function importJournalIndex_(p) {
 function clearJournalIndex_(p) {
   requireRole_(['admin']);
   const n = DB.removeWhere('JournalIndex', function (r) { return !p.database || r.database === p.database; });
+  JOURNAL_MAP_ = null;
   audit_('clear_journals', (p.database || 'all') + ' -' + n);
   return { removed: n, stats: journalIndexStats_() };
 }

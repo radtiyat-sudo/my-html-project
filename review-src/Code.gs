@@ -53,6 +53,29 @@ function testConnection() {
   return msg;
 }
 
+/**
+ * ▶ ดึงรายชื่อวารสาร Scopus พร้อม Quartile จาก SCImago (SJR — ฟรี ใช้ข้อมูล Scopus) มาเก็บในชีต JournalIndex
+ * ใช้ตรวจว่าวารสารอยู่ใน Scopus และอยู่ Quartile ใด เมื่อยังไม่มี Scopus API key — รันปีละครั้งเมื่อ SJR ปีใหม่ออก
+ */
+function importSjr() {
+  CURRENT_USER_ = { id: 'editor', role: 'admin' };
+  try {
+    let res;
+    try { res = UrlFetchApp.fetch('https://www.scimagojr.com/journalrank.php?out=xls', { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (Apps Script; academic journal list import)' } }); }
+    catch (e) { throw new Error(explainFetchError_(e.message)); }
+    const text = res.getContentText('UTF-8');
+    if (res.getResponseCode() !== 200 || !/issn/i.test(text.slice(0, 2000))) {
+      throw new Error('ดาวน์โหลดจาก scimagojr.com ไม่สำเร็จ (รหัส ' + res.getResponseCode() + ') — ดาวน์โหลดไฟล์เองจาก https://www.scimagojr.com/journalrank.php (ปุ่ม Download data) แล้วนำเข้าในหน้า แหล่งข้อมูล (ปิดโหมดง่ายชั่วคราว)');
+    }
+    const cd = String((res.getHeaders() || {})['Content-Disposition'] || (res.getHeaders() || {})['content-disposition'] || '');
+    const year = (cd.match(/(20\d\d)/) || [])[1] || String(Number(nowIso_().slice(0, 4)) - 1);
+    const r = importJournalCsv_({ csv: text, database: 'scopus', source: 'SJR ' + year + ' (scimagojr.com)' });
+    const msg = 'นำเข้ารายชื่อวารสาร Scopus จาก SJR ' + year + ' แล้ว ' + r.added.toLocaleString() + ' ISSN';
+    Logger.log(msg);
+    return msg;
+  } finally { CURRENT_USER_ = null; }
+}
+
 /** ▶ ตรวจว่ากุญแจ Scopus / WoS ใช้ได้หรือไม่ (ดูผลใน Execution log) */
 function testScopus() {
   CURRENT_USER_ = { id: 'editor', role: 'admin' };
