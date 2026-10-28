@@ -86,6 +86,12 @@ const ACTIONS_ = {
 };
 
 function api(action, payload) {
+  if (typeof action !== 'string') {
+    // ถูกรันจากตัวแก้ไข Apps Script โดยตรง — ฟังก์ชันนี้สำหรับหน้าเว็บเท่านั้น
+    const msg = 'ฟังก์ชัน api ใช้สำหรับหน้าเว็บเท่านั้น — ให้เลือกฟังก์ชัน setup ในรายการด้านบน แล้วกด ▶ เรียกใช้';
+    Logger.log(msg);
+    return msg;
+  }
   const p = payload || {};
   let lock = null;
   try {

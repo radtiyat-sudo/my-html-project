@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const rd = (dir, f) => readFileSync(join(root, dir, f), 'utf8');
 // ไฟล์จาก src/ (โค้ดค้นฐานข้อมูลวิชาการของ MUGR) ใช้ร่วมกัน ระบุด้วย ../src/
-const ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
+// Code อยู่ถัดจาก Config เพื่อให้ setup เป็นฟังก์ชันแรกในรายการ ▶ เรียกใช้ ของ Apps Script
+const ORDER = ['Config', 'Code', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api'];
 const bar = '='.repeat(70);
 
 const code = `/**

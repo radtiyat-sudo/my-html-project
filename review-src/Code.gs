@@ -7,18 +7,7 @@
  *   - สร้างข้อมูลสาธิต (ข้อมูลสมมติทั้งหมด ไม่มีข้อมูลบุคคลจริง) และบัญชีทดสอบทุกบทบาท
  */
 
-function doGet() {
-  // ไม่มีเส้นทางเปิดไฟล์ผ่าน URL — ไฟล์แนบเปิดได้ผ่าน api('downloadFile') ที่ตรวจสิทธิ์เท่านั้น
-  const t = HtmlService.createTemplateFromFile('Index');
-  t.appName = APP.name;
-  return t.evaluate()
-    .setTitle(APP.name)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
-}
-
-function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
-
+/** ▶ รันฟังก์ชันนี้จากตัวแก้ไข (เลือก setup ในรายการฟังก์ชันด้านบน) */
 function setup() {
   ensureSchema_(true);
   const email = activeEmail_();
@@ -44,6 +33,18 @@ function setup() {
   Logger.log(msg);
   return msg;
 }
+
+function doGet() {
+  // ไม่มีเส้นทางเปิดไฟล์ผ่าน URL — ไฟล์แนบเปิดได้ผ่าน api('downloadFile') ที่ตรวจสิทธิ์เท่านั้น
+  const t = HtmlService.createTemplateFromFile('Index');
+  t.appName = APP.name;
+  return t.evaluate()
+    .setTitle(APP.name)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+}
+
+function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
 
 /* ---------------- ข้อมูลสาธิต (สมมติทั้งหมด) ---------------- */
 

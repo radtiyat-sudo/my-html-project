@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const root = new URL('..', import.meta.url).pathname;
-export const RV_ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
+export const RV_ORDER = ['Config', 'Code', 'Db', 'Auth', 'Connectors', 'ApiConnector', 'Matching', 'Scholar', '../src/Discovery', '../src/Sources', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api'];
 const code = process.env.BUNDLE ? readFileSync(root + 'review/Code.gs', 'utf8') : RV_ORDER.map(f => readFileSync(root + 'review-src/' + f + '.gs', 'utf8')).join('\n');
 
 const ctx = { console, TextEncoder, crypto, btoa, atob, localStorage: undefined, location: { href: '' } };
