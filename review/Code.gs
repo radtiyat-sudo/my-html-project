@@ -29,6 +29,20 @@
  */
 const FIRST_ADMIN_EMAIL = '';
 
+/**
+ * กุญแจฐานข้อมูลวิชาการ (ตั้งค่าหลังบ้าน) — วางกุญแจระหว่างเครื่องหมาย ' '
+ *  SCOPUS_API_KEY   : จาก https://dev.elsevier.com (ล็อกอินด้วยอีเมล @mahidol.ac.th)
+ *  SCOPUS_INSTTOKEN : ขอจากหอสมุด (ใส่เมื่อทดสอบแล้วขึ้น 401/403)
+ *  WOS_API_KEY      : Web of Science Starter API (ไม่บังคับ)
+ * หลังวางแล้ว รันฟังก์ชัน testScopus เพื่อตรวจว่าเชื่อมต่อได้
+ * อย่าแชร์ไฟล์นี้หรือส่งกุญแจในแชต/อีเมล — ผู้ที่แก้โปรเจ็กต์ Apps Script นี้ได้จะเห็นกุญแจ
+ */
+const API_KEYS_IN_CODE = {
+  SCOPUS_API_KEY: '',
+  SCOPUS_INSTTOKEN: '',
+  WOS_API_KEY: ''
+};
+
 /** โดเมนอีเมลที่อนุญาตให้เข้าสู่ระบบ (แก้ได้ในหน้า ตั้งค่า) */
 const DEFAULT_ALLOWED_DOMAIN = 'mahidol.ac.th';
 
@@ -98,6 +112,7 @@ const DEFAULT_SETTINGS = {
   ORG_NAME: 'หน่วยงาน (ยังไม่ได้ตั้งค่า)',
   ALLOWED_DOMAIN: DEFAULT_ALLOWED_DOMAIN,
   AUTO_REGISTER: 'true',
+  SIMPLE_MODE: 'true',
   TEST_MODE: 'true',
   MUHR_MODE: 'mock',
   MUREX_MODE: 'mock',
@@ -220,6 +235,17 @@ function setup() {
   CURRENT_USER_ = null;
   Logger.log(msg);
   return msg;
+}
+
+/** ▶ ตรวจว่ากุญแจ Scopus / WoS ใช้ได้หรือไม่ (ดูผลใน Execution log) */
+function testScopus() {
+  CURRENT_USER_ = { id: 'editor', role: 'admin' };
+  try {
+    const r = testApiKeys_();
+    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + r.scopus.message + '\nWeb of Science: ' + r.wos.message;
+    Logger.log(msg);
+    return msg;
+  } finally { CURRENT_USER_ = null; }
 }
 
 function doGet() {
@@ -1674,7 +1700,8 @@ function checkWorkDb_(p) {
 
 function scholarAdmin_() {
   requirePerm_('admin.data');
-  return { keys: apiKeysStatus_(), lastTest: lastKeyTest_(), journals: journalIndexStats_(), databases: DATABASES, affil: setting_('SCHOLAR_AFFIL'), mailto: setting_('OPENALEX_MAILTO') };
+  const inCode = {}; Object.keys(API_KEYS_IN_CODE).forEach(function (k) { inCode[k] = !!String(API_KEYS_IN_CODE[k] || '').trim(); });
+  return { keysInCode: inCode, keys: apiKeysStatus_(), lastTest: lastKeyTest_(), journals: journalIndexStats_(), databases: DATABASES, affil: setting_('SCHOLAR_AFFIL'), mailto: setting_('OPENALEX_MAILTO') };
 }
 
 /** นำเข้ารายชื่อวารสารจาก CSV (SJR ใช้ ; คั่น / TCI ใช้ ,) — หาคอลัมน์ ISSN ชื่อวารสาร และ Quartile อัตโนมัติ */
@@ -1700,6 +1727,58 @@ function importJournalCsv_(p) {
   const source = clean_(p.source, 60);
   if (!source) throw new Error('ระบุชื่อแหล่งและปีของรายชื่อ เช่น "SJR 2024" หรือ "TCI กลุ่ม 1 (ประกาศ 2568)"');
   return importJournalIndex_({ database: p.database, source: source, replace: true, rows: list });
+}
+
+/* ---------------- ค้นหาแบบง่าย: กรอกชื่อ + ช่วงปี ---------------- */
+
+/** หาชื่อภาษาอังกฤษจากข้อมูลบุคคล (MUHR) เมื่อผู้ใช้กรอกแค่ชื่อไทย — ใช้เฉพาะเมื่อพบคนเดียว */
+function englishNameFor_(nameTh) {
+  try {
+    const r = searchPersons_({ name: nameTh });
+    const exact = r.results.filter(function (x) { return x.nameEn && x.matchBasis.indexOf('partial') === -1; });
+    if (exact.length === 1) return { nameEn: exact[0].nameEn, note: 'ใช้ชื่ออังกฤษ "' + exact[0].nameEn + '" จากข้อมูลบุคคล ' + r.source.label + ' (' + (r.source.connected ? 'ระบบจริง' : r.source.mode === 'mock' ? 'ข้อมูลจำลอง' : 'ข้อมูลนำเข้า') + ')' };
+    if (exact.length > 1) return { nameEn: '', note: 'พบชื่อนี้หลายคนในข้อมูลบุคคล — ใส่ชื่ออังกฤษหรือ Scopus ID เองเพื่อให้ค้นได้ตรงคน' };
+  } catch (e) { /* แหล่งข้อมูลบุคคลไม่พร้อม — ค้นต่อด้วยชื่อไทย */ }
+  return { nameEn: '', note: '' };
+}
+
+function quickSearch_(p) {
+  me_();
+  const cache = CacheService.getScriptCache();
+  const k = 'qs_' + Math.floor(Date.now() / 60000);
+  const n = Number(cache.get(k) || 0) + 1;
+  if (n > 30) throw new Error('มีการค้นพร้อมกันมากเกินไป กรุณารอ 1 นาทีแล้วลองใหม่');
+  cache.put(k, String(n), 120);
+
+  const name = clean_(p.name, 150);
+  let nameTh = hasThai_(name) ? name : '', nameEn = hasThai_(name) ? '' : name;
+  if (clean_(p.nameEn, 150)) nameEn = clean_(p.nameEn, 150);
+  const q = {
+    nameTh: nameTh, nameEn: nameEn, scopusId: clean_(p.scopusId, 30).replace(/\D+/g, ''), orcid: clean_(p.orcid, 60),
+    affil: p.affil !== undefined ? clean_(p.affil, 150) : setting_('SCHOLAR_AFFIL'),
+    fromYear: Number(p.fromYear) || currentBE_() - 4, toYear: Number(p.toYear) || currentBE_(), openalexId: clean_(p.openalexId, 30)
+  };
+  if (!q.nameTh && !q.nameEn && !q.scopusId && !q.orcid) throw new Error('กรอกชื่อ-นามสกุลที่ต้องการค้น');
+  if (q.fromYear > q.toYear) throw new Error('ปีเริ่มต้องไม่เกินปีสิ้นสุด');
+  if (q.toYear - q.fromYear > 30) throw new Error('ช่วงปีกว้างเกินไป (ไม่เกิน 30 ปี)');
+  const notes = [];
+  if (q.nameTh && !q.nameEn && !q.scopusId && !q.orcid) {
+    const en = englishNameFor_(q.nameTh);
+    if (en.nameEn) q.nameEn = en.nameEn;
+    if (en.note) notes.push(en.note);
+    if (!q.nameEn) notes.push('ค้นด้วยชื่อไทยได้เฉพาะฐานไทย (TCI/ThaiJO) — ฐานนานาชาติ (Scopus/WoS/PubMed) ต้องใช้ชื่ออังกฤษ: กด "ตัวเลือกเพิ่มเติม" แล้วใส่ชื่ออังกฤษ');
+  }
+  const r = searchAll_(q);
+  audit_('quickSearch', '', '', ['name', 'years'], r.works.length + ' รายการ');
+  const g = { intl: 0, tci1: 0, tci2: 0, other: 0 };
+  const works = r.works.map(function (w) {
+    const grp = w.type !== 'journal' ? 'other' : w.group === 'kpa_intl' ? 'intl' : w.group === 'tci1' ? 'tci1' : w.group === 'tci2' ? 'tci2' : 'other';
+    g[grp]++;
+    return { title: w.title, journal: w.journal, yearCE: w.yearCE, doi: w.doi, authors: (w.authors || []).slice(0, 8), typeLabel: (PUB_TYPES[w.type] || {}).label,
+      group: grp, database: w.database, dbLabel: (DATABASES[w.database] || DATABASES.none).label, quartile: w.quartile, quartileSource: quartileSource_(w),
+      proof: w.proof, links: w.links, foundIn: w.foundIn, origins: w.origins };
+  });
+  return { query: q, notes: notes, works: works, counts: g, status: r.status, candidates: r.candidates, openalexId: r.openalexId, searchedAt: nowIso_(), scopusKey: !!apiKey_('SCOPUS_API_KEY') };
 }
 
 
@@ -2186,7 +2265,11 @@ const SOURCE_ORDER = [
 
 const API_KEY_NAMES = ['SCOPUS_API_KEY', 'SCOPUS_INSTTOKEN', 'WOS_API_KEY', 'NCBI_API_KEY'];
 
-function apiKey_(name) { return PropertiesService.getScriptProperties().getProperty(name) || ''; }
+function apiKey_(name) {
+  // กุญแจที่ตั้งในโค้ด (API_KEYS_IN_CODE — ถ้าระบบนั้นกำหนดไว้) มาก่อน แล้วจึงใช้ค่าใน Script Properties
+  const inCode = typeof API_KEYS_IN_CODE !== 'undefined' && API_KEYS_IN_CODE[name] ? String(API_KEYS_IN_CODE[name]).trim() : '';
+  return inCode || PropertiesService.getScriptProperties().getProperty(name) || '';
+}
 
 function apiKeysStatus_() {
   requireRole_(['admin']);
@@ -3699,6 +3782,7 @@ const SETTING_RULES_ = {
   },
   TEST_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
   AUTO_REGISTER: function (v) { return toBool_(v) ? 'true' : 'false'; },
+  SIMPLE_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
   MUHR_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUHR ไม่ถูกต้อง'); return v; },
   MUREX_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUREX ไม่ถูกต้อง'); return v; },
   SIM_OUTAGE_MUHR: function (v) { return toBool_(v) ? 'true' : 'false'; },
@@ -3773,7 +3857,7 @@ function purgeDemo_(p) {
 
 /** คำสั่งที่อ่านอย่างเดียว (ไม่ต้องล็อก) */
 // คำสั่งที่ใช้เวลานาน (เรียกฐานข้อมูลภายนอก) ไม่ล็อกทั้งสคริปต์ เพื่อไม่ให้ผู้ใช้อื่นต้องรอ
-const READ_ONLY_ = ['scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
+const READ_ONLY_ = ['quickSearch', 'scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
 
 const ACTIONS_ = {
   boot: boot_,
@@ -3795,6 +3879,7 @@ const ACTIONS_ = {
   removeFile: removeFile_,
   downloadFile: downloadFile_,
   respondRevision: respondRevision_,
+  quickSearch: quickSearch_,
   scholarSearch: scholarSearch_,
   addScholarWorks: addScholarWorks_,
   checkWorkDb: checkWorkDb_,
@@ -3885,7 +3970,7 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, simpleMode: toBool_(s.SIMPLE_MODE), testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
     testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });

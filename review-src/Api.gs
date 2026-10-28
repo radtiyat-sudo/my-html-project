@@ -5,7 +5,7 @@
 
 /** คำสั่งที่อ่านอย่างเดียว (ไม่ต้องล็อก) */
 // คำสั่งที่ใช้เวลานาน (เรียกฐานข้อมูลภายนอก) ไม่ล็อกทั้งสคริปต์ เพื่อไม่ให้ผู้ใช้อื่นต้องรอ
-const READ_ONLY_ = ['scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
+const READ_ONLY_ = ['quickSearch', 'scholarSearch', 'checkWorkDb', 'testApiKeys', 'testSourceApi', 'scholarAdmin', 'sourceApi', 'boot', 'dashboard', 'listRequests', 'getRequest', 'searchPersons', 'sourceWorks', 'downloadFile', 'report', 'notifications', 'adminOverview', 'listUsers', 'importBatch', 'listAudit', 'completeness'];
 
 const ACTIONS_ = {
   boot: boot_,
@@ -27,6 +27,7 @@ const ACTIONS_ = {
   removeFile: removeFile_,
   downloadFile: downloadFile_,
   respondRevision: respondRevision_,
+  quickSearch: quickSearch_,
   scholarSearch: scholarSearch_,
   addScholarWorks: addScholarWorks_,
   checkWorkDb: checkWorkDb_,
@@ -117,7 +118,7 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    app: APP, org: s.ORG_NAME, scholarAffil: s.SCHOLAR_AFFIL, simpleMode: toBool_(s.SIMPLE_MODE), testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
     testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });

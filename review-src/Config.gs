@@ -12,6 +12,20 @@
  */
 const FIRST_ADMIN_EMAIL = '';
 
+/**
+ * กุญแจฐานข้อมูลวิชาการ (ตั้งค่าหลังบ้าน) — วางกุญแจระหว่างเครื่องหมาย ' '
+ *  SCOPUS_API_KEY   : จาก https://dev.elsevier.com (ล็อกอินด้วยอีเมล @mahidol.ac.th)
+ *  SCOPUS_INSTTOKEN : ขอจากหอสมุด (ใส่เมื่อทดสอบแล้วขึ้น 401/403)
+ *  WOS_API_KEY      : Web of Science Starter API (ไม่บังคับ)
+ * หลังวางแล้ว รันฟังก์ชัน testScopus เพื่อตรวจว่าเชื่อมต่อได้
+ * อย่าแชร์ไฟล์นี้หรือส่งกุญแจในแชต/อีเมล — ผู้ที่แก้โปรเจ็กต์ Apps Script นี้ได้จะเห็นกุญแจ
+ */
+const API_KEYS_IN_CODE = {
+  SCOPUS_API_KEY: '',
+  SCOPUS_INSTTOKEN: '',
+  WOS_API_KEY: ''
+};
+
 /** โดเมนอีเมลที่อนุญาตให้เข้าสู่ระบบ (แก้ได้ในหน้า ตั้งค่า) */
 const DEFAULT_ALLOWED_DOMAIN = 'mahidol.ac.th';
 
@@ -81,6 +95,7 @@ const DEFAULT_SETTINGS = {
   ORG_NAME: 'หน่วยงาน (ยังไม่ได้ตั้งค่า)',
   ALLOWED_DOMAIN: DEFAULT_ALLOWED_DOMAIN,
   AUTO_REGISTER: 'true',
+  SIMPLE_MODE: 'true',
   TEST_MODE: 'true',
   MUHR_MODE: 'mock',
   MUREX_MODE: 'mock',

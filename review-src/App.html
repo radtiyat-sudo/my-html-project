@@ -6,7 +6,7 @@
  * ===================================================================== */
 'use strict';
 
-const S = { boot: null, page: 'dashboard', params: {}, tab: {}, cache: {} };
+const S = { boot: null, page: 'search', params: {}, tab: {}, cache: {} };
 const $ = (s, el) => (el || document).querySelector(s);
 const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
 const esc = s => String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -54,6 +54,7 @@ const ICONS = {
   save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
   eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   'user-plus': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  award: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>',
   swap: '<path d="m17 3 4 4-4 4"/><path d="M3 7h18M7 21l-4-4 4-4"/><path d="M21 17H3"/>'
 };
 const ic = (n, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ICONS.info}</svg>`;
@@ -213,10 +214,10 @@ async function openFile(id) {
 
 /* ---------------- โครงหน้า ---------------- */
 const NAV = {
-  requester: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอของฉัน'], ['new', 'plus', 'สร้างคำขอใหม่'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
-  staff: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'inbox', 'คิวงานตรวจ'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
-  reviewer: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'gavel', 'คำขอรอพิจารณา'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
-  admin: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอทั้งหมด'], ['g', '', 'ตั้งค่าระบบ'], ['criteria', 'layers', 'ชุดเกณฑ์'], ['types', 'list', 'ประเภทคำขอ'], ['data', 'database', 'แหล่งข้อมูล/นำเข้า'],
+  requester: [['search', 'search', 'ค้นหาผลงาน'], ['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอของฉัน'], ['new', 'plus', 'สร้างคำขอใหม่'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  staff: [['search', 'search', 'ค้นหาผลงาน'], ['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'inbox', 'คิวงานตรวจ'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  reviewer: [['search', 'search', 'ค้นหาผลงาน'], ['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'gavel', 'คำขอรอพิจารณา'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  admin: [['search', 'search', 'ค้นหาผลงาน'], ['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอทั้งหมด'], ['g', '', 'ตั้งค่าระบบ'], ['criteria', 'layers', 'ชุดเกณฑ์'], ['types', 'list', 'ประเภทคำขอ'], ['data', 'database', 'แหล่งข้อมูล/นำเข้า'],
     ['users', 'users', 'ผู้ใช้และสิทธิ์'], ['settings', 'settings', 'ตั้งค่า'], ['audit', 'shield', 'บันทึกการใช้งาน'], ['g', '', 'อื่น ๆ'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']]
 };
 
@@ -227,9 +228,13 @@ function renderShell() {
   $$('#nav a[data-nav]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.nav); closeSide(); });
   $('#brand-sub').textContent = B().org || '';
   $('#side-foot').textContent = 'ข้อมูลเก็บบน Google Sheets ของหน่วยงาน';
-  $('#user-chip').innerHTML = `<span class="avatar">${esc(initial(u.name))}</span><span class="who"><b>${esc(u.name)}</b><small>${esc(M().roles[u.role].label)}${u.isTest ? ' · บัญชีทดสอบ' : ''}</small></span>`;
+  $('#user-chip').innerHTML = `<span class="avatar">${esc(initial(u.name))}</span><span class="who"><b>${esc(u.name)}</b><small>${isSimple() ? esc(u.email) : esc(M().roles[u.role].label) + (u.isTest ? ' · บัญชีทดสอบ' : '')}</small></span>`;
   $('#bell-btn').innerHTML = ic('bell') + (B().unread ? `<span class="n">${B().unread}</span>` : '');
+  const simple = isSimple();
+  document.body.classList.toggle('simple', simple);
+  $('#bell-btn').style.display = simple ? 'none' : '';
   const banner = [];
+  if (simple || S.page === 'search') { $('#mode-banner').innerHTML = ''; renderUserMenu(); return; }
   if (B().testMode) banner.push(`${ic('alert')}<span><b>โหมดทดสอบ</b> — ข้อมูลทั้งหมดเป็นข้อมูลสมมติ เลือกบัญชีทดสอบเพื่อลองทุกบทบาทได้ ต้องปิดโหมดนี้ก่อนใช้งานจริง</span>`);
   (B().sources || []).filter(s => s.mode === 'mock' || !s.available).forEach(s => banner.push(`<span>${ic('database', 'sm')} <b>${esc(s.label)}</b>: ${esc(s.modeLabel)}${s.outage ? ' (ขัดข้อง)' : ''} · ยังไม่ได้เชื่อมต่อระบบจริง</span>`));
   $('#mode-banner').innerHTML = banner.length ? `<div class="mode-banner" role="note">${banner.join('<span aria-hidden="true">·</span>')}</div>` : '';
@@ -238,20 +243,30 @@ function renderShell() {
 
 function renderUserMenu() {
   const u = U();
+  if (isSimple()) {
+    $('#user-menu').innerHTML = `<div class="dm-head"><b>${esc(u.name)}</b><div class="small muted">${esc(u.email)}</div></div>
+      <button data-logout>${ic('logout')} ออกจากระบบ Google</button>`;
+    $('#user-menu [data-logout]').onclick = () => window.open('https://accounts.google.com/Logout', '_top');
+    return;
+  }
   const roles = u.roles.map(r => `<button data-role="${r}">${ic(r === u.role ? 'check' : 'user')} ${esc(M().roles[r].label)}</button>`).join('');
   $('#user-menu').innerHTML = `<div class="dm-head"><b>${esc(u.name)}</b><div class="small muted">${esc(u.isTest ? 'บัญชีทดสอบ' : u.email)}<br>หน่วยงาน: ${esc(u.allUnits ? 'ทุกหน่วยงาน' : u.units.map(unitName).join(', '))}</div></div>
+    ${u.role === 'requester' ? `<div class="dm-label">เมนู</div><button data-nav-go="search">${ic('search')} ค้นหาผลงาน</button><button data-nav-go="requests">${ic('file')} คำขอตรวจคุณสมบัติ (ขั้นสูง)</button><button data-nav-go="notifications">${ic('bell')} การแจ้งเตือน</button><button data-nav-go="help">${ic('book')} คู่มือ</button>` : ''}
     ${u.roles.length > 1 ? '<div class="dm-label">สลับบทบาท</div>' + roles : ''}
     ${B().testMode ? `<button data-switch>${ic('swap')} เปลี่ยนบัญชีทดสอบ</button>` : ''}
     ${ss.get('rv-as') && B().signedInEmail ? `<button data-self>${ic('user')} กลับเป็นบัญชีของฉัน</button>` : ''}
     <button data-logout>${ic('logout')} ออกจากระบบ Google</button>`;
-  $$('#user-menu [data-role]').forEach(b => b.onclick = () => { ss.set('rv-role', b.dataset.role); reboot('dashboard'); });
+  $$('#user-menu [data-nav-go]').forEach(b => b.onclick = () => go(b.dataset.navGo));
+  $$('#user-menu [data-role]').forEach(b => b.onclick = () => { ss.set('rv-role', b.dataset.role); reboot('search'); });
   const sw = $('#user-menu [data-switch]'); if (sw) sw.onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); S.forcePicker = true; reboot(); };
-  const self = $('#user-menu [data-self]'); if (self) self.onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); reboot('dashboard'); };
+  const self = $('#user-menu [data-self]'); if (self) self.onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); reboot('search'); };
   $('#user-menu [data-logout]').onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); window.open('https://accounts.google.com/Logout', '_top'); };
 }
 
 function setTitle(t) { $('#page-title').textContent = t; document.title = t + ' — ' + 'ระบบตรวจสอบผลงานและคุณสมบัติ'; }
+const isSimple = () => !!(S.boot && S.boot.simpleMode);
 function go(page, params) {
+  if (S.boot && S.boot.simpleMode && page !== 'search') page = 'search';
   S.page = page; S.params = params || {};
   try { history.replaceState(null, '', '#' + page + (S.params.id ? '/' + S.params.id : '')); } catch (e) { /* GAS iframe */ }
   render();
@@ -301,11 +316,99 @@ function renderPicker() {
     <div class="grid g2">${b.testAccounts.map(a => `<button class="acc-card" data-acc="${esc(a.id)}"><span class="avatar">${esc(initial(a.name))}</span><div><b>${esc(a.name)}</b>
       <div class="small muted">${a.roles.map(r => roleLabel[r] || r).join(', ')} · หน่วยงาน ${esc(a.units.join(', ') === '*' ? 'ทั้งหมด' : a.units.join(', '))}</div></div></button>`).join('')}</div>
   </div>`);
-  $$('[data-acc]').forEach(x => x.onclick = () => run(async () => { ss.set('rv-as', x.dataset.acc); ss.set('rv-role', null); $('#bell-btn').style.display = ''; await reboot('dashboard'); }));
-  const self = $('[data-self]'); if (self) self.onclick = () => run(async () => { ss.set('rv-as', null); $('#bell-btn').style.display = ''; await reboot('dashboard'); });
+  $$('[data-acc]').forEach(x => x.onclick = () => run(async () => { ss.set('rv-as', x.dataset.acc); ss.set('rv-role', null); $('#bell-btn').style.display = ''; await reboot('search'); }));
+  const self = $('[data-self]'); if (self) self.onclick = () => run(async () => { ss.set('rv-as', null); $('#bell-btn').style.display = ''; await reboot('search'); });
 }
 
 const PAGES = {};
+
+/* ---------------- ค้นหาผลงาน (หน้าแรก — กรอกชื่อ + ช่วงปี) ---------------- */
+const QS_GROUPS = { all: ['ทั้งหมด', 'list'], intl: ['ฐานนานาชาติ (ก.พ.อ.)', 'award'], tci1: ['TCI กลุ่ม 1', 'check'], tci2: ['TCI กลุ่ม 2', 'check'], other: ['อื่น ๆ / ยังยืนยันไม่ได้', 'q'] };
+PAGES.search = async () => {
+  setTitle('ค้นหาผลงานวิชาการ');
+  const be = M().currentBE;
+  const f = S.cache.qs = S.cache.qs || { name: '', fromYear: be - 4, toYear: be, nameEn: '', scopusId: '', orcid: '', affil: B().scholarAffil || '', filter: 'all', result: null };
+  const years = [];
+  for (let y = be; y >= be - 30; y--) years.push(y);
+  const yOpts = sel => years.map(y => opt(y, 'พ.ศ. ' + y, sel)).join('');
+  view(`<div class="qs-wrap">
+    <div class="qs-hero no-print"><div class="logo">${ic('search', 'lg')}</div><h2>ค้นหาผลงานวิชาการ</h2><p>กรอกชื่อ เลือกช่วงปี แล้วกดค้นหา — ระบบค้น Scopus, Web of Science, PubMed, ERIC, TCI/ThaiJO และ OpenAlex ให้พร้อมกัน</p></div>
+    <form class="qs-box no-print" id="qs-form" autocomplete="off">
+      <div class="qs-name">${ic('user')}<input id="qs-name" value="${esc(f.name)}" placeholder="ชื่อ-นามสกุล (ไทยหรืออังกฤษ) เช่น Somchai Jaidee" aria-label="ชื่อ-นามสกุล"></div>
+      <div class="qs-row">
+        ${field('ตั้งแต่ปี', `<select class="select" id="qs-from">${yOpts(f.fromYear)}</select>`)}
+        ${field('ถึงปี', `<select class="select" id="qs-to">${yOpts(f.toYear)}</select>`)}
+        <div class="grow"></div>
+        <button class="btn primary qs-go" type="submit">${ic('search')} ค้นหา</button>
+      </div>
+      <div class="qs-quick">${[5, 10].map(n => `<button type="button" class="chip-check" data-range="${n}">ย้อนหลัง ${n} ปี</button>`).join('')}</div>
+      <details class="qs-more" ${f.nameEn || f.scopusId || f.orcid ? 'open' : ''}><summary>${ic('settings', 'sm')} ตัวเลือกเพิ่มเติม (ช่วยให้ผลแม่นขึ้น)</summary>
+        <div class="form-grid mt-s">${field('ชื่อภาษาอังกฤษที่ใช้ตีพิมพ์', `<input class="input" id="qs-en" value="${esc(f.nameEn)}" placeholder="ถ้ากรอกชื่อไทยด้านบน ใส่ชื่ออังกฤษที่นี่">`)}
+          ${field('สังกัด (กรองใน Scopus)', `<input class="input" id="qs-aff" value="${esc(f.affil)}">`, 'ลบออกถ้าเคยย้ายสังกัด')}
+          ${field('Scopus Author ID', `<input class="input" id="qs-sid" value="${esc(f.scopusId)}" inputmode="numeric" placeholder="แม่นยำที่สุด">`)}
+          ${field('ORCID', `<input class="input" id="qs-orcid" value="${esc(f.orcid)}" placeholder="0000-0000-0000-0000">`)}</div></details>
+    </form>
+    <div id="qs-out" class="mt">${f.result ? '' : `<div class="qs-empty no-print">${ic('info')} ผลการค้นจากชื่ออาจรวมผลงานของคนชื่อเดียวกัน — ตรวจทุกรายการด้วยลิงก์ยืนยันที่แนบไว้</div>`}</div>
+  </div>`);
+  $('#qs-name').focus();
+  $$('[data-range]').forEach(b => b.onclick = () => { $('#qs-to').value = be; $('#qs-from').value = be - Number(b.dataset.range) + 1; });
+  const readForm = () => Object.assign(f, { name: val('#qs-name'), fromYear: Number(val('#qs-from')), toYear: Number(val('#qs-to')), nameEn: val('#qs-en'), scopusId: val('#qs-sid'), orcid: val('#qs-orcid'), affil: val('#qs-aff') });
+  $('#qs-form').onsubmit = e => { e.preventDefault(); readForm(); doQuickSearch(f); };
+  if (f.result) renderQuickResult(f);
+};
+
+async function doQuickSearch(f, openalexId) {
+  if (!f.name && !f.nameEn && !f.scopusId && !f.orcid) return toast('กรอกชื่อ-นามสกุลก่อน', 'err');
+  if (f.fromYear > f.toYear) return toast('ปีเริ่มต้องไม่เกินปีสิ้นสุด', 'err');
+  const out = $('#qs-out');
+  out.innerHTML = `<div class="card"><div class="card-b" style="text-align:center;padding:34px"><div class="spinner"></div><b>กำลังค้นหา…</b><div class="small muted mt-s">Scopus → Web of Science → PubMed → ERIC → TCI/ThaiJO → OpenAlex · อาจใช้เวลา 10–40 วินาที</div></div></div>`;
+  try {
+    f.result = await call('quickSearch', { name: f.name, nameEn: f.nameEn, scopusId: f.scopusId, orcid: f.orcid, affil: f.affil, fromYear: f.fromYear, toYear: f.toYear, openalexId: openalexId || '' }, true);
+    f.filter = 'all';
+    renderQuickResult(f);
+  } catch (e) {
+    out.innerHTML = `<div class="banner red">${ic('alert')}<div><b>ค้นไม่สำเร็จ</b><div class="sub">${esc(e.message)}</div></div></div>`;
+  }
+}
+
+function renderQuickResult(f) {
+  const r = f.result, out = $('#qs-out');
+  const q = r.query;
+  const list = r.works.filter(w => f.filter === 'all' || w.group === f.filter);
+  const modeIcon = s => s.mode === 'direct' ? `<span class="badge green">${ic('ok', 'sm')}${esc(s.label)} ${s.count}</span>` : s.mode === 'list' ? `<span class="badge amber" title="${esc(s.message)}">${ic('alert', 'sm')}${esc(s.label)}: ไม่มี API key</span>` : s.mode === 'error' ? `<span class="badge red" title="${esc(s.message)}">${ic('bad', 'sm')}${esc(s.label)}: ขัดข้อง</span>` : `<span class="badge gray" title="${esc(s.message)}">${esc(s.label)}: ข้าม</span>`;
+  const proof = w => w.proof === 'record' ? `<span class="badge green">${ic('ok', 'sm')}พบบทความในฐานโดยตรง</span>` : w.proof === 'journal' ? `<span class="badge blue">${ic('ok', 'sm')}วารสารอยู่ในรายชื่อฐาน</span>` : `<span class="badge gray">${ic('q', 'sm')}ยังยืนยันไม่ได้</span>`;
+  const dbBadge = w => w.group === 'intl' ? 'purple' : w.group === 'tci1' ? 'green' : w.group === 'tci2' ? 'teal' : 'gray';
+  const who = q.nameEn || q.nameTh || (q.scopusId ? 'Scopus ID ' + q.scopusId : 'ORCID ' + q.orcid);
+  out.innerHTML = `
+    <div class="row between no-print"><div><b style="font-size:17px">ผลการค้น: ${esc(who)}</b><div class="small muted">ปี พ.ศ. ${q.fromYear}–${q.toYear} · ค้นเมื่อ ${thaiDate(r.searchedAt, true)}</div></div>
+      <div class="row"><button class="btn sm" id="qs-csv">${ic('download', 'sm')} ดาวน์โหลด CSV</button><button class="btn sm" onclick="window.print()">พิมพ์</button></div></div>
+    <div class="print-only" style="display:none"><h2>ผลงานวิชาการ: ${esc(who)} (พ.ศ. ${q.fromYear}–${q.toYear})</h2></div>
+    ${r.notes.map(n => `<div class="banner amber mt-s">${ic('info')}<div><div class="sub" style="color:var(--text)">${esc(n)}</div></div></div>`).join('')}
+    ${!r.scopusKey ? `<div class="banner blue mt-s no-print">${ic('info')}<div><div class="sub" style="color:var(--text)">ยังไม่ได้ใส่ Scopus API key ในระบบหลังบ้าน — ผลจาก Scopus จึงตรวจผ่านรายชื่อวารสารเท่านั้น (แจ้งผู้ดูแลระบบ)</div></div></div>` : ''}
+    ${r.candidates && r.candidates.length > 1 ? `<div class="banner amber mt-s no-print">${ic('users')}<div style="flex:1"><b>พบนักวิจัยชื่อนี้หลายคนใน OpenAlex</b><div class="sub">ระบบเลือกคนแรกให้ ถ้าไม่ใช่ เลือกคนที่ถูกต้องแล้วค้นใหม่</div>
+      <div class="row mt-s"><select class="select" id="qs-cand" style="width:auto;max-width:100%">${r.candidates.map(c => opt(c.id, c.name + (c.institution ? ' — ' + c.institution : '') + ' (' + c.works + ' ผลงาน)', r.openalexId)).join('')}</select><button class="btn sm" id="qs-recand">ค้นใหม่ด้วยคนนี้</button></div></div></div>` : ''}
+    <div class="qs-tiles no-print">${Object.keys(QS_GROUPS).map(k => `<button class="qs-tile ${f.filter === k ? 'on' : ''}" data-filter="${k}" aria-pressed="${f.filter === k}"><div class="n">${k === 'all' ? r.works.length : r.counts[k]}</div><div class="l">${ic(QS_GROUPS[k][1], 'sm')} ${QS_GROUPS[k][0]}</div></button>`).join('')}</div>
+    <div class="qs-src no-print"><span class="muted">ค้นจาก:</span>${r.status.map(modeIcon).join('')}</div>
+    ${list.length ? list.map(w => `<div class="wcard"><div class="yr"><b>${w.yearCE ? w.yearCE + 543 : '—'}</b><span>${w.yearCE || ''}</span></div><div class="body">
+        <div class="t">${esc(w.title)}</div>
+        <div class="m">${esc(w.journal || '—')}${w.typeLabel ? ' · ' + esc(w.typeLabel) : ''}</div>
+        ${w.authors.length ? `<div class="m">${esc(w.authors.join(', '))}</div>` : ''}
+        <div class="chips"><span class="badge ${dbBadge(w)}">${esc(w.dbLabel)}${w.quartile ? ' · ' + esc(w.quartile) : ''}</span>${proof(w)}${(w.foundIn || []).length ? `<span class="badge gray">พบใน: ${esc(w.foundIn.join(', '))}</span>` : ''}</div>
+        ${w.quartile ? `<div class="m">Quartile จาก: ${esc(w.quartileSource)}</div>` : ''}
+        <div class="lk">${(w.links || []).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ${ic('external', 'sm')}</a>`).join('')}</div>
+      </div></div>`).join('') : `<div class="qs-empty">${ic('search')}<div><b>ไม่พบผลงานในกลุ่มนี้</b></div><div class="small">การค้นไม่พบไม่ได้แปลว่าไม่มีผลงาน — ลองใส่ชื่ออังกฤษ, ลบสังกัด, ขยายช่วงปี หรือใส่ Scopus Author ID ใน "ตัวเลือกเพิ่มเติม"</div></div>`}
+    <div class="small muted mt">หมายเหตุ: ผลค้นจากชื่ออาจรวมผลงานของคนชื่อเดียวกัน · กลุ่มฐานข้อมูลเป็นข้อมูลการจัดทำดัชนี ไม่ใช่ผลการพิจารณาคุณสมบัติ · ตรวจยืนยันด้วยลิงก์ของแต่ละรายการ</div>`;
+  bindCommon();
+  $$('[data-filter]', out).forEach(b => b.onclick = () => { f.filter = b.dataset.filter; renderQuickResult(f); });
+  const rc = $('#qs-recand'); if (rc) rc.onclick = () => doQuickSearch(f, val('#qs-cand'));
+  $('#qs-csv').onclick = () => {
+    const cols = ['ปี พ.ศ.', 'ชื่อผลงาน', 'แหล่งเผยแพร่', 'ประเภท', 'ฐานข้อมูล', 'Quartile', 'ที่มาของ Quartile', 'การยืนยัน', 'DOI', 'ผู้แต่ง', 'ลิงก์ยืนยัน'];
+    const proofTxt = w => w.proof === 'record' ? 'พบบทความในฐานโดยตรง' : w.proof === 'journal' ? 'วารสารอยู่ในรายชื่อฐาน' : 'ยังยืนยันไม่ได้';
+    const rowsCsv = r.works.map(w => [w.yearCE ? w.yearCE + 543 : '', w.title, w.journal, w.typeLabel, w.dbLabel, w.quartile, w.quartileSource, proofTxt(w), w.doi, w.authors.join('; '), (w.links || []).map(l => l.label + ': ' + l.url).join(' | ')]);
+    const csv = '﻿' + [cols].concat(rowsCsv).map(row => row.map(c => '"' + String(c === undefined || c === null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'ผลงาน-' + who.replace(/\s+/g, '_') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  };
+}
 
 /* ---------------- หน้าหลัก (ตามบทบาท) ---------------- */
 PAGES.dashboard = async () => {
@@ -1225,6 +1328,7 @@ PAGES.settings = async () => {
     <div class="card"><div class="card-h"><h3>${ic('settings')} ค่าทั่วไป</h3></div><div class="card-b"><div class="form-grid">
       ${field('ชื่อหน่วยงาน', `<input class="input" id="s-org" value="${esc(s.ORG_NAME)}">`)}
       ${field('โดเมนอีเมลที่เข้าสู่ระบบได้', `<div class="row" style="flex-wrap:nowrap"><span>@</span><input class="input" id="s-domain" value="${esc(s.ALLOWED_DOMAIN)}"></div>`, 'ผู้ใช้ต้องเข้าด้วยบัญชี Google ของโดเมนนี้ (รวมตอนใช้บัญชีทดสอบ)')}
+      ${field('รูปแบบระบบ', `<label class="check"><input type="checkbox" id="s-simple" ${s.SIMPLE_MODE === 'true' ? 'checked' : ''}> โหมดง่าย (มีแค่หน้าค้นหาผลงาน)</label>`, 'ปิด = ใช้ระบบคำขอตรวจคุณสมบัติแบบเต็ม')}
       ${field('ให้ทุกคนในโดเมนเข้าใช้ได้ทันที', `<label class="check"><input type="checkbox" id="s-auto" ${s.AUTO_REGISTER === 'true' ? 'checked' : ''}> เปิด (ลงทะเบียนอัตโนมัติเป็น "ผู้ยื่นเรื่อง")</label>`, 'ปิด = ผู้ดูแลต้องเพิ่มผู้ใช้ก่อนจึงจะเข้าได้ · บทบาทเจ้าหน้าที่/ผู้พิจารณา/ผู้ดูแล กำหนดในหน้า ผู้ใช้และสิทธิ์')}
       ${field('โหมดทดสอบ', `<label class="check"><input type="checkbox" id="s-test" ${s.TEST_MODE === 'true' ? 'checked' : ''}> เปิด (ให้เลือกใช้บัญชีทดสอบได้)</label>`, 'ต้องปิดก่อนใช้งานจริง และควรล้างข้อมูลสาธิต')}
       ${field('ข้อมูลถือว่าเก่าเมื่อเกิน (วัน) *', `<input class="input" id="s-stale" type="number" value="${esc(s.STALE_DAYS)}">`, esc(a.toConfirm.STALE_DAYS))}
@@ -1239,7 +1343,7 @@ PAGES.settings = async () => {
       <label class="check"><input type="checkbox" id="pg-mock"> ลบข้อมูลจำลอง MUHR/MUREX</label> <label class="check"><input type="checkbox" id="pg-users"> ลบบัญชีทดสอบ</label>
       <div class="mt-s"><button class="btn danger" id="pg-go">ล้างข้อมูลสาธิต</button></div></div></div></div>`);
   $('#s-save').onclick = () => run(async () => {
-    await call('saveSettings', { settings: { ORG_NAME: val('#s-org'), ALLOWED_DOMAIN: val('#s-domain'), AUTO_REGISTER: !!val('#s-auto'), TEST_MODE: !!val('#s-test'), STALE_DAYS: val('#s-stale'), MAX_FILE_MB: val('#s-max'), ALLOWED_EXT: val('#s-ext') } });
+    await call('saveSettings', { settings: { ORG_NAME: val('#s-org'), ALLOWED_DOMAIN: val('#s-domain'), AUTO_REGISTER: !!val('#s-auto'), SIMPLE_MODE: !!val('#s-simple'), TEST_MODE: !!val('#s-test'), STALE_DAYS: val('#s-stale'), MAX_FILE_MB: val('#s-max'), ALLOWED_EXT: val('#s-ext') } });
     toast('บันทึกแล้ว', 'ok'); S.boot = await call('boot'); if (!S.boot.user) return renderPicker(); render();
   });
   const unitEdit = u => { u = u || {}; modal({ title: u.id ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงาน', okLabel: 'บันทึก',

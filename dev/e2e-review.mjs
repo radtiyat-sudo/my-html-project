@@ -8,7 +8,7 @@ await ctx.route(/fonts\./, r => r.abort());
 const p = await ctx.newPage(); const errs = [];
 p.on('pageerror', e => errs.push(e.message));
 const as = async (id, role) => { await p.evaluate(([a, r]) => { sessionStorage.setItem('rv-as', a); sessionStorage.setItem('rv-role', r); }, [id, role]); };
-await p.goto(URL0); await p.waitForSelector('#nav a');
+await p.goto(URL0 + '?full'); await p.waitForSelector('#nav a');
 // สลับบัญชีผ่านเมนู "เปลี่ยนบัญชีทดสอบ" เพื่อใช้ข้อมูลในหน่วยความจำชุดเดียวกัน
 async function become(id, role) {
   await as(id, role);

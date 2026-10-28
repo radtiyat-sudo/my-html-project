@@ -81,6 +81,7 @@ const SETTING_RULES_ = {
   },
   TEST_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
   AUTO_REGISTER: function (v) { return toBool_(v) ? 'true' : 'false'; },
+  SIMPLE_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
   MUHR_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUHR ไม่ถูกต้อง'); return v; },
   MUREX_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUREX ไม่ถูกต้อง'); return v; },
   SIM_OUTAGE_MUHR: function (v) { return toBool_(v) ? 'true' : 'false'; },

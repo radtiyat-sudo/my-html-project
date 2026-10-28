@@ -28,7 +28,11 @@ const SOURCE_ORDER = [
 
 const API_KEY_NAMES = ['SCOPUS_API_KEY', 'SCOPUS_INSTTOKEN', 'WOS_API_KEY', 'NCBI_API_KEY'];
 
-function apiKey_(name) { return PropertiesService.getScriptProperties().getProperty(name) || ''; }
+function apiKey_(name) {
+  // กุญแจที่ตั้งในโค้ด (API_KEYS_IN_CODE — ถ้าระบบนั้นกำหนดไว้) มาก่อน แล้วจึงใช้ค่าใน Script Properties
+  const inCode = typeof API_KEYS_IN_CODE !== 'undefined' && API_KEYS_IN_CODE[name] ? String(API_KEYS_IN_CODE[name]).trim() : '';
+  return inCode || PropertiesService.getScriptProperties().getProperty(name) || '';
+}
 
 function apiKeysStatus_() {
   requireRole_(['admin']);

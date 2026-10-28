@@ -79,6 +79,7 @@ return { api: api, setup: setup };
 })(${services.map(s => '__gas.' + s).join(', ')});
 __server.setup();
 if (__q.has('key')) __gas.PropertiesService.getScriptProperties().setProperty('SCOPUS_API_KEY', 'demo'); // ?key = จำลองว่ามี Scopus API key
+if (__q.has('full')) __server.api('saveSettings', { settings: { SIMPLE_MODE: false } }); // ?full = ระบบคำขอแบบเต็ม
 if (__q.get('email')) __opts.email = __q.get('email'); // ?email=... จำลองผู้ใช้อื่นที่ยังไม่ได้ลงทะเบียน
 window.google = { script: { run: (function mk(ok, fail) { return new Proxy({}, { get(_, prop) {
   if (prop === 'withSuccessHandler') return h => mk(h, fail); if (prop === 'withFailureHandler') return h => mk(ok, h);

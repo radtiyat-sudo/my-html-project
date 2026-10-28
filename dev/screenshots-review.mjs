@@ -13,7 +13,8 @@ async function open(name, as, role, hash, opts) {
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(name + ': ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_|Failed to load/.test(m.text())) errors.push(name + ' console: ' + m.text()); });
-  await page.goto(URL0 + (hash && hash[0] === '?' ? hash : '' + (hash || '')));
+  const qs = (opts && opts.simple ? '' : 'full') + (hash && hash[0] === '?' ? '&' + hash.slice(1) : '');
+  await page.goto(URL0 + '?' + qs + (hash && hash[0] === '#' ? hash : ''));
   await page.waitForSelector(as ? '#nav a' : (opts && opts.wait) || '.acc-card', { timeout: 15000 });
   await page.waitForTimeout(400);
   return { page, ctx };
@@ -21,7 +22,20 @@ async function open(name, as, role, hash, opts) {
 const shot = async (page, name, full) => { await page.waitForTimeout(350); await page.screenshot({ path: `${out}/${name}.png`, fullPage: full !== false }); };
 const openReq = async (page, text) => { await page.click(`tr[data-open]:has-text("${text}")`); await page.waitForSelector('.req-head'); await page.waitForTimeout(300); };
 
-let s = await open('picker', null, null, '?email=visitor@mahidol.ac.th', { wait: '#nav a' });
+// ---- โหมดง่าย (ค่าเริ่มต้น): หน้าค้นหาอย่างเดียว ----
+let s = await open('simple', null, null, '?key&email=someone@mahidol.ac.th', { simple: true, wait: '#qs-name' });
+await shot(s.page, '30-simple-search-home', false);
+await s.page.fill('#qs-name', 'Napa Tuayangdee'); await s.page.selectOption('#qs-from', String(2560 + 0)); await s.page.click('.qs-go');
+await s.page.waitForSelector('.wcard', { timeout: 20000 });
+await shot(s.page, '31-simple-search-results');
+await s.ctx.close();
+s = await open('simple-mobile', null, null, '?key&email=someone@mahidol.ac.th', { simple: true, wait: '#qs-name', vp: { width: 390, height: 844 } });
+await s.page.fill('#qs-name', 'Napa Tuayangdee'); await s.page.click('.qs-go'); await s.page.waitForSelector('.wcard', { timeout: 20000 });
+await shot(s.page, '32-simple-search-mobile', false); await s.ctx.close();
+s = await open('simple-outside', null, null, '?email=someone@gmail.com', { simple: true, wait: '.banner.red' });
+await shot(s.page, '34-simple-outside-domain', false); await s.ctx.close();
+
+s = await open('picker', null, null, '?email=visitor@mahidol.ac.th', { wait: '#user-chip' });
 await s.page.click('#user-chip'); await s.page.click('[data-switch]'); await s.page.waitForSelector('.acc-card');
 await shot(s.page, '01-test-accounts'); await s.ctx.close();
 s = await open('outside-domain', null, null, '?email=someone@gmail.com', { wait: '.banner.red' });

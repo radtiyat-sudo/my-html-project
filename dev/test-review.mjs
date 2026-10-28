@@ -490,6 +490,29 @@ t('MUHR via custom REST API with field mapping; name results still need staff ch
   login('UT-ADMIN', 'admin'); ok('saveSettings', { settings: { MUHR_MODE: 'mock' } });
 });
 
+t('simple search: any @mahidol.ac.th user, name + years only; API key from code', () => {
+  vm.runInContext("PropertiesService.getScriptProperties().deleteProperty('SCOPUS_API_KEY'); API_KEYS_IN_CODE.SCOPUS_API_KEY = 'key-in-code';", ctx);
+  assert.match(ctx.testScopus(), /Scopus: ผ่าน/);
+  as = null; role = null;
+  realLogin('anyone@mahidol.ac.th');
+  const b = ok('boot');
+  assert.equal(b.simpleMode, true); assert.ok(b.user);
+  no('quickSearch', { name: '', fromYear: 2565, toYear: 2569 }, /กรอกชื่อ/);
+  no('quickSearch', { name: 'Napa Tuayangdee', fromYear: 2569, toYear: 2565 }, /ปีเริ่ม/);
+  const r = ok('quickSearch', { name: 'Napa Tuayangdee', fromYear: 2560, toYear: 2570 });
+  assert.equal(r.query.nameEn, 'Napa Tuayangdee'); assert.equal(r.scopusKey, true);
+  assert.equal(r.status[0].mode, 'direct', 'Scopus searched with the key from code');
+  assert.ok(r.works.length > 0); assert.ok(r.counts.intl >= 1);
+  assert.ok(r.works.every(w => Array.isArray(w.links)));
+  const th = ok('quickSearch', { name: 'มาลี ตัวอย่างงาม', fromYear: 2560, toYear: 2570 });
+  assert.equal(th.query.nameEn, 'Malee Tuayang-ngam', 'English name found from person data');
+  assert.match(th.notes[0], /ข้อมูลจำลอง/);
+  realLogin('someone@gmail.com');
+  no('quickSearch', { name: 'Napa Tuayangdee' }, /@mahidol\.ac\.th/);
+  vm.runInContext("API_KEYS_IN_CODE.SCOPUS_API_KEY = '';", ctx);
+  realLogin('owner@mahidol.ac.th');
+});
+
 t('fresh install run by an account outside the domain: demo data still created, no admin until configured', () => {
   const c2 = { console, TextEncoder, crypto, btoa, atob, location: { href: '' } };
   vm.createContext(c2);

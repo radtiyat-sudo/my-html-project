@@ -34,6 +34,17 @@ function setup() {
   return msg;
 }
 
+/** ▶ ตรวจว่ากุญแจ Scopus / WoS ใช้ได้หรือไม่ (ดูผลใน Execution log) */
+function testScopus() {
+  CURRENT_USER_ = { id: 'editor', role: 'admin' };
+  try {
+    const r = testApiKeys_();
+    const msg = 'Scopus: ' + (r.scopus.ok ? 'ผ่าน — ' : 'ไม่ผ่าน — ') + r.scopus.message + '\nWeb of Science: ' + r.wos.message;
+    Logger.log(msg);
+    return msg;
+  } finally { CURRENT_USER_ = null; }
+}
+
 function doGet() {
   // ไม่มีเส้นทางเปิดไฟล์ผ่าน URL — ไฟล์แนบเปิดได้ผ่าน api('downloadFile') ที่ตรวจสิทธิ์เท่านั้น
   const t = HtmlService.createTemplateFromFile('Index');
