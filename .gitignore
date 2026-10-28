@@ -4,3 +4,4 @@ dev/preview/
 .clasp.json
 .DS_Store
 dev/preview-checker/
+dev/preview-review/

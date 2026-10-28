@@ -1,0 +1,1161 @@
+<script>
+(function () {
+/* =====================================================================
+ * App.html — หน้าเว็บระบบตรวจสอบผลงานและคุณสมบัติ (Single Page)
+ * ทุกข้อมูลมาจาก google.script.run.api(action, payload) — สิทธิ์ตรวจที่เซิร์ฟเวอร์ทุกครั้ง
+ * ===================================================================== */
+'use strict';
+
+const S = { boot: null, page: 'dashboard', params: {}, tab: {}, cache: {} };
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const esc = s => String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ss = { get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } } };
+
+const ICONS = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  alert: '<path d="m10.29 3.86-8.47 14.14A2 2 0 0 0 3.53 21h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  ok: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  bad: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  q: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+  external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
+  menu: '<path d="M3 12h18M3 6h18M3 18h18"/>',
+  back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  gavel: '<path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  'user-plus': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  swap: '<path d="m17 3 4 4-4 4"/><path d="M3 7h18M7 21l-4-4 4-4"/><path d="M21 17H3"/>'
+};
+const ic = (n, cls) => `<svg class="i ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ICONS.info}</svg>`;
+
+/* ---------------- เรียกเซิร์ฟเวอร์ ---------------- */
+let busyCount = 0;
+function busy(on) { busyCount += on ? 1 : -1; $('#busy').classList.toggle('on', busyCount > 0); }
+function call(action, payload, quiet) {
+  busy(true);
+  const p = Object.assign({}, payload || {});
+  const as = ss.get('rv-as'), role = ss.get('rv-role');
+  if (as) p._as = as;
+  if (role) p._role = role;
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(r => {
+        busy(false);
+        if (!r || !r.ok) { const e = new Error(r ? r.error : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'); e.sourceError = r && r.sourceError; e.shown = !quiet; if (!quiet) toast(e.message, 'err'); return reject(e); }
+        resolve(r.data);
+      })
+      .withFailureHandler(err => { busy(false); const e = new Error(err && err.message ? err.message : String(err)); e.shown = true; toast(e.message, 'err'); reject(e); })
+      .api(action, p);
+  });
+}
+const run = fn => Promise.resolve().then(fn).catch(e => { if (!e.shown) { console.error(e); toast(e.message, 'err'); } });
+
+function toast(msg, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || '');
+  el.innerHTML = ic(kind === 'err' ? 'bad' : kind === 'ok' ? 'ok' : 'info') + '<span class="pre">' + esc(msg) + '</span>';
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), kind === 'err' ? 8000 : 3500);
+}
+
+/* ---------------- ตัวช่วยแสดงผล ---------------- */
+const B = () => S.boot;
+const U = () => S.boot.user;
+const M = () => S.boot.meta;
+const role = () => U().role;
+const initial = n => String(n || '?').trim().replace(/^[\u0E40-\u0E44]/, '').charAt(0) || '?';
+const unitName = c => { const u = (B().units || []).find(x => x.code === c); return u ? u.name : c || '—'; };
+
+function thaiDate(iso, withTime) {
+  if (!iso) return '—';
+  const d = new Date(iso); if (isNaN(d)) return esc(iso);
+  const m = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const s = d.getDate() + ' ' + m[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+  return withTime && /T/.test(iso) ? s + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' น.' : s;
+}
+const days = n => n === null || n === undefined ? '—' : (Math.round(n * 10) / 10) + ' วัน';
+
+const STATUS_STYLE = {
+  draft: ['gray', 'edit'], submitted: ['blue', 'inbox'], in_review: ['purple', 'search'], returned: ['amber', 'undo'],
+  pending_decision: ['gold', 'gavel'], decided: ['teal', 'check'], closed: ['green', 'ok'], cancelled: ['red', 'x']
+};
+function statusBadge(st) {
+  const s = STATUS_STYLE[st] || ['gray', 'info'];
+  return `<span class="badge ${s[0]}">${ic(s[1], 'sm')}${esc((M().statuses[st] || {}).label || st)}</span>`;
+}
+function resultBadge(r) {
+  const map = { pass: ['ok', 'ผ่านเกณฑ์'], fail: ['bad', 'ไม่ผ่านเกณฑ์'], inconclusive: ['q', 'ยังสรุปไม่ได้'] };
+  const m = map[r] || ['info', r || '—'];
+  return `<span class="res ${esc(r)}">${ic(m[0], 'sm')}${m[1]}</span>`;
+}
+const demoBadge = on => on ? '<span class="badge amber">' + ic('alert', 'sm') + 'สำหรับสาธิต</span>' : '';
+function originBadge(o) {
+  const s = String(o || '');
+  if (/mock/.test(s)) return '<span class="badge gray" title="ข้อมูลจำลอง ไม่ใช่ข้อมูลจริง">' + ic('database', 'sm') + (s.indexOf('MUREX') === 0 ? 'MUREX ' : '') + 'จำลอง</span>';
+  if (/import/.test(s)) return '<span class="badge blue" title="ข้อมูลที่ผู้ดูแลนำเข้าจากไฟล์">' + ic('upload', 'sm') + (s.indexOf('MUREX') === 0 ? 'MUREX ' : '') + 'นำเข้า</span>';
+  if (s === 'manual') return '<span class="badge purple">' + ic('edit', 'sm') + 'กรอกเอง</span>';
+  return '<span class="badge gray">' + esc(s) + '</span>';
+}
+function workStatusBadge(st) {
+  const map = { pending: ['amber', 'clock', 'รอตรวจ'], verified: ['green', 'ok', 'ยืนยันแล้ว'], rejected: ['red', 'bad', 'ไม่รับ'], excluded_duplicate: ['gray', 'layers', 'คัดออก (ซ้ำ)'], withdrawn: ['gray', 'undo', 'ถอนออก'] };
+  const m = map[st] || ['gray', 'info', st];
+  return `<span class="badge ${m[0]}">${ic(m[1], 'sm')}${m[2]}</span>`;
+}
+function identityBadge(st) {
+  const ok = st === 'code_match' || st === 'staff_confirmed';
+  return `<span class="badge ${ok ? 'green' : 'amber'}">${ic(ok ? 'ok' : 'q', 'sm')}${esc(M().identity[st || ''] || st)}</span>`;
+}
+const empty = (msg, icon) => `<div class="empty">${ic(icon || 'list')}<div>${esc(msg)}</div></div>`;
+const doiLink = d => d ? `<a href="https://doi.org/${encodeURI(d)}" target="_blank" rel="noopener">${esc(d)} ${ic('external', 'sm')}</a>` : '';
+const field = (label, inner, hint, cls) => `<div class="field ${cls || ''}"><label>${label}</label>${inner}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+const opt = (v, label, sel) => `<option value="${esc(v)}" ${String(sel) === String(v) ? 'selected' : ''}>${esc(label)}</option>`;
+const options = (map, sel, blank) => (blank !== undefined ? opt('', blank, sel) : '') + Object.keys(map).map(k => opt(k, map[k], sel)).join('');
+
+/* ---------------- Modal ---------------- */
+function modal(o) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="modal-bg" role="dialog" aria-modal="true" aria-label="${esc(o.title)}"><div class="modal ${o.wide ? 'wide' : ''}">
+    <div class="modal-h"><h3>${esc(o.title)}</h3><button class="btn ghost sm icon" data-close aria-label="ปิด">${ic('x')}</button></div>
+    <div class="modal-b">${o.body}</div>
+    <div class="modal-f">${o.foot || ''}<button class="btn" data-close>${o.cancelLabel || 'ยกเลิก'}</button>${o.okLabel ? `<button class="btn ${o.okClass || 'primary'}" data-ok>${o.okLabel}</button>` : ''}</div>
+  </div></div>`;
+  const bg = $('.modal-bg', root);
+  $$('[data-close]', root).forEach(b => b.onclick = closeModal);
+  bg.addEventListener('mousedown', e => { if (e.target === bg) closeModal(); });
+  const okBtn = $('[data-ok]', root);
+  if (okBtn && o.onOk) okBtn.onclick = () => run(async () => { okBtn.disabled = true; try { const r = await o.onOk(bg); if (r !== false) closeModal(); } finally { okBtn.disabled = false; } });
+  if (o.onMount) o.onMount(bg);
+  const first = $('input,select,textarea', bg); if (first) first.focus();
+  return bg;
+}
+function closeModal() { $('#modal-root').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+const val = (sel, el) => { const x = $(sel, el); return x ? (x.type === 'checkbox' ? x.checked : x.value.trim()) : ''; };
+
+function askReason(title, label, okLabel, onOk, extra) {
+  modal({ title, okLabel, body: (extra || '') + field(label, '<textarea class="input" id="m-reason" rows="3"></textarea>'), onOk: bg => onOk(val('#m-reason', bg), bg) });
+}
+
+/* ---------------- ไฟล์ ---------------- */
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const max = M().maxFileMb * 1024 * 1024;
+    const ext = (file.name.match(/\.([a-z0-9]+)$/i) || [])[1];
+    if (!ext || M().allowedExt.indexOf(ext.toLowerCase()) === -1) return reject(new Error('ชนิดไฟล์ไม่อนุญาต — รับเฉพาะ ' + M().allowedExt.join(', ')));
+    if (file.size > max) return reject(new Error('ไฟล์ใหญ่เกิน ' + M().maxFileMb + ' MB'));
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+    fr.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้'));
+    fr.readAsDataURL(file);
+  });
+}
+function pickFile(accept) {
+  return new Promise(resolve => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = accept;
+    inp.onchange = () => resolve(inp.files[0] || null);
+    inp.click();
+  });
+}
+async function openFile(id) {
+  const f = await call('downloadFile', { fileId: id });
+  const bin = atob(f.data); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: f.mime }));
+  const a = document.createElement('a'); a.href = url; a.download = f.fileName; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ---------------- โครงหน้า ---------------- */
+const NAV = {
+  requester: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอของฉัน'], ['new', 'plus', 'สร้างคำขอใหม่'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  staff: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'inbox', 'คิวงานตรวจ'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  reviewer: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'gavel', 'คำขอรอพิจารณา'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']],
+  admin: [['dashboard', 'grid', 'หน้าหลัก'], ['requests', 'file', 'คำขอทั้งหมด'], ['g', '', 'ตั้งค่าระบบ'], ['criteria', 'layers', 'ชุดเกณฑ์'], ['types', 'list', 'ประเภทคำขอ'], ['data', 'database', 'แหล่งข้อมูล/นำเข้า'],
+    ['users', 'users', 'ผู้ใช้และสิทธิ์'], ['settings', 'settings', 'ตั้งค่า'], ['audit', 'shield', 'บันทึกการใช้งาน'], ['g', '', 'อื่น ๆ'], ['reports', 'chart', 'รายงาน'], ['notifications', 'bell', 'การแจ้งเตือน'], ['help', 'book', 'คู่มือ']]
+};
+
+function renderShell() {
+  const u = U();
+  $('#nav').innerHTML = NAV[u.role].map(n => n[0] === 'g' ? `<div class="nav-group">${esc(n[2])}</div>` :
+    `<a data-nav="${n[0]}" class="${S.page === n[0] || (S.page === 'request' && n[0] === 'requests') ? 'active' : ''}" href="#">${ic(n[1])}<span>${esc(n[2])}</span>${n[0] === 'notifications' && B().unread ? `<span class="count">${B().unread}</span>` : ''}</a>`).join('');
+  $$('#nav a[data-nav]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.nav); closeSide(); });
+  $('#brand-sub').textContent = B().org || '';
+  $('#side-foot').textContent = 'ข้อมูลเก็บบน Google Sheets ของหน่วยงาน';
+  $('#user-chip').innerHTML = `<span class="avatar">${esc(initial(u.name))}</span><span class="who"><b>${esc(u.name)}</b><small>${esc(M().roles[u.role].label)}${u.isTest ? ' · บัญชีทดสอบ' : ''}</small></span>`;
+  $('#bell-btn').innerHTML = ic('bell') + (B().unread ? `<span class="n">${B().unread}</span>` : '');
+  const banner = [];
+  if (B().testMode) banner.push(`${ic('alert')}<span><b>โหมดทดสอบ</b> — ข้อมูลทั้งหมดเป็นข้อมูลสมมติ เลือกบัญชีทดสอบเพื่อลองทุกบทบาทได้ ต้องปิดโหมดนี้ก่อนใช้งานจริง</span>`);
+  (B().sources || []).filter(s => s.mode === 'mock' || !s.available).forEach(s => banner.push(`<span>${ic('database', 'sm')} <b>${esc(s.label)}</b>: ${esc(s.modeLabel)}${s.outage ? ' (ขัดข้อง)' : ''} · ยังไม่ได้เชื่อมต่อระบบจริง</span>`));
+  $('#mode-banner').innerHTML = banner.length ? `<div class="mode-banner" role="note">${banner.join('<span aria-hidden="true">·</span>')}</div>` : '';
+  renderUserMenu();
+}
+
+function renderUserMenu() {
+  const u = U();
+  const roles = u.roles.map(r => `<button data-role="${r}">${ic(r === u.role ? 'check' : 'user')} ${esc(M().roles[r].label)}</button>`).join('');
+  $('#user-menu').innerHTML = `<div class="dm-head"><b>${esc(u.name)}</b><div class="small muted">${esc(u.isTest ? 'บัญชีทดสอบ' : u.email)}<br>หน่วยงาน: ${esc(u.allUnits ? 'ทุกหน่วยงาน' : u.units.map(unitName).join(', '))}</div></div>
+    ${u.roles.length > 1 ? '<div class="dm-label">สลับบทบาท</div>' + roles : ''}
+    ${B().testMode ? `<button data-switch>${ic('swap')} เปลี่ยนบัญชีทดสอบ</button>` : ''}
+    ${ss.get('rv-as') && B().signedInEmail ? `<button data-self>${ic('user')} กลับเป็นบัญชีของฉัน</button>` : ''}
+    <button data-logout>${ic('logout')} ออกจากระบบ Google</button>`;
+  $$('#user-menu [data-role]').forEach(b => b.onclick = () => { ss.set('rv-role', b.dataset.role); reboot('dashboard'); });
+  const sw = $('#user-menu [data-switch]'); if (sw) sw.onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); S.forcePicker = true; reboot(); };
+  const self = $('#user-menu [data-self]'); if (self) self.onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); reboot('dashboard'); };
+  $('#user-menu [data-logout]').onclick = () => { ss.set('rv-as', null); ss.set('rv-role', null); window.open('https://accounts.google.com/Logout', '_top'); };
+}
+
+function setTitle(t) { $('#page-title').textContent = t; document.title = t + ' — ' + 'ระบบตรวจสอบผลงานและคุณสมบัติ'; }
+function go(page, params) {
+  S.page = page; S.params = params || {};
+  try { history.replaceState(null, '', '#' + page + (S.params.id ? '/' + S.params.id : '')); } catch (e) { /* GAS iframe */ }
+  render();
+}
+function closeSide() { $('#sidebar').classList.remove('open'); $('#backdrop').classList.remove('open'); }
+const view = html => { $('#content').innerHTML = html; $('#content').scrollTop = 0; window.scrollTo(0, 0); };
+
+async function render() {
+  renderShell();
+  const pg = PAGES[S.page] || PAGES.dashboard;
+  view('<div class="loading"><div><div class="spinner"></div>กำลังโหลด…</div></div>');
+  try { await pg(); } catch (e) { if (!e.shown) toast(e.message, 'err'); view(`<div class="banner red">${ic('alert')}<div><b>โหลดหน้านี้ไม่ได้</b><div class="sub pre">${esc(e.message)}</div></div></div>`); }
+}
+
+async function reboot(page) {
+  const prev = S.boot && S.boot.user ? S.boot.user.id + '/' + S.boot.user.role : '';
+  S.boot = await call('boot');
+  if (!S.boot.user || prev !== S.boot.user.id + '/' + S.boot.user.role) { S.cache = {}; S.tab = {}; }
+  window.__rvLoaded = true;
+  if (!S.boot.user || S.forcePicker) { S.forcePicker = false; return renderPicker(); }
+  if (ss.get('rv-role') && U().role !== ss.get('rv-role')) ss.set('rv-role', U().role);
+  go(page || S.page || 'dashboard', page ? {} : S.params);
+}
+
+/** หน้าแรกเมื่อยังไม่มีสิทธิ์: โหมดทดสอบ → เลือกบัญชีทดสอบ / ไม่ใช่ → แจ้งให้ติดต่อผู้ดูแล */
+function renderPicker() {
+  $('#nav').innerHTML = ''; $('#user-chip').innerHTML = ''; $('#bell-btn').style.display = 'none'; $('#mode-banner').innerHTML = '';
+  setTitle('เข้าสู่ระบบ');
+  const b = B();
+  if (!b.testMode) {
+    view(`<div class="card" style="max-width:640px;margin:40px auto"><div class="card-b"><div class="banner amber">${ic('lock')}<div><b>บัญชีนี้ยังไม่มีสิทธิ์ใช้งาน</b>
+      <div class="sub">เข้าระบบในชื่อ: ${esc(b.signedInEmail || '(ไม่ทราบอีเมล — ต้อง Deploy แบบให้ผู้ใช้อยู่ในโดเมนเดียวกัน)')}<br>กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มบัญชีและกำหนดบทบาท</div></div></div></div></div>`);
+    return;
+  }
+  const roleLabel = { requester: 'ผู้ยื่นเรื่อง', staff: 'เจ้าหน้าที่', reviewer: 'ผู้พิจารณา', admin: 'ผู้ดูแลระบบ' };
+  view(`<div style="max-width:860px;margin:0 auto" class="stack">
+    <div class="hero"><span class="chip">${ic('alert', 'sm')} โหมดทดสอบ</span><h2>เลือกบัญชีทดสอบเพื่อเริ่มใช้งาน</h2>
+      <p>บัญชีและข้อมูลทั้งหมดเป็นข้อมูลสมมติ ใช้ทดลองขั้นตอนของแต่ละบทบาท สิทธิ์ของแต่ละบัญชีถูกตรวจที่เซิร์ฟเวอร์เหมือนใช้งานจริง</p></div>
+    ${b.user ? `<button class="acc-card" data-self>${ic('user')}<div><b>ใช้บัญชีของฉัน</b><div class="small muted">${esc(b.signedInEmail)}</div></div></button>` : ''}
+    <div class="grid g2">${b.testAccounts.map(a => `<button class="acc-card" data-acc="${esc(a.id)}"><span class="avatar">${esc(initial(a.name))}</span><div><b>${esc(a.name)}</b>
+      <div class="small muted">${a.roles.map(r => roleLabel[r] || r).join(', ')} · หน่วยงาน ${esc(a.units.join(', ') === '*' ? 'ทั้งหมด' : a.units.join(', '))}</div></div></button>`).join('')}</div>
+  </div>`);
+  $$('[data-acc]').forEach(x => x.onclick = () => run(async () => { ss.set('rv-as', x.dataset.acc); ss.set('rv-role', null); $('#bell-btn').style.display = ''; await reboot('dashboard'); }));
+  const self = $('[data-self]'); if (self) self.onclick = () => run(async () => { ss.set('rv-as', null); $('#bell-btn').style.display = ''; await reboot('dashboard'); });
+}
+
+const PAGES = {};
+
+/* ---------------- หน้าหลัก (ตามบทบาท) ---------------- */
+PAGES.dashboard = async () => {
+  setTitle('หน้าหลัก');
+  const d = await call('dashboard');
+  const u = U();
+  const toneCls = { warning: 'warning', info: 'info', success: 'info', neutral: 'info' };
+  const tasks = d.tasks.length ? d.tasks.map(t => `<div class="alert-item ${toneCls[t.tone]}">${ic(t.tone === 'warning' ? 'alert' : 'info')}<div style="flex:1">
+      <div class="t">${esc(t.label)} <span class="badge gray">${t.count} รายการ</span></div>
+      <div class="ppl">${esc(t.hint)}</div>
+      <div class="ppl">${t.items.map(r => `<a data-open="${esc(r.id)}">${esc(r.code)} ${esc(r.personName || r.title)}</a>`).join(' · ')}</div></div></div>`).join('')
+    : `<div class="banner green">${ic('ok')}<div><b>ไม่มีงานค้าง</b><div class="sub">ไม่มีรายการที่ต้องดำเนินการในตอนนี้</div></div></div>`;
+  const alerts = (d.alerts || []).map(a => `<div class="alert-item ${a.tone === 'warning' ? 'warning' : 'info'}">${ic(a.tone === 'warning' ? 'alert' : 'info')}<div class="t" style="font-weight:500;color:var(--text)">${esc(a.text)}</div></div>`).join('');
+  const counts = ['draft', 'submitted', 'in_review', 'returned', 'pending_decision', 'decided', 'closed'].filter(s => u.role !== 'staff' || s !== 'draft')
+    .map(s => `<div class="card kpi"><div class="label">${statusBadge(s)}</div><div class="val">${d.counts[s] || 0}</div></div>`).join('');
+  view(`<div class="stack">
+    <div class="hero"><span class="chip">${ic('user', 'sm')} ${esc(M().roles[u.role].label)}</span><h2>สวัสดี ${esc(u.name)}</h2><p>${esc(M().roles[u.role].desc)}</p>
+      <div class="row">${u.role === 'requester' ? `<button class="btn light" data-go="new">${ic('plus')} สร้างคำขอใหม่</button>` : ''}
+      ${u.role === 'staff' ? `<button class="btn light" data-go="requests">${ic('inbox')} เปิดคิวงานตรวจ</button>` : ''}
+      ${u.role === 'reviewer' ? `<button class="btn light" data-go="requests">${ic('gavel')} คำขอรอพิจารณา</button>` : ''}
+      ${u.role === 'admin' ? `<button class="btn light" data-go="data">${ic('database')} แหล่งข้อมูล</button><button class="btn glass" data-go="criteria">${ic('layers')} ชุดเกณฑ์</button>` : ''}</div></div>
+    ${alerts ? `<div class="card"><div class="card-h"><h3>${ic('alert')} สถานะระบบที่ต้องรู้</h3></div><div class="card-b">${alerts}</div></div>` : ''}
+    ${u.role !== 'admin' ? `<div class="card"><div class="card-h"><h3>${ic('list')} งานที่ต้องทำ</h3></div><div class="card-b">${tasks}</div></div>` : ''}
+    <div class="grid g4">${counts}</div>
+    <div class="card"><div class="card-h"><h3>${ic('clock')} ความเคลื่อนไหวล่าสุด</h3><span class="spacer"></span><button class="btn sm" data-go="requests">ดูทั้งหมด</button></div>
+      <div class="card-b tight">${requestTable(d.recent)}</div></div>
+  </div>`);
+  bindCommon();
+};
+
+function requestTable(list, opts) {
+  if (!list.length) return empty('ไม่มีคำขอ', 'inbox');
+  return `<div class="table-wrap"><table class="t"><thead><tr><th>เลขที่/เรื่อง</th><th>บุคคลที่ตรวจ</th><th>สถานะ</th><th>ผู้รับผิดชอบตอนนี้</th><th class="num">รอมาแล้ว</th>${opts && opts.unit ? '<th>หน่วยงาน</th>' : ''}</tr></thead><tbody>
+    ${list.map(r => `<tr class="click" data-open="${esc(r.id)}" tabindex="0"><td><div class="title">${esc(r.code)} ${demoBadge(r.isDemo)}</div><div class="sub">${esc(r.typeName)}${r.round > 1 ? ' · รอบที่ ' + r.round : ''}</div></td>
+      <td>${esc(r.personName || '—')}<div class="sub">ผู้ยื่น: ${esc(r.requesterName)}</div></td>
+      <td>${statusBadge(r.status)}<div class="sub">${esc(r.nextStep || '')}</div></td>
+      <td>${esc(r.holderName || '—')}</td><td class="num">${r.status === 'closed' || r.status === 'cancelled' ? '—' : r.waitingDays + ' วัน'}</td>
+      ${opts && opts.unit ? `<td>${esc(unitName(r.unit))}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function bindCommon() {
+  $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  $$('[data-open]').forEach(b => { b.onclick = () => go('request', { id: b.dataset.open }); b.onkeydown = e => { if (e.key === 'Enter') b.onclick(); }; });
+}
+
+/* ---------------- รายการคำขอ / คิวงาน ---------------- */
+PAGES.requests = async () => {
+  const r = role();
+  setTitle(r === 'staff' ? 'คิวงานตรวจ' : r === 'reviewer' ? 'คำขอรอพิจารณา' : r === 'admin' ? 'คำขอทั้งหมด' : 'คำขอของฉัน');
+  const f = S.cache.filter = S.cache.filter || { status: r === 'reviewer' ? 'pending_decision' : '', assignee: '', typeId: '', q: '', open: r === 'staff' };
+  const list = await call('listRequests', f);
+  const stOpts = opt('', 'ทุกสถานะ', f.status) + Object.keys(M().statuses).filter(s => r !== 'staff' || s !== 'draft').map(s => opt(s, M().statuses[s].label, f.status)).join('');
+  view(`<div class="card">
+    <div class="toolbar">
+      <div class="search-in">${ic('search', 'sm')}<input class="input" id="f-q" placeholder="ค้นเลขที่ ชื่อบุคคล ผู้ยื่น" value="${esc(f.q)}" aria-label="ค้นหา"></div>
+      <select class="select" id="f-status" aria-label="สถานะ">${stOpts}</select>
+      <select class="select" id="f-type" aria-label="ประเภทคำขอ">${opt('', 'ทุกประเภท', f.typeId)}${B().types.map(t => opt(t.id, t.name, f.typeId)).join('')}</select>
+      ${r === 'staff' ? `<select class="select" id="f-assignee" aria-label="ผู้รับผิดชอบ">${opt('', 'ทุกคน', f.assignee)}${opt('me', 'ของฉัน', f.assignee)}${opt('none', 'ยังไม่มีผู้รับ', f.assignee)}</select>
+        <label class="check"><input type="checkbox" id="f-open" ${f.open ? 'checked' : ''}> เฉพาะงานที่ยังไม่ปิด</label>` : ''}
+      ${r === 'requester' ? `<button class="btn primary" data-go="new">${ic('plus')} สร้างคำขอ</button>` : ''}
+    </div>
+    <div class="card-b tight">${requestTable(list, { unit: r !== 'requester' })}</div>
+    <div class="card-b small muted">${list.length} รายการ · เห็นเฉพาะคำขอที่อยู่ในขอบเขตงานของคุณ</div></div>`);
+  bindCommon();
+  const upd = () => { Object.assign(f, { q: val('#f-q'), status: val('#f-status'), typeId: val('#f-type'), assignee: val('#f-assignee'), open: !!val('#f-open') }); render(); };
+  ['#f-status', '#f-type', '#f-assignee', '#f-open'].forEach(s => { const e = $(s); if (e) e.onchange = upd; });
+  $('#f-q').onkeydown = e => { if (e.key === 'Enter') upd(); };
+};
+
+/* ---------------- สร้างคำขอ (ขั้นที่ 1: เลือกประเภท) ---------------- */
+PAGES.new = async () => {
+  setTitle('สร้างคำขอใหม่');
+  const u = U();
+  const units = B().units.filter(x => u.allUnits || u.units.indexOf(x.code) > -1);
+  let typeId = '';
+  view(`<div class="card"><div class="steps" aria-label="ขั้นตอน">${['เลือกประเภทคำขอ', 'ข้อมูลบุคคล', 'ผลงาน', 'เอกสาร', 'ตรวจความครบถ้วนและยื่น'].map((s, i) => `<button class="${i ? '' : 'on'}" disabled><span class="no">${i + 1}</span>${s}</button>`).join('')}</div>
+    <div class="card-b stack">
+      <div class="grid g2">${B().types.map(t => `<button class="pick-card" data-type="${esc(t.id)}" aria-pressed="false">
+        <div class="row between"><b>${esc(t.name)}</b>${demoBadge(t.isDemo || (t.criteria && t.criteria.isDemo))}</div>
+        <div class="small muted">${esc(t.description || '')}</div>
+        <div class="small">${t.criteria ? `เกณฑ์: ${esc(t.criteria.name)} (เวอร์ชัน ${esc(t.criteria.version)})` : '<span class="badge red">ยังไม่มีชุดเกณฑ์ — ยื่นไม่ได้</span>'}</div>
+        <div class="small">เอกสารที่ต้องใช้: ${t.requiredDocs.map(d => esc(d.label) + (d.when === 'person_not_in_source' ? ' (เฉพาะบุคคลภายนอก)' : '')).join(', ') || 'ไม่มี'}</div></button>`).join('') || empty('ยังไม่มีประเภทคำขอ — แจ้งผู้ดูแลระบบ')}</div>
+      <div class="form-grid">
+        ${field('หน่วยงานที่ยื่นเรื่อง', `<select class="select" id="n-unit">${units.map(x => opt(x.code, x.name, units[0] && units[0].code)).join('')}</select>`)}
+        ${field('ชื่อเรื่อง (ไม่บังคับ)', '<input class="input" id="n-title" placeholder="ถ้าไม่กรอก ใช้ชื่อประเภทคำขอ">')}
+        ${field('วัตถุประสงค์/รายละเอียด', '<textarea class="input" id="n-purpose" rows="3" placeholder="เช่น เสนอชื่อเป็นกรรมการสอบวิทยานิพนธ์ของนักศึกษา..."></textarea>', 'บันทึกเป็นร่างได้ กลับมาแก้ภายหลังได้', 'full')}
+      </div>
+      <div class="row"><button class="btn primary" id="n-create" disabled>${ic('save')} บันทึกร่างและไปขั้นถัดไป</button><span class="small muted" id="n-hint">เลือกประเภทคำขอก่อน</span></div>
+    </div></div>`);
+  $$('[data-type]').forEach(b => b.onclick = () => {
+    typeId = b.dataset.type;
+    $$('[data-type]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+    $('#n-create').disabled = false; $('#n-hint').textContent = '';
+  });
+  $('#n-create').onclick = () => run(async () => {
+    const r = await call('createRequest', { typeId, unit: val('#n-unit'), title: val('#n-title'), purpose: val('#n-purpose') });
+    toast('บันทึกร่าง ' + r.code + ' แล้ว', 'ok');
+    S.tab[r.id] = 'person';
+    go('request', { id: r.id });
+  });
+};
+
+/* ---------------- แจ้งเตือน ---------------- */
+PAGES.notifications = async () => {
+  setTitle('การแจ้งเตือน');
+  const list = await call('notifications');
+  view(`<div class="card"><div class="card-h"><h3>${ic('bell')} การแจ้งเตือนในระบบ</h3><span class="spacer"></span>${list.some(n => !n.readAt) ? '<button class="btn sm" id="mark-all">อ่านทั้งหมดแล้ว</button>' : ''}</div>
+    <div class="card-b small muted">ระบบแจ้งเตือนภายในเว็บนี้เท่านั้น — ไม่ส่งอีเมลหรือข้อความภายนอกจนกว่าผู้ดูแลจะตั้งค่าและเปิดใช้งาน</div>
+    <div class="card-b tight">${list.length ? `<ul class="timeline" style="padding:0 20px">${list.map(n => `<li><span class="dotc" style="${n.readAt ? 'background:var(--border-strong)' : ''}"></span><div style="flex:1">
+      <div>${n.readAt ? '' : '<span class="badge blue">ใหม่</span> '}${esc(n.message)}</div><div class="when">${thaiDate(n.createdAt, true)}</div></div>
+      ${n.requestId ? `<button class="btn sm" data-open="${esc(n.requestId)}">เปิดคำขอ</button>` : ''}</li>`).join('')}</ul>` : empty('ไม่มีการแจ้งเตือน', 'bell')}</div></div>`);
+  bindCommon();
+  const m = $('#mark-all'); if (m) m.onclick = () => run(async () => { await call('markRead', {}); B().unread = 0; render(); });
+};
+
+/* ---------------- รายละเอียดคำขอ ---------------- */
+const SECTION_TAB = { info: 'info', person: 'person', works: 'works', documents: 'docs' };
+
+PAGES.request = async () => {
+  const id = S.params.id;
+  const d = await call('getRequest', { id });
+  S.cache.req = d;
+  const R = d.request, A = d.actions;
+  setTitle(R.code);
+  const owner = A.indexOf('edit') > -1;
+  const tabs = [['info', 'ข้อมูลคำขอ'], ['person', 'บุคคลที่ตรวจ'], ['works', 'ผลงาน'], ['docs', 'เอกสารแนบ']];
+  if (owner) tabs.push(['check', 'ตรวจความครบถ้วนและยื่น']);
+  if (d.evaluations.length || !owner) tabs.push(['results', 'ผลตรวจตามเกณฑ์']);
+  tabs.push(['history', 'ประวัติ']);
+  let tab = S.tab[id] || (A.indexOf('decide') > -1 ? 'results' : owner && R.status === 'returned' ? 'info' : owner ? 'person' : A.indexOf('verify') > -1 ? 'works' : 'results');
+  if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
+  const issues = d.completeness ? d.completeness.issues : [];
+  const stepCls = k => {
+    if (!owner) return '';
+    const sec = Object.keys(SECTION_TAB).find(s => SECTION_TAB[s] === k);
+    if (!sec) return '';
+    if (d.editable.indexOf(sec) === -1) return 'lockd';
+    return issues.some(i => i.section === sec && i.blocking) ? 'warn' : 'done';
+  };
+  const st = M().statuses[R.status];
+  view(`<div class="stack">
+    <div><button class="btn ghost sm" data-go="requests">${ic('back', 'sm')} กลับไปรายการ</button></div>
+    <div class="card"><div class="card-b">
+      <div class="req-head"><div class="t"><div class="row">${statusBadge(R.status)} ${demoBadge(R.isDemo)} ${R.round > 1 ? `<span class="badge gray">รอบที่ ${esc(R.round)}</span>` : ''}</div>
+        <h2>${esc(R.code)} · ${esc(R.title)}</h2>
+        <div class="small muted">${esc(d.type ? d.type.name : '')} · ${esc(unitName(R.unit))} · ผู้ยื่น ${esc(d.summary.requesterName)} · สร้าง ${thaiDate(R.createdAt)}${R.submittedAt ? ' · ยื่น ' + thaiDate(R.submittedAt) : ''}</div></div>
+        <div class="row">${actionButtons(d)}</div></div>
+      <div class="nextbox">${ic('info')}<div><b>ขณะนี้อยู่ที่: ${esc(d.summary.holderName || '—')}</b><span class="small">ขั้นต่อไป: ${esc(st.next)}</span></div></div>
+      ${R.isDemo ? `<div class="banner amber mt-s">${ic('alert')}<div><b>คำขอสาธิต</b><div class="sub">ใช้เกณฑ์สำหรับสาธิต ผลตรวจและผลพิจารณาไม่มีผลจริง ห้ามนำไปใช้ตัดสินคำขอจริง</div></div></div>` : ''}
+      ${R.status === 'returned' ? revisionBanner(d) : ''}
+    </div>
+    <div class="steps" role="tablist">${tabs.map((t, i) => `<button role="tab" aria-selected="${t[0] === tab}" class="${t[0] === tab ? 'on' : ''} ${stepCls(t[0])}" data-tab="${t[0]}"><span class="no">${stepCls(t[0]) === 'done' ? ic('check', 'sm') : stepCls(t[0]) === 'lockd' ? ic('lock', 'sm') : i + 1}</span>${t[1]}</button>`).join('')}</div>
+    <div class="card-b" id="tab-body">${TABS[tab](d)}</div>
+    ${owner && ['info', 'person', 'works', 'docs'].indexOf(tab) > -1 ? `<div class="card-b row between" style="border-top:1px solid var(--border)"><span class="small muted">${ic('save', 'sm')} ข้อมูลบันทึกเป็นร่างทันทีที่กดบันทึกในแต่ละส่วน</span>
+      <button class="btn primary" data-tab="${tabs[tabs.findIndex(t => t[0] === tab) + 1][0]}">ขั้นถัดไป ${ic('back', 'sm').replace('<svg', '<svg style="transform:rotate(180deg)"')}</button></div>` : ''}
+    </div></div>`);
+  bindCommon();
+  $$('[data-tab]').forEach(b => b.onclick = () => { S.tab[id] = b.dataset.tab; render(); });
+  bindActions(d);
+  (BIND[tab] || (() => {}))(d);
+};
+const reload = () => render();
+
+function revisionBanner(d) {
+  const items = d.revisionItems.filter(i => i.round === d.request.round);
+  const mine = d.actions.indexOf('edit') > -1;
+  return `<div class="banner amber mt-s">${ic('undo')}<div style="flex:1"><b>เจ้าหน้าที่ส่งกลับให้แก้ไข ${items.length} รายการ</b>
+    <div class="sub">${mine ? 'แก้เฉพาะส่วนที่ระบุ (ส่วนอื่นถูกล็อกไว้และข้อมูลเดิมยังอยู่) แล้วตอบแต่ละรายการว่าแก้อะไร จากนั้นยื่นใหม่' : 'รอผู้ยื่นแก้ไข'}</div>
+    <ol class="ul-tight">${items.map(i => `<li><b>${esc(M().sections[i.section])}</b>: ${esc(i.message)} — ${i.status === 'open' ? '<span class="badge amber">ยังไม่ตอบ</span>' + (mine ? ` <button class="btn sm" data-respond="${esc(i.id)}">ตอบว่าแก้แล้ว</button>` : '') : `<span class="badge green">${ic('check', 'sm')} ตอบแล้ว</span> <span class="small">${esc(i.response)}</span>`}</li>`).join('')}</ol></div></div>`;
+}
+
+function actionButtons(d) {
+  const A = d.actions, b = [];
+  if (A.indexOf('submit') > -1) b.push(`<button class="btn primary" data-act="gotoSubmit">${ic('send')} ${d.request.status === 'returned' ? 'ยื่นใหม่' : 'ยื่นคำขอ'}</button>`);
+  if (A.indexOf('claim') > -1) b.push(`<button class="btn primary" data-act="claim">${ic('inbox')} รับเรื่องตรวจ</button>`);
+  if (A.indexOf('assign') > -1) b.push(`<button class="btn" data-act="assign">${ic('users')} มอบหมาย</button>`);
+  if (A.indexOf('return') > -1) b.push(`<button class="btn" data-act="return">${ic('undo')} ส่งกลับแก้ไข</button>`);
+  if (A.indexOf('forward') > -1) b.push(`<button class="btn primary" data-act="forward">${ic('send')} ส่งต่อผู้พิจารณา</button>`);
+  if (A.indexOf('close') > -1) b.push(`<button class="btn success" data-act="close">${ic('ok')} แจ้งผลและปิดงาน</button>`);
+  if (A.indexOf('decide') > -1) b.push(`<button class="btn primary" data-act="gotoDecide">${ic('gavel')} บันทึกผลพิจารณา</button>`);
+  if (A.indexOf('cancel') > -1) b.push(`<button class="btn ghost-danger" data-act="cancel">${ic('x')} ยกเลิกคำขอ</button>`);
+  return b.join('');
+}
+
+function bindActions(d) {
+  const R = d.request;
+  const act = {
+    gotoSubmit: () => { S.tab[R.id] = 'check'; render(); },
+    gotoDecide: () => { S.tab[R.id] = 'results'; render(); setTimeout(() => { const f = $('#decide-form'); if (f) f.scrollIntoView({ behavior: 'smooth' }); }, 300); },
+    claim: () => run(async () => { await call('claim', { id: R.id }); toast('รับเรื่องแล้ว', 'ok'); S.tab[R.id] = 'person'; reload(); }),
+    assign: () => modal({ title: 'มอบหมายผู้ตรวจ', okLabel: 'มอบหมาย',
+      body: field('เจ้าหน้าที่', `<select class="select" id="m-user">${(d.staffOptions || []).map(u => opt(u.id, u.name, R.assigneeId)).join('')}</select>`) + field('หมายเหตุ', '<input class="input" id="m-note">'),
+      onOk: async bg => { await call('assign', { id: R.id, userId: val('#m-user', bg), note: val('#m-note', bg) }); toast('มอบหมายแล้ว', 'ok'); reload(); } }),
+    return: () => returnModal(d),
+    forward: () => modal({ title: 'ส่งต่อผู้พิจารณา', okLabel: 'ส่งต่อ', wide: true,
+      body: `<div class="banner blue mb">${ic('info')}<div><div class="sub">ระบบจะประเมินตามเกณฑ์อีกครั้งก่อนส่ง เพื่อให้ผู้พิจารณาเห็นผลล่าสุด ต้องยืนยันตัวบุคคล ตรวจผลงานครบ และตัดสินรายการซ้ำก่อน (ข้อที่ยังสรุปไม่ได้ส่งต่อได้ ผู้พิจารณาจะเห็นเหตุผล)</div></div></div>` +
+        field('ผู้พิจารณา', `<select class="select" id="m-rev">${(d.reviewerOptions || []).map(u => opt(u.id, u.name)).join('') || opt('', 'ไม่มีผู้พิจารณาในหน่วยงานนี้')}</select>`) +
+        field('สรุปความเห็นของเจ้าหน้าที่', `<textarea class="input" id="m-sum" rows="4">${esc(R.staffSummary || '')}</textarea>`, 'เช่น ข้อมูลครบหรือไม่ ประเด็นที่ผู้พิจารณาควรดู'),
+      onOk: async bg => { await call('forward', { id: R.id, reviewerId: val('#m-rev', bg), summary: val('#m-sum', bg) }); toast('ส่งต่อแล้ว', 'ok'); reload(); } }),
+    close: () => modal({ title: 'แจ้งผลและปิดงาน', okLabel: 'แจ้งผลและปิดงาน', okClass: 'success',
+      body: `<p>ผลพิจารณาล่าสุด: <b>${esc((d.decisions.slice(-1)[0] || {}).decision ? M().decisions[d.decisions.slice(-1)[0].decision] : '—')}</b></p><p class="small muted">ระบบจะแจ้งผู้ยื่นภายในระบบ (ไม่ส่งอีเมล)</p>` + field('ข้อความถึงผู้ยื่น (ไม่บังคับ)', '<textarea class="input" id="m-note" rows="2"></textarea>'),
+      onOk: async bg => { await call('close', { id: R.id, note: val('#m-note', bg) }); toast('ปิดงานแล้ว', 'ok'); reload(); } }),
+    cancel: () => askReason('ยกเลิกคำขอ', 'เหตุผลการยกเลิก (ข้อมูลและประวัติยังเก็บไว้)', 'ยืนยันยกเลิก', async r => { await call('cancel', { id: R.id, reason: r }); toast('ยกเลิกแล้ว', 'ok'); reload(); })
+  };
+  $$('[data-act]').forEach(b => b.onclick = () => act[b.dataset.act]());
+  $$('[data-respond]').forEach(b => b.onclick = () => {
+    const it = d.revisionItems.find(i => i.id === b.dataset.respond);
+    askReason('ตอบรายการแก้ไข', 'แก้ไขอะไรไปแล้ว', 'บันทึก', async r => { await call('respondRevision', { id: R.id, itemId: it.id, response: r }); toast('บันทึกแล้ว', 'ok'); reload(); },
+      `<div class="banner amber mb">${ic('undo')}<div><b>${esc(M().sections[it.section])}</b><div class="sub">${esc(it.message)}</div></div></div>`);
+  });
+}
+
+function returnModal(d) {
+  const secs = M().sections;
+  const row = () => `<div class="inline-form rv-item mb"><div class="field" style="max-width:200px"><label>ส่วนที่ต้องแก้</label><select class="select" data-k="section">${options(secs)}</select></div>
+    <div class="field" style="flex:3"><label>สิ่งที่ต้องแก้ไข</label><input class="input" data-k="message" placeholder="ระบุให้ชัดเจน เช่น แนบหลักฐานของผลงานลำดับที่ 2"></div></div>`;
+  modal({ title: 'ส่งกลับให้ผู้ยื่นแก้ไข', okLabel: 'ส่งกลับ', wide: true,
+    body: `<p class="small muted">ระบุทีละรายการ ผู้ยื่นจะแก้ได้เฉพาะส่วนที่ระบุ ข้อมูลส่วนอื่นยังคงอยู่</p><div id="rv-items">${row()}</div><button class="btn sm" id="rv-add">${ic('plus', 'sm')} เพิ่มรายการ</button>`,
+    onMount: bg => { $('#rv-add', bg).onclick = () => $('#rv-items', bg).insertAdjacentHTML('beforeend', row()); },
+    onOk: async bg => {
+      const items = $$('.rv-item', bg).map(r => ({ section: $('[data-k=section]', r).value, message: $('[data-k=message]', r).value.trim() })).filter(i => i.message);
+      await call('returnForRevision', { id: d.request.id, items }); toast('ส่งกลับแล้ว', 'ok'); reload();
+    } });
+}
+
+const TABS = {}, BIND = {};
+const lockNote = sec => `<div class="locked">${ic('lock', 'sm')} ส่วน "${esc(M().sections[sec])}" ไม่ได้อยู่ในรายการที่ต้องแก้ไข — ดูได้แต่แก้ไม่ได้</div>`;
+const canEdit = (d, sec) => d.editable.indexOf(sec) > -1;
+
+/* --- ข้อมูลคำขอ --- */
+TABS.info = d => {
+  const R = d.request, ed = canEdit(d, 'info');
+  const c = d.criteria;
+  return `<div class="grid g-side"><div class="stack">
+    ${ed ? `<div class="form-grid">${field('ชื่อเรื่อง', `<input class="input" id="i-title" value="${esc(R.title)}">`)}
+      ${field('ประเภทคำขอ', R.status === 'draft' ? `<select class="select" id="i-type">${B().types.map(t => opt(t.id, t.name, R.typeId)).join('')}</select>` : `<input class="input" disabled value="${esc(d.type.name)}">`)}
+      ${field('วัตถุประสงค์/รายละเอียด', `<textarea class="input" id="i-purpose" rows="4">${esc(R.purpose)}</textarea>`, '', 'full')}
+      ${field('หมายเหตุถึงเจ้าหน้าที่ (ไม่บังคับ)', `<textarea class="input" id="i-note" rows="2">${esc(R.note)}</textarea>`, '', 'full')}</div>
+      <div><button class="btn primary" id="i-save">${ic('save')} บันทึก</button></div>`
+    : `${d.actions.indexOf('edit') > -1 ? lockNote('info') : ''}<dl class="kv"><dt>ประเภทคำขอ</dt><dd>${esc(d.type ? d.type.name : '')}</dd><dt>หน่วยงาน</dt><dd>${esc(unitName(R.unit))}</dd>
+      <dt>วัตถุประสงค์</dt><dd class="pre">${esc(R.purpose || '—')}</dd><dt>หมายเหตุ</dt><dd class="pre">${esc(R.note || '—')}</dd>
+      ${R.staffSummary ? `<dt>สรุปของเจ้าหน้าที่</dt><dd class="pre">${esc(R.staffSummary)}</dd>` : ''}${R.cancelReason ? `<dt>เหตุผลที่ยกเลิก</dt><dd>${esc(R.cancelReason)}</dd>` : ''}</dl>`}
+  </div><div class="stack">
+    <div class="card"><div class="card-h"><h3>${ic('layers')} ชุดเกณฑ์ที่ใช้</h3></div><div class="card-b small">
+      ${c ? `<b>${esc(c.name)}</b> ${demoBadge(c.isDemo)}<br>เวอร์ชัน ${esc(c.version)} · มีผล ${thaiDate(c.effectiveDate)}<br>อ้างอิง: ${esc(c.referenceSource || '—')}<br>ผู้ยืนยัน: ${esc(c.confirmedBy || '—')}
+        <ol class="ul-tight">${c.rules.map(r => `<li>${esc(r.label)}</li>`).join('')}</ol>` : 'ยังไม่ได้ผูกชุดเกณฑ์'}
+      ${R.status === 'draft' ? '<div class="muted mt-s">ระบบจะผูกเกณฑ์ที่ใช้งาน ณ วันที่ยื่น</div>' : ''}</div></div>
+    ${d.decisions.length ? `<div class="card"><div class="card-h"><h3>${ic('gavel')} ผลพิจารณา</h3></div><div class="card-b">${decisionList(d)}</div></div>` : ''}
+  </div></div>`;
+};
+BIND.info = d => {
+  const b = $('#i-save'); if (!b) return;
+  b.onclick = () => run(async () => {
+    await call('updateInfo', { id: d.request.id, title: val('#i-title'), purpose: val('#i-purpose'), note: val('#i-note'), typeId: $('#i-type') ? val('#i-type') : undefined });
+    toast('บันทึกแล้ว', 'ok'); reload();
+  });
+};
+function decisionList(d) {
+  return d.decisions.slice().reverse().map(x => `<div class="mb"><b>${esc(M().decisions[x.decision])}</b> ${x.isDemo ? '<span class="badge amber">สาธิต — ไม่มีผลจริง</span>' : ''}<div class="small muted">โดย ${esc(x.byName)} · ${thaiDate(x.at, true)}</div><div class="pre small">${esc(x.reason)}</div></div>`).join('');
+}
+
+/* --- บุคคลที่ตรวจ --- */
+function personCard(p, d) {
+  if (!p) return empty('ยังไม่ได้เลือกบุคคล', 'user');
+  const R = d.request;
+  const st = p.staleness;
+  return `<div class="card"><div class="card-b"><div class="row between"><div class="row"><span class="avatar lg">${esc(initial(p.nameTh || p.nameEn))}</span>
+    <div><b style="font-size:16px">${esc(p.titleTh || '')} ${esc(p.nameTh || '')}</b><div class="muted">${esc(p.nameEn || '')}</div>${p.formerNames ? `<div class="small muted">ชื่อเดิม: ${esc(p.formerNames)}</div>` : ''}</div></div>
+    <div>${identityBadge(R.identityStatus)}</div></div>
+    <dl class="kv mt">
+      <dt>แหล่งข้อมูล</dt><dd>${p.kind === 'manual' ? originBadge('manual') + ' บุคคลภายนอก/ไม่อยู่ในระบบต้นทาง' : 'MUHR ' + originBadge(p.origin) + (p.duplicateName ? ' <span class="badge amber">' + ic('users', 'sm') + 'มีผู้ใช้ชื่อเดียวกันหลายคน</span>' : '')}</dd>
+      ${p.staffCode ? `<dt>รหัสบุคลากร</dt><dd>${esc(p.staffCode)} <span class="small muted">(${p.matchBasis === 'staffCode' ? 'เลือกจากรหัส' : 'เลือกจากชื่อ — ' + esc(p.matchBasis)})</span></dd>` : ''}
+      <dt>สังกัด</dt><dd>${esc(p.kind === 'manual' ? p.affiliation : unitName(p.unit))}</dd>
+      <dt>ตำแหน่งทางวิชาการ</dt><dd>${esc(M().ranks[p.academicRank] || '— (ไม่มีข้อมูล)')}</dd>
+      <dt>คุณวุฒิสูงสุด</dt><dd>${esc(M().degrees[p.highestDegree] || '— (ไม่มีข้อมูล)')}</dd>
+      <dt>สถานะ</dt><dd>${esc(M().empStatus[p.employmentStatus] || '—')}</dd>
+      ${p.kind !== 'manual' ? `<dt>ดึงข้อมูลเมื่อ</dt><dd>${thaiDate(p.fetchedAt, true)} · ต้นทางปรับปรุง ${thaiDate(p.sourceUpdatedAt)} ${st && st.stale ? `<span class="badge amber">${ic('clock', 'sm')}ข้อมูลเก่ากว่า ${st.limit} วัน</span>` : ''}</dd>` : `<dt>เหตุผล</dt><dd>${esc(p.reason || '—')}</dd>`}
+      ${R.identityNote ? `<dt>หลักฐานยืนยันตัว</dt><dd>${esc(R.identityNote)}</dd>` : ''}
+    </dl>
+    ${d.actions.indexOf('verify') > -1 && R.identityStatus === 'needs_staff_check' ? `<div class="banner amber mt">${ic('q')}<div style="flex:1"><b>ต้องยืนยันตัวบุคคล</b><div class="sub">ระบบไม่ยืนยันตัวบุคคลจากชื่อเพียงอย่างเดียว ตรวจกับรหัสบุคลากร/หลักฐานแล้วบันทึกวิธีที่ใช้ยืนยัน</div>
+      <button class="btn sm primary mt-s" id="p-confirm">${ic('check', 'sm')} ยืนยันตัวบุคคล</button></div></div>` : ''}
+  </div></div>`;
+}
+
+TABS.person = d => {
+  const ed = canEdit(d, 'person');
+  const p = d.request.personSnap;
+  if (!ed) return (d.actions.indexOf('edit') > -1 ? lockNote('person') : '') + personCard(p, d);
+  return `<div class="stack">
+    ${p ? `<div><h3 style="margin:0 0 8px">บุคคลที่เลือกไว้</h3>${personCard(p, d)}</div>` : ''}
+    <div class="card"><div class="card-h"><h3>${ic('search')} ${p ? 'เปลี่ยนบุคคล' : 'ค้นหาบุคคลจาก MUHR'}</h3><span class="spacer"></span>${sourceTag('MUHR')}</div><div class="card-b">
+      <div class="banner blue mb">${ic('info')}<div><div class="sub"><b>แนะนำให้ค้นด้วยรหัสบุคลากร</b> — ระบบยืนยันตัวบุคคลได้ทันที ถ้าค้นจากชื่อ (ไทย/อังกฤษ/ชื่อเดิม) เจ้าหน้าที่ต้องยืนยันอีกครั้ง</div></div></div>
+      <div class="inline-form">${field('รหัสบุคลากร', '<input class="input" id="p-code" placeholder="เช่น T0001">')}${field('หรือ ชื่อ-นามสกุล', '<input class="input" id="p-name" placeholder="ไทย อังกฤษ หรือชื่อเดิม">')}
+        <button class="btn primary" id="p-search">${ic('search')} ค้นหา</button></div>
+      <div id="p-results" class="mt"></div>
+      <details class="faq mt"><summary>${ic('user-plus')} ไม่พบในระบบ / บุคคลภายนอก — กรอกข้อมูลเอง</summary><div class="a" style="padding-left:16px">
+        <div class="form-grid">${field('คำนำหน้า/ตำแหน่ง', '<input class="input" id="m-title">')}${field('ชื่อ-นามสกุล (ไทย)', '<input class="input" id="m-th">')}
+        ${field('ชื่อ-นามสกุล (อังกฤษ)', '<input class="input" id="m-en">')}${field('ชื่อเดิม (ถ้ามี)', '<input class="input" id="m-former">')}
+        ${field('สังกัด/หน่วยงาน', '<input class="input" id="m-aff">')}${field('ตำแหน่ง', '<input class="input" id="m-pos">')}
+        ${field('ตำแหน่งทางวิชาการ', `<select class="select" id="m-rank">${options(M().ranks, '', '— ไม่ระบุ —')}</select>`)}${field('คุณวุฒิสูงสุด', `<select class="select" id="m-deg">${options(M().degrees, '', '— ไม่ระบุ —')}</select>`)}
+        ${field('เหตุผลที่กรอกเอง', '<input class="input" id="m-reason" placeholder="เช่น ผู้ทรงคุณวุฒิภายนอก">', '', 'full')}</div>
+        <div class="small muted mt-s">ข้อมูลที่กรอกเองต้องให้เจ้าหน้าที่ยืนยัน และอาจต้องแนบเอกสารเพิ่มตามประเภทคำขอ</div>
+        <button class="btn mt-s" id="m-save">${ic('save')} ใช้ข้อมูลนี้</button></div></details>
+    </div></div></div>`;
+};
+function sourceTag(src) {
+  const s = (B().sources || []).find(x => x.source === src) || {};
+  return `<span class="badge ${s.available ? (s.mode === 'mock' ? 'gray' : 'blue') : 'red'}" title="${esc(s.message)}">${ic('database', 'sm')}${esc(src)}: ${esc(s.mode === 'mock' ? 'ข้อมูลจำลอง' : s.mode === 'import' ? 'ข้อมูลนำเข้า' : 'ยังไม่เชื่อมต่อ')}${s.outage ? ' (ขัดข้อง)' : ''}</span>`;
+}
+BIND.person = d => {
+  const R = d.request;
+  const conf = $('#p-confirm');
+  if (conf) conf.onclick = () => askReason('ยืนยันตัวบุคคล', 'วิธี/หลักฐานที่ใช้ยืนยัน (เช่น ตรวจรหัสบุคลากรกับหน่วยงานต้นสังกัด)', 'ยืนยัน', async r => { await call('confirmIdentity', { id: R.id, note: r }); toast('ยืนยันตัวบุคคลแล้ว', 'ok'); reload(); });
+  const sb = $('#p-search'); if (!sb) return;
+  const doSearch = () => run(async () => {
+    const box = $('#p-results');
+    const code = val('#p-code'), name = val('#p-name');
+    let res;
+    try { res = await call('searchPersons', { staffCode: code, name: code ? '' : name }, true); }
+    catch (e) {
+      box.innerHTML = `<div class="banner ${e.sourceError ? 'amber' : 'red'}">${ic('alert')}<div><b>${e.sourceError ? 'ค้นจากระบบต้นทางไม่ได้' : 'ค้นหาไม่สำเร็จ'}</b><div class="sub pre">${esc(e.message)}</div>
+        ${e.sourceError ? '<div class="sub">ทำต่อได้โดย "กรอกข้อมูลเอง" ด้านล่าง เจ้าหน้าที่จะยืนยันภายหลัง — การค้นไม่ได้ไม่ถือว่าไม่ผ่าน</div>' : ''}</div></div>`;
+      return;
+    }
+    if (!res.results.length) { box.innerHTML = `<div class="banner amber">${ic('q')}<div><b>ไม่พบในข้อมูล MUHR (${esc(res.source.modeLabel)})</b><div class="sub">ตรวจการสะกด ลองชื่ออังกฤษ/ชื่อเดิม หรือกรอกข้อมูลเองด้านล่าง — การค้นไม่พบไม่ได้แปลว่าไม่มีตัวตนหรือไม่ผ่าน</div></div></div>`; return; }
+    const basisLabel = { staffCode: 'ตรงกับรหัสบุคลากร', name: 'ชื่อตรงกัน', name_partial: 'ชื่อตรงบางส่วน', former_name: 'ตรงกับชื่อเดิม', former_name_partial: 'ตรงกับชื่อเดิมบางส่วน' };
+    box.innerHTML = `${res.ambiguous ? `<div class="banner amber mb">${ic('users')}<div><b>พบหลายคนที่ชื่อคล้ายหรือตรงกัน</b><div class="sub">โปรดตรวจรหัสบุคลากร/สังกัดให้ตรงคน หากไม่แน่ใจให้ค้นด้วยรหัสบุคลากร — บุคคลที่เลือกจากชื่อจะต้องให้เจ้าหน้าที่ยืนยัน</div></div></div>` : ''}
+      <div class="table-wrap"><table class="t"><thead><tr><th>ชื่อ</th><th>รหัส</th><th>สังกัด</th><th>ข้อมูล</th><th>ตรงเพราะ</th><th></th></tr></thead><tbody>
+      ${res.results.map(p => `<tr><td><b>${esc(p.nameTh)}</b><span class="sub">${esc(p.nameEn)}${p.formerNames ? ' · ชื่อเดิม ' + esc(p.formerNames) : ''}</span></td><td>${esc(p.staffCode)}</td><td>${esc(unitName(p.unit))}<span class="sub">${esc(M().ranks[p.academicRank] || '')}</span></td>
+        <td>${originBadge(p.origin)}<span class="sub">ดึงเมื่อ ${thaiDate(p.fetchedAt)}${p.staleness.stale ? ' · <b>ข้อมูลเก่า</b>' : ''}</span></td>
+        <td>${p.matchBasis === 'staffCode' ? '<span class="badge green">' + ic('ok', 'sm') : '<span class="badge amber">' + ic('q', 'sm')}${esc(basisLabel[p.matchBasis] || p.matchBasis)}</span>${p.duplicateName ? '<span class="sub">ชื่อซ้ำ ' + p.sameNameCount + ' คน</span>' : ''}</td>
+        <td><button class="btn sm primary" data-pick="${esc(p.personId)}">เลือก</button></td></tr>`).join('')}</tbody></table></div>
+      <div class="small muted mt-s">แหล่งข้อมูล: ${esc(res.source.modeLabel)} · ${esc(res.source.message)}</div>`;
+    $$('[data-pick]', box).forEach(b => b.onclick = () => run(async () => {
+      const r = await call('setPerson', { id: R.id, personId: b.dataset.pick, staffCode: code, name });
+      toast('เลือกบุคคลแล้ว: ' + r.identityLabel, 'ok'); reload();
+    }));
+  });
+  sb.onclick = doSearch;
+  ['#p-code', '#p-name'].forEach(s => $(s).onkeydown = e => { if (e.key === 'Enter') doSearch(); });
+  $('#m-save').onclick = () => run(async () => {
+    await call('setPerson', { id: R.id, manual: { titleTh: val('#m-title'), nameTh: val('#m-th'), nameEn: val('#m-en'), formerNames: val('#m-former'), affiliation: val('#m-aff'), position: val('#m-pos'), academicRank: val('#m-rank'), highestDegree: val('#m-deg'), reason: val('#m-reason') } });
+    toast('บันทึกข้อมูลบุคคลแล้ว (รอเจ้าหน้าที่ยืนยัน)', 'ok'); reload();
+  });
+};
+
+/* --- ผลงาน --- */
+TABS.works = d => {
+  const ed = canEdit(d, 'works'), staff = d.actions.indexOf('verify') > -1;
+  const R = d.request;
+  const active = d.works.filter(w => w.status !== 'withdrawn');
+  const gone = d.works.filter(w => w.status === 'withdrawn');
+  const wById = id => d.works.find(w => w.id === id) || {};
+  const openPairs = d.dupPairs.filter(p => p.status === 'suspected' && ['withdrawn', 'excluded_duplicate'].indexOf(wById(p.workA).status) === -1 && ['withdrawn', 'excluded_duplicate'].indexOf(wById(p.workB).status) === -1);
+  const basis = { doi: 'DOI เดียวกัน', title_year: 'ชื่อเรื่องและปีตรงกัน', title_similar: 'ชื่อเรื่องคล้ายกันมาก' };
+  const wBrief = w => `<b>${esc(w.title)}</b><div class="small muted">${esc(M().workTypes[w.type] || '')} · ${esc(w.year)} · ${esc(w.venue || '')}</div><div class="small">${w.doi ? 'DOI ' + esc(w.doi) : esc(w.ref || 'ไม่มี DOI/รหัสอ้างอิง')}</div><div>${originBadge(w.origin)}</div>`;
+  return `<div class="stack">
+    ${!ed && d.actions.indexOf('edit') > -1 ? lockNote('works') : ''}
+    ${ed ? `<div class="row"><button class="btn primary" id="w-src">${ic('database')} ดึงผลงานจาก MUREX</button><button class="btn" id="w-add">${ic('plus')} เพิ่มผลงานเอง</button>${sourceTag('MUREX')}</div>
+      <div class="small muted">ผลงานจาก MUREX เลือกยืนยันรายการได้เลย ผลงานที่กรอกเองต้องมี DOI/เลขอ้างอิง หรือแนบหลักฐาน · ระบบตรวจรายการซ้ำ (DOI ก่อน แล้วชื่อเรื่อง+ปี) แต่ไม่รวมรายการให้เอง</div>` : ''}
+    ${openPairs.length ? `<div><h3 style="margin:0 0 8px">${ic('layers')} ผลงานที่สงสัยว่าซ้ำ (${openPairs.length} คู่) — ${staff ? 'โปรดตัดสิน' : 'รอเจ้าหน้าที่ตัดสิน'}</h3>
+      ${openPairs.map(p => `<div class="dup"><b>${esc(basis[p.basis] || p.basis)}</b> <span class="small">(ความคล้าย ${Math.round(Number(p.score) * 100)}%)</span>
+        <div class="pair"><div>${wBrief(wById(p.workA))}</div><div>${wBrief(wById(p.workB))}</div></div>
+        ${staff ? `<div class="row"><button class="btn sm" data-dup="${esc(p.id)}" data-keep="${esc(p.workA)}">ซ้ำ — เก็บรายการซ้าย</button><button class="btn sm" data-dup="${esc(p.id)}" data-keep="${esc(p.workB)}">ซ้ำ — เก็บรายการขวา</button><button class="btn sm" data-dup="${esc(p.id)}" data-distinct="1">ไม่ซ้ำ</button></div>` : ''}</div>`).join('')}</div>` : ''}
+    ${staff ? `<div class="banner ${R.worksComplete ? 'green' : 'blue'}">${ic(R.worksComplete ? 'ok' : 'info')}<div style="flex:1"><b>${R.worksComplete ? 'ยืนยันแล้วว่ารายการผลงานครบถ้วน' : 'ยังไม่ได้ยืนยันว่ารายการผลงานครบถ้วน'}</b>
+      <div class="sub">${R.worksComplete ? esc(R.worksCompleteNote) : 'ถ้าจำนวนผลงานไม่ถึงเกณฑ์ ระบบจะสรุปว่า "ไม่ผ่าน" ได้ก็ต่อเมื่อเจ้าหน้าที่ยืนยันว่ารายการครบถ้วนแล้วเท่านั้น มิฉะนั้นจะเป็น "ยังสรุปไม่ได้"'}</div>
+      <button class="btn sm mt-s" id="w-complete">${R.worksComplete ? 'ยกเลิกการยืนยัน' : 'ยืนยันว่ารายการครบถ้วน'}</button></div></div>` : ''}
+    ${active.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>#</th><th>ผลงาน</th><th>ปี</th><th>แหล่งเผยแพร่</th><th>DOI/รหัสอ้างอิง</th><th>ที่มา</th><th>สถานะ</th><th></th></tr></thead><tbody>
+      ${active.map((w, i) => `<tr><td>${i + 1}</td><td><div class="title">${esc(w.title)}</div><span class="sub">${esc(M().workTypes[w.type] || w.type)}${w.authors ? ' · ' + esc(w.authors) : ''}</span>
+          ${w.evidence.length ? `<span class="sub">${w.evidence.map(f => `<a href="#" data-file="${esc(f.id)}">${ic('file', 'sm')} ${esc(f.fileName)}</a>`).join(' ')}</span>` : ''}
+          ${w.staffNote ? `<span class="sub">หมายเหตุ: ${esc(w.staffNote)}</span>` : ''}</td>
+        <td>${esc(w.year)}${Number(w.year) ? '<span class="sub">พ.ศ. ' + (Number(w.year) + 543) + '</span>' : ''}</td><td>${esc(w.venue || '—')}</td>
+        <td>${w.doi ? doiLink(w.doi) : esc(w.ref || '—')}</td><td>${originBadge(w.origin)}</td><td>${workStatusBadge(w.status)}</td>
+        <td><div class="actions">
+          ${staff && ['pending', 'verified', 'rejected'].indexOf(w.status) > -1 ? `${w.status !== 'verified' ? `<button class="btn sm" data-verify="${esc(w.id)}" title="ยืนยันผลงาน">${ic('check', 'sm')} ยืนยัน</button>` : ''}${w.status !== 'rejected' ? `<button class="btn sm ghost-danger" data-reject="${esc(w.id)}">ไม่รับ</button>` : ''}` : ''}
+          ${ed && w.origin === 'manual' ? `<button class="btn sm icon" data-wedit="${esc(w.id)}" aria-label="แก้ไข">${ic('edit', 'sm')}</button>` : ''}
+          ${ed && w.origin === 'manual' && !w.doi && !w.ref ? `<button class="btn sm" data-evi="${esc(w.id)}">${ic('upload', 'sm')} หลักฐาน</button>` : ''}
+          ${ed ? `<button class="btn sm icon ghost-danger" data-wdel="${esc(w.id)}" aria-label="ถอนออก">${ic('trash', 'sm')}</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('ยังไม่มีผลงาน', 'file')}
+    ${gone.length ? `<details class="faq"><summary>ผลงานที่ถอนออกแล้ว (${gone.length}) — เก็บไว้เป็นประวัติ</summary><div class="a">${gone.map(w => `<div>${esc(w.title)} <span class="small muted">${esc(w.staffNote || '')}</span></div>`).join('')}</div></details>` : ''}
+  </div>`;
+};
+function workForm(w) {
+  w = w || {};
+  return `<div class="form-grid">${field('ชื่อผลงาน', `<input class="input" id="w-title" value="${esc(w.title)}">`, '', 'full')}
+    ${field('ประเภท', `<select class="select" id="w-type">${options(M().workTypes, w.type, '— เลือก —')}</select>`)}${field('ปีที่เผยแพร่', `<input class="input" id="w-year" value="${esc(w.year)}" inputmode="numeric">`, 'กรอก ค.ศ. หรือ พ.ศ. ก็ได้')}
+    ${field('วารสาร/แหล่งเผยแพร่', `<input class="input" id="w-venue" value="${esc(w.venue)}">`)}${field('วันที่เผยแพร่ (ถ้ามี)', `<input class="input" id="w-date" type="date" value="${esc(w.pubDate)}">`)}
+    ${field('ผู้แต่ง', `<input class="input" id="w-authors" value="${esc(w.authors)}" placeholder="คั่นด้วย ,">`, '', 'full')}
+    ${field('DOI', `<input class="input" id="w-doi" value="${esc(w.doi)}" placeholder="10.xxxx/xxxx">`)}${field('รหัสอ้างอิงอื่น', `<input class="input" id="w-ref" value="${esc(w.ref)}" placeholder="เช่น ISBN, เลขสิทธิบัตร">`)}</div>
+    <div class="small muted mt-s">ถ้าไม่มีทั้ง DOI และรหัสอ้างอิง ต้องแนบไฟล์หลักฐานของผลงานก่อนยื่น</div>`;
+}
+const workVals = bg => ({ title: val('#w-title', bg), type: val('#w-type', bg), year: val('#w-year', bg), venue: val('#w-venue', bg), pubDate: val('#w-date', bg), authors: val('#w-authors', bg), doi: val('#w-doi', bg), ref: val('#w-ref', bg) });
+BIND.works = d => {
+  const R = d.request;
+  const src = $('#w-src');
+  if (src) src.onclick = () => run(async () => {
+    let res;
+    try { res = await call('sourceWorks', { id: R.id }, true); }
+    catch (e) { return modal({ title: 'ดึงผลงานจาก MUREX', body: `<div class="banner amber">${ic('alert')}<div><b>ดึงจากระบบต้นทางไม่ได้</b><div class="sub pre">${esc(e.message)}</div><div class="sub">เพิ่มผลงานเองได้ — การดึงไม่ได้ไม่ถือว่าไม่มีผลงาน</div></div></div>`, cancelLabel: 'ปิด' }); }
+    const list = res.works;
+    modal({ title: 'ผลงานจาก MUREX', wide: true, okLabel: list.some(w => !w.added) ? 'เพิ่มรายการที่เลือก' : '',
+      body: `<div class="small muted mb">${esc(res.source.modeLabel)} · ${esc(res.source.message)}${res.note ? '<br>' + esc(res.note) : ''}</div>
+        ${list.length ? list.map(w => `<label class="check" style="display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)"><input type="checkbox" value="${esc(w.id)}" ${w.added ? 'disabled checked' : 'checked'}>
+          <span><b>${esc(w.title)}</b><br><span class="small muted">${esc(M().workTypes[w.type] || w.type)} · ${esc(w.year)} · ${esc(w.venue)} · ${w.doi ? 'DOI ' + esc(w.doi) : esc(w.workRef)}</span> ${originBadge(w.origin)} ${w.added ? '<span class="badge green">เพิ่มแล้ว</span>' : ''}</span></label>`).join('') : empty('ไม่พบผลงานของบุคคลนี้ใน MUREX — เพิ่มเองได้')}`,
+      onOk: async bg => { const ids = $$('input[type=checkbox]:not(:disabled):checked', bg).map(x => x.value); if (!ids.length) return false; const r = await call('addSourceWorks', { id: R.id, workIds: ids }); toast('เพิ่ม ' + r.added + ' รายการ' + (r.suspectedDuplicates ? ' · พบรายการสงสัยว่าซ้ำ ' + r.suspectedDuplicates + ' คู่' : ''), 'ok'); reload(); } });
+  });
+  const add = $('#w-add');
+  if (add) add.onclick = () => modal({ title: 'เพิ่มผลงาน', wide: true, okLabel: 'บันทึก', body: workForm(), onOk: async bg => { const r = await call('saveManualWork', { id: R.id, work: workVals(bg) }); toast('บันทึกแล้ว' + (r.suspectedDuplicates ? ' · สงสัยว่าซ้ำกับรายการเดิม — เจ้าหน้าที่จะตรวจ' : ''), 'ok'); reload(); } });
+  $$('[data-wedit]').forEach(b => b.onclick = () => { const w = d.works.find(x => x.id === b.dataset.wedit); modal({ title: 'แก้ไขผลงาน', wide: true, okLabel: 'บันทึก', body: workForm(w), onOk: async bg => { await call('saveManualWork', { id: R.id, workId: w.id, work: workVals(bg) }); toast('บันทึกแล้ว', 'ok'); reload(); } }); });
+  $$('[data-wdel]').forEach(b => b.onclick = () => askReason('ถอนผลงานออกจากคำขอ', 'เหตุผล (รายการยังเก็บเป็นประวัติ)', 'ถอนออก', async r => { await call('withdrawWork', { id: R.id, workId: b.dataset.wdel, reason: r }); reload(); }));
+  $$('[data-evi]').forEach(b => b.onclick = () => run(async () => { const f = await pickFile('.' + M().allowedExt.join(',.')); if (!f) return; const data = await readFile(f); await call('uploadFile', { id: R.id, workId: b.dataset.evi, fileName: f.name, data }); toast('แนบหลักฐานแล้ว', 'ok'); reload(); }));
+  $$('[data-file]').forEach(a => a.onclick = e => { e.preventDefault(); run(() => openFile(a.dataset.file)); });
+  $$('[data-verify]').forEach(b => b.onclick = () => run(async () => { await call('verifyWork', { workId: b.dataset.verify, status: 'verified', note: '' }); reload(); }));
+  $$('[data-reject]').forEach(b => b.onclick = () => askReason('ไม่รับผลงานนี้', 'เหตุผล (ผู้ยื่นและผู้พิจารณาจะเห็น)', 'บันทึก', async r => { await call('verifyWork', { workId: b.dataset.reject, status: 'rejected', note: r }); reload(); }));
+  $$('[data-dup]').forEach(b => b.onclick = () => {
+    if (b.dataset.distinct) askReason('ไม่ใช่รายการซ้ำ', 'เหตุผลที่ถือว่าเป็นคนละผลงาน', 'บันทึก', async r => { await call('resolveDup', { pairId: b.dataset.dup, decision: 'distinct', note: r }); reload(); });
+    else run(async () => { await call('resolveDup', { pairId: b.dataset.dup, decision: 'duplicate', keepWorkId: b.dataset.keep, note: '' }); toast('คัดรายการซ้ำออกแล้ว (ไม่ได้ลบ)', 'ok'); reload(); });
+  });
+  const wc = $('#w-complete');
+  if (wc) wc.onclick = () => R.worksComplete ? run(async () => { await call('setWorksComplete', { id: R.id, value: false }); reload(); })
+    : askReason('ยืนยันว่ารายการผลงานครบถ้วน', 'ตรวจความครบถ้วนจากแหล่งใด (เช่น ตรวจกับ MUREX และ CV ฉบับล่าสุด)', 'ยืนยัน', async r => { await call('setWorksComplete', { id: R.id, value: true, note: r }); reload(); });
+};
+
+/* --- เอกสารแนบ --- */
+TABS.docs = d => {
+  const ed = canEdit(d, 'documents');
+  const req = d.requiredDocs.filter(x => x.code !== 'evidence');
+  const active = d.attachments.filter(a => a.status === 'active' && !a.workId);
+  const removed = d.attachments.filter(a => a.status !== 'active');
+  const docTypes = (d.type ? d.type.requiredDocs : []);
+  return `<div class="stack">
+    ${!ed && d.actions.indexOf('edit') > -1 ? lockNote('documents') : ''}
+    <div class="card"><div class="card-h"><h3>${ic('list')} เอกสารที่ต้องใช้สำหรับคำขอนี้</h3></div><div class="card-b">
+      ${req.length ? req.map(x => `<div class="row between" style="padding:8px 0;border-bottom:1px dashed var(--border)"><div>${x.attached ? `<span class="res pass">${ic('ok', 'sm')} แนบแล้ว</span>` : `<span class="res inconclusive">${ic('q', 'sm')} ยังไม่แนบ</span>`} <b>${esc(x.label)}</b>${x.hint ? `<div class="small muted">${esc(x.hint)}</div>` : ''}</div>
+        ${ed ? `<button class="btn sm ${x.attached ? '' : 'primary'}" data-up="${esc(x.code)}">${ic('upload', 'sm')} ${x.attached ? 'แนบเพิ่ม' : 'แนบไฟล์'}</button>` : ''}</div>`).join('') : '<div class="muted">ประเภทคำขอนี้ไม่ต้องแนบเอกสารเพิ่มเติม</div>'}
+      ${d.requiredDocs.some(x => x.code === 'evidence') ? `<div class="small muted mt-s">หลักฐานของผลงานที่ไม่มี DOI/รหัสอ้างอิง แนบได้ที่แท็บ "ผลงาน"</div>` : ''}
+      ${ed && docTypes.length ? `<div class="small muted mt-s">ระบบขอเฉพาะเอกสารที่จำเป็นตามประเภทคำขอและข้อมูลที่กรอก · รับไฟล์ ${M().allowedExt.join(', ')} ไม่เกิน ${M().maxFileMb} MB</div>` : ''}
+    </div></div>
+    <div class="card"><div class="card-h"><h3>${ic('file')} ไฟล์ที่แนบ</h3><span class="spacer"></span><span class="small muted">${ic('lock', 'sm')} เปิดได้เฉพาะผู้มีสิทธิ์ในคำขอนี้</span></div><div class="card-b tight">
+      ${active.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>ไฟล์</th><th>ชนิดเอกสาร</th><th>แนบโดย</th><th></th></tr></thead><tbody>${active.map(a => `<tr><td><a href="#" data-file="${esc(a.id)}">${ic('file', 'sm')} ${esc(a.fileName)}</a><span class="sub">${Math.ceil(a.size / 1024)} KB</span></td>
+        <td>${esc(a.docLabel)}</td><td>${esc(a.uploadedBy)}<span class="sub">${thaiDate(a.uploadedAt, true)}</span></td>
+        <td><div class="actions"><button class="btn sm" data-file="${esc(a.id)}">${ic('download', 'sm')} เปิด</button>${ed ? `<button class="btn sm ghost-danger" data-rm="${esc(a.id)}">นำออก</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('ยังไม่มีไฟล์แนบ', 'file')}
+      ${removed.length ? `<div class="card-b small muted">ไฟล์ที่ถูกนำออก (เก็บเป็นประวัติ): ${removed.map(a => `<a href="#" data-file="${esc(a.id)}">${esc(a.fileName)}</a> (${thaiDate(a.removedAt)})`).join(', ')}</div>` : ''}
+    </div></div></div>`;
+};
+BIND.docs = d => {
+  $$('[data-up]').forEach(b => b.onclick = () => run(async () => {
+    const f = await pickFile('.' + M().allowedExt.join(',.')); if (!f) return;
+    const data = await readFile(f);
+    await call('uploadFile', { id: d.request.id, docType: b.dataset.up, fileName: f.name, data });
+    toast('แนบไฟล์แล้ว', 'ok'); reload();
+  }));
+  $$('[data-file]').forEach(a => a.onclick = e => { e.preventDefault(); run(() => openFile(a.dataset.file)); });
+  $$('[data-rm]').forEach(b => b.onclick = () => run(async () => { await call('removeFile', { fileId: b.dataset.rm }); toast('นำไฟล์ออกแล้ว (ยังเก็บเป็นประวัติ)', 'ok'); reload(); }));
+};
+
+/* --- ตรวจความครบถ้วนและยื่น --- */
+TABS.check = d => {
+  const c = d.completeness || { ok: false, issues: [] };
+  const block = c.issues.filter(i => i.blocking), warn = c.issues.filter(i => !i.blocking);
+  return `<div class="stack">
+    <div class="overall ${c.ok ? 'pass' : 'inconclusive'}">${ic(c.ok ? 'ok' : 'alert', 'lg')}<div><div class="big">${c.ok ? 'ข้อมูลครบ พร้อมยื่น' : 'ยังยื่นไม่ได้ — ข้อมูลยังไม่ครบ ' + block.length + ' รายการ'}</div>
+      <div class="small">${c.ok ? 'เมื่อยื่นแล้ว ระบบจะตรวจตามเกณฑ์ทันทีและส่งให้เจ้าหน้าที่' : 'แก้ตามรายการด้านล่าง แล้วกลับมาที่หน้านี้'}</div></div></div>
+    ${block.length ? `<div class="card"><div class="card-h"><h3>${ic('alert')} ต้องแก้ก่อนยื่น</h3></div><div class="card-b">${block.map(i => `<div class="row" style="padding:6px 0">${ic('bad', 'sm')}<span>${esc(i.message)}</span><button class="btn sm" data-tab="${SECTION_TAB[i.section]}">ไปที่ ${esc(M().sections[i.section])}</button></div>`).join('')}</div></div>` : ''}
+    ${warn.length ? `<div class="card"><div class="card-h"><h3>${ic('info')} ข้อสังเกต (ยื่นได้)</h3></div><div class="card-b">${warn.map(i => `<div style="padding:4px 0">${ic('info', 'sm')} ${esc(i.message)}</div>`).join('')}</div></div>` : ''}
+    <div class="row"><button class="btn primary" id="do-submit" ${c.ok ? '' : 'disabled'}>${ic('send')} ${d.request.status === 'returned' ? 'ยื่นใหม่' : 'ยื่นคำขอ'}</button><span class="small muted">ยื่นแล้วแก้ไขไม่ได้ จนกว่าเจ้าหน้าที่จะส่งกลับ (ยกเลิกได้ก่อนเจ้าหน้าที่รับเรื่อง)</span></div>
+  </div>`;
+};
+BIND.check = d => {
+  const b = $('#do-submit'); if (!b) return;
+  b.onclick = () => run(async () => {
+    const r = await call('submit', { id: d.request.id });
+    toast('ยื่นคำขอแล้ว — ผลตรวจเบื้องต้น: ' + M().results[r.evaluation.overall], 'ok');
+    S.tab[d.request.id] = 'results'; reload();
+  });
+};
+
+/* --- ผลตรวจตามเกณฑ์ --- */
+function evidenceRefs(ev, d) {
+  return (ev || []).map(x => {
+    const [k, id] = x.split(':');
+    if (k === 'work') { const w = d.works.find(w => w.id === id); return w ? `<span class="sub">${ic('file', 'sm')} ${esc(w.title)}</span>` : ''; }
+    if (k === 'file') { const a = d.attachments.find(a => a.id === id); return a ? `<span class="sub"><a href="#" data-file="${esc(a.id)}">${ic('file', 'sm')} ${esc(a.fileName)}</a></span>` : ''; }
+    return '';
+  }).join('');
+}
+TABS.results = d => {
+  const ev = d.evaluations[0];
+  const staff = d.actions.indexOf('rerun') > -1;
+  const decide = d.actions.indexOf('decide') > -1;
+  if (!ev) return empty('ยังไม่มีผลตรวจ — ระบบจะตรวจเมื่อยื่นคำขอ', 'layers');
+  const overallText = { pass: 'ผ่านเกณฑ์ทุกข้อ', fail: 'ไม่ผ่านเกณฑ์อย่างน้อย 1 ข้อ', inconclusive: 'ยังสรุปไม่ได้บางข้อ' };
+  return `<div class="stack">
+    ${decide ? `<div class="card" id="decide-form" style="border:2px solid var(--primary)"><div class="card-h"><h3>${ic('gavel')} บันทึกผลพิจารณา</h3></div><div class="card-b">
+      <div class="banner blue mb">${ic('info')}<div><div class="sub">ผลตรวจของระบบด้านล่างเป็นข้อมูลประกอบ การตัดสินเป็นของผู้พิจารณา และต้องระบุเหตุผลทุกครั้ง${d.request.isDemo ? ' · <b>คำขอสาธิต — ผลไม่มีผลจริง</b>' : ''}</div></div></div>
+      ${d.request.staffSummary ? `<p><b>สรุปของเจ้าหน้าที่:</b> <span class="pre">${esc(d.request.staffSummary)}</span></p>` : ''}
+      <div class="row mb">${Object.keys(M().decisions).map(k => `<label class="chip-check"><input type="radio" name="dec" value="${k}"> ${esc(M().decisions[k])}</label>`).join('')}</div>
+      ${field('เหตุผลประกอบการพิจารณา', '<textarea class="input" id="dec-reason" rows="3"></textarea>')}
+      <button class="btn primary mt-s" id="dec-save">${ic('save')} บันทึกผลพิจารณา</button></div></div>` : ''}
+    ${d.dataChanged ? `<div class="banner amber">${ic('refresh')}<div><b>ข้อมูลเปลี่ยนหลังการประเมินล่าสุด</b><div class="sub">กด "ประเมินซ้ำ" เพื่อให้ผลตรงกับข้อมูลปัจจุบัน (ผลเดิมยังเก็บไว้)</div></div></div>` : ''}
+    ${d.newerCriteria ? `<div class="banner blue">${ic('layers')}<div><b>มีชุดเกณฑ์เวอร์ชันใหม่: ${esc(d.newerCriteria.name)} (เวอร์ชัน ${esc(d.newerCriteria.version)})</b><div class="sub">คำขอนี้ยังใช้เวอร์ชันที่ผูกไว้ตอนยื่น ${staff ? 'เปลี่ยนได้ด้วย "ประเมินซ้ำ" แล้วเลือกใช้เกณฑ์ใหม่ พร้อมเหตุผล' : ''}</div></div></div>` : ''}
+    <div class="overall ${esc(ev.overall)}">${ic(ev.overall === 'pass' ? 'ok' : ev.overall === 'fail' ? 'bad' : 'q', 'lg')}<div style="flex:1"><div class="big">ผลตรวจของระบบ: ${esc(overallText[ev.overall])}</div>
+      <div class="small">เกณฑ์ ${esc(ev.criteriaCode)} เวอร์ชัน ${esc(ev.criteriaVersion)} ${ev.isDemo ? '(สำหรับสาธิต)' : ''} · ${esc(ev.triggerLabel)} เมื่อ ${thaiDate(ev.at, true)} · รอบที่ ${esc(ev.round)}</div>
+      <div class="small">ไม่ใช่ผลการพิจารณา — ผู้มีอำนาจเป็นผู้ตัดสิน</div></div>
+      ${staff ? `<button class="btn" id="rerun">${ic('refresh')} ประเมินซ้ำ</button>` : ''}</div>
+    <div class="small muted">แหล่งข้อมูลขณะประเมิน: ${Object.values(ev.sourceStatus).map(s => `${esc(s.source)} ${s.ok ? '(' + esc(M().sourceModes[s.mode] || s.mode) + ')' : '<b>ไม่พร้อม: ' + esc(s.message || s.code) + '</b>'}`).join(' · ')} · ข้อมูลบุคคล: ${esc(ev.snapshot.personNote || '')}</div>
+    <div class="table-wrap card"><table class="t"><thead><tr><th>เกณฑ์</th><th>ผล</th><th>เหตุผล</th><th>ข้อมูลที่ใช้ / หลักฐาน</th>${staff ? '<th></th>' : ''}</tr></thead><tbody>
+      ${ev.items.map(i => `<tr><td><b>${esc(i.label)}</b><span class="sub">${esc(i.ruleId)} · ${esc((M().ruleKinds[i.kind] || {}).label || i.kind)}</span></td>
+        <td>${resultBadge(i.result)}<span class="sub">${i.by === 'staff' ? 'บันทึกโดยเจ้าหน้าที่' : 'ระบบ'}</span></td>
+        <td class="small">${esc(i.reason)}${i.systemReason ? `<span class="sub">ระบบ: ${esc(i.systemReason)}</span>` : ''}</td>
+        <td class="small"><ul class="ul-tight">${i.dataUsed.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${evidenceRefs(i.evidence, d)}</td>
+        ${staff ? `<td>${i.result === 'inconclusive' || i.by === 'staff' ? `<button class="btn sm" data-sc="${esc(i.ruleId)}">บันทึกผลตรวจ</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>
+    ${d.evaluations.length > 1 ? `<details class="faq"><summary>${ic('clock')} ผลตรวจครั้งก่อน (${d.evaluations.length - 1} ครั้ง — เก็บไว้ทั้งหมด)</summary><div class="a" style="padding-left:16px">
+      <table class="t"><thead><tr><th>เมื่อ</th><th>เกณฑ์</th><th>ผล</th><th>เหตุที่ประเมิน</th></tr></thead><tbody>${d.evaluations.slice(1).map(e => `<tr><td>${thaiDate(e.at, true)}</td><td>${esc(e.criteriaCode)} v${esc(e.criteriaVersion)}</td><td>${resultBadge(e.overall)}</td><td class="small">${esc(e.triggerLabel)}${e.reason ? ' — ' + esc(e.reason) : ''}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+    ${d.decisions.length ? `<div class="card"><div class="card-h"><h3>${ic('gavel')} ผลพิจารณาของผู้มีอำนาจ</h3></div><div class="card-b">${decisionList(d)}</div></div>` : ''}
+  </div>`;
+};
+BIND.results = d => {
+  const R = d.request;
+  $$('[data-file]').forEach(a => a.onclick = e => { e.preventDefault(); run(() => openFile(a.dataset.file)); });
+  const rr = $('#rerun');
+  if (rr) rr.onclick = () => modal({ title: 'ประเมินซ้ำ', okLabel: 'ประเมิน',
+    body: `${d.newerCriteria ? `<label class="check mb"><input type="checkbox" id="m-latest"> ใช้ชุดเกณฑ์เวอร์ชันใหม่ (${esc(d.newerCriteria.version)}) แทนเวอร์ชันที่ผูกไว้</label>` : ''}` + field('เหตุผล', '<input class="input" id="m-reason" placeholder="เช่น ผู้ยื่นแนบหลักฐานเพิ่ม / ระบบต้นทางกลับมาใช้งานได้">') + '<div class="small muted mt-s">ผลเดิมทุกครั้งยังเก็บไว้</div>',
+    onOk: async bg => { await call('rerun', { id: R.id, reason: val('#m-reason', bg), useLatestCriteria: !!val('#m-latest', bg) }); toast('ประเมินแล้ว', 'ok'); reload(); } });
+  $$('[data-sc]').forEach(b => b.onclick = () => modal({ title: 'บันทึกผลตรวจโดยเจ้าหน้าที่ (ข้อ ' + b.dataset.sc + ')', okLabel: 'บันทึก',
+    body: `<p class="small muted">ใช้เฉพาะข้อที่ระบบสรุปไม่ได้ เช่น ตรวจจากเอกสาร ระบบจะแสดงว่าผลนี้มาจากเจ้าหน้าที่ และยังเก็บเหตุผลเดิมของระบบ</p>
+      <div class="row mb">${['pass', 'fail', 'inconclusive'].map(k => `<label class="chip-check"><input type="radio" name="scr" value="${k}"> ${esc(M().results[k])}</label>`).join('')}</div>` + field('เหตุผลและหลักฐานที่ใช้', '<textarea class="input" id="m-reason" rows="3"></textarea>'),
+    onOk: async bg => { const r = $('input[name=scr]:checked', bg); if (!r) { toast('เลือกผล', 'err'); return false; } await call('staffCheck', { id: R.id, ruleId: b.dataset.sc, result: r.value, reason: val('#m-reason', bg) }); toast('บันทึกแล้ว', 'ok'); reload(); } }));
+  const ds = $('#dec-save');
+  if (ds) ds.onclick = () => run(async () => {
+    const r = $('input[name=dec]:checked'); if (!r) return toast('เลือกผลการพิจารณา', 'err');
+    await call('decide', { id: R.id, decision: r.value, reason: val('#dec-reason') });
+    toast('บันทึกผลพิจารณาแล้ว', 'ok'); reload();
+  });
+};
+
+/* --- ประวัติ --- */
+TABS.history = d => `<div class="grid g2">
+  <div class="card"><div class="card-h"><h3>${ic('clock')} ลำดับสถานะ</h3></div><div class="card-b"><ul class="timeline">${d.history.slice().reverse().map(h => `<li><span class="dotc"></span><div>
+    <div>${h.fromStatus && h.fromStatus !== h.toStatus ? esc(h.fromLabel) + ' → ' : ''}<b>${esc(h.toLabel)}</b></div><div class="small">${esc(h.note)}</div>
+    <div class="when">${esc(h.byName)} (${esc((M().roles[h.byRole] || {}).label || h.byRole)}) · ${thaiDate(h.at, true)} · รอบ ${esc(h.round)}</div></div></li>`).join('')}</ul></div></div>
+  <div class="stack">
+    <div class="card"><div class="card-h"><h3>${ic('undo')} รายการแก้ไขทั้งหมด</h3></div><div class="card-b">${d.revisionItems.length ? d.revisionItems.map(i => `<div class="mb"><span class="badge gray">รอบ ${esc(i.round)}</span> <b>${esc(M().sections[i.section])}</b>: ${esc(i.message)}
+      <div class="small muted">โดย ${esc(i.createdByName)} · ${thaiDate(i.createdAt)} · ${i.status === 'open' ? 'ยังไม่ตอบ' : i.status === 'addressed' ? 'ผู้ยื่นตอบ: ' + esc(i.response) : 'ปิดแล้ว' + (i.response ? ' (ผู้ยื่นตอบ: ' + esc(i.response) + ')' : '')}</div></div>`).join('') : '<span class="muted">ไม่มี</span>'}</div></div>
+    <div class="card"><div class="card-h"><h3>${ic('layers')} การตัดสินรายการซ้ำ</h3></div><div class="card-b">${d.dupPairs.filter(p => p.status !== 'suspected').map(p => `<div class="small mb">${p.status === 'duplicate' ? 'ซ้ำ — คัดออก 1 รายการ' : 'ไม่ซ้ำ'} · ${esc(p.note || '')} · ${esc(p.resolvedByName)} ${thaiDate(p.resolvedAt)}</div>`).join('') || '<span class="muted">ไม่มี</span>'}</div></div>
+  </div></div>`;
+
+/* ---------------- รายงาน ---------------- */
+PAGES.reports = async () => {
+  setTitle('รายงาน');
+  const f = S.cache.rep = S.cache.rep || { from: '', to: '', includeDemo: B().testMode, typeId: '' };
+  const r = await call('report', f);
+  const st = r.stages.filter(s => s.done.n || s.waitingNow.n);
+  view(`<div class="stack">
+    <div class="card"><div class="toolbar">
+      ${field('ตั้งแต่วันที่', `<input class="input" type="date" id="r-from" value="${esc(f.from)}">`)}${field('ถึงวันที่', `<input class="input" type="date" id="r-to" value="${esc(f.to)}">`)}
+      ${field('ประเภทคำขอ', `<select class="select" id="r-type">${opt('', 'ทุกประเภท', f.typeId)}${B().types.map(t => opt(t.id, t.name, f.typeId)).join('')}</select>`)}
+      <label class="check"><input type="checkbox" id="r-demo" ${f.includeDemo ? 'checked' : ''}> รวมคำขอสาธิต</label>
+      <button class="btn primary" id="r-go">${ic('chart')} แสดงรายงาน</button><button class="btn" onclick="window.print()">พิมพ์</button>
+    </div><div class="card-b small muted">ข้อมูล ณ ${thaiDate(r.generatedAt, true)} · เฉพาะคำขอในขอบเขตงานของคุณ${r.includeDemo ? ' · <b>รวมคำขอสาธิต</b>' : ''} · ไม่มีการคำนวณ "ผลประหยัด" เพราะไม่มีข้อมูลก่อนใช้ระบบให้เปรียบเทียบ</div></div>
+    <div class="grid g4">
+      <div class="card kpi"><div class="label">คำขอที่สร้างในช่วง</div><div class="val">${r.counts.created}</div><div class="small muted">ยื่นแล้ว ${r.counts.submitted}</div></div>
+      <div class="card kpi"><div class="label">งานค้าง (ยังไม่ปิด)</div><div class="val">${r.backlog.total}</div><div class="small muted">อายุเฉลี่ย ${days(r.backlog.age.avg)}</div></div>
+      <div class="card kpi"><div class="label">ยื่นจนปิดงาน (มัธยฐาน)</div><div class="val">${days(r.cycle.median)}</div><div class="small muted">เฉลี่ย ${days(r.cycle.avg)} · ${r.cycle.n} คำขอ</div></div>
+      <div class="card kpi"><div class="label">การส่งกลับแก้ไข</div><div class="val">${r.returns.events}</div><div class="small muted">${r.returns.requests} คำขอ</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h3>จำนวนตามสถานะปัจจุบัน</h3></div><div class="card-b tight"><table class="t"><tbody>${Object.keys(r.counts.byStatus).filter(k => r.counts.byStatus[k]).map(k => `<tr><td>${statusBadge(k)}</td><td class="num">${r.counts.byStatus[k]}</td></tr>`).join('') || '<tr><td class="muted">ไม่มีข้อมูล</td></tr>'}</tbody></table></div></div>
+      <div class="card"><div class="card-h"><h3>เวลารอในแต่ละขั้น</h3></div><div class="card-b tight"><table class="t"><thead><tr><th>ขั้น</th><th class="num">ผ่านขั้นแล้ว (มัธยฐาน/เฉลี่ย)</th><th class="num">ยังรออยู่</th></tr></thead><tbody>
+        ${st.map(s => `<tr><td>${statusBadge(s.status)}</td><td class="num">${days(s.done.median)} / ${days(s.done.avg)} <span class="sub">${s.done.n} ครั้ง</span></td><td class="num">${s.waitingNow.n ? s.waitingNow.n + ' รายการ · ' + days(s.waitingNow.avg) : '—'}</td></tr>`).join('') || '<tr><td class="muted">ไม่มีข้อมูล</td></tr>'}</tbody></table></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h3>งานค้างที่รอนานที่สุด</h3></div><div class="card-b tight"><table class="t"><tbody>${r.backlog.list.slice(0, 10).map(b => `<tr><td><b>${esc(b.code)}</b><span class="sub">${esc(b.title)}</span></td><td>${statusBadge(b.status)}<span class="sub">${esc(b.holder)}</span></td><td class="num">${b.ageDays === null ? '—' : b.ageDays + ' วัน'}</td></tr>`).join('') || '<tr><td class="muted">ไม่มีงานค้าง</td></tr>'}</tbody></table></div></div>
+      <div class="card"><div class="card-h"><h3>เหตุผลที่ส่งกลับแก้ไข (ตามส่วน)</h3></div><div class="card-b">${Object.keys(r.returns.bySection).map(k => `<div class="row between"><span>${esc(k)}</span><b>${r.returns.bySection[k]}</b></div>`).join('') || '<span class="muted">ไม่มีข้อมูล</span>'}
+        ${r.returns.recent.length ? `<div class="small muted mt">ล่าสุด:</div><ul class="ul-tight">${r.returns.recent.map(x => `<li>${esc(x.section)}: ${esc(x.message)}</li>`).join('')}</ul>` : ''}</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h3>${ic('info')} นิยามการคำนวณ</h3></div><div class="card-b"><dl class="def">${r.definitions.map(x => `<dt>${esc(x.label)}</dt><dd>${esc(x.def)}</dd>`).join('')}</dl></div></div>
+  </div>`);
+  $('#r-go').onclick = () => { Object.assign(f, { from: val('#r-from'), to: val('#r-to'), typeId: val('#r-type'), includeDemo: !!val('#r-demo') }); render(); };
+};
+
+/* ---------------- ผู้ดูแล: ข้อมูลรวม ---------------- */
+async function adminData() { S.cache.admin = await call('adminOverview'); return S.cache.admin; }
+
+PAGES.criteria = async () => {
+  setTitle('ชุดเกณฑ์');
+  const a = await adminData();
+  const groups = {};
+  a.criteria.forEach(c => { (groups[c.code] = groups[c.code] || []).push(c); });
+  const typeName = id => (a.types.find(t => t.id === id) || {}).name || id;
+  const stBadge = s => s === 'active' ? '<span class="badge green">' + ic('ok', 'sm') + 'ใช้งานอยู่</span>' : s === 'draft' ? '<span class="badge amber">' + ic('edit', 'sm') + 'ร่าง</span>' : '<span class="badge gray">' + ic('clock', 'sm') + 'เลิกใช้</span>';
+  view(`<div class="stack">
+    <div class="banner amber">${ic('alert')}<div><b>ระบบไม่สร้างเกณฑ์ทางวิชาการเอง</b><div class="sub">เกณฑ์จริงต้องมาจากประกาศ/ข้อบังคับที่หน่วยงานยืนยัน และต้องระบุแหล่งอ้างอิง วันที่มีผล และผู้ยืนยันก่อนเปิดใช้ · เกณฑ์ที่ติดป้าย "สำหรับสาธิต" ใช้กับคำขอสาธิตเท่านั้น · การแก้เกณฑ์ที่ใช้งานแล้วทำโดยสร้างเวอร์ชันใหม่ ผลตรวจเดิมยังผูกกับเวอร์ชันเดิม</div></div></div>
+    <div><button class="btn primary" id="c-new">${ic('plus')} สร้างชุดเกณฑ์ใหม่</button></div>
+    ${Object.keys(groups).map(code => `<div class="card"><div class="card-h"><h3>${ic('layers')} ${esc(code)}</h3><span class="small muted">ประเภทคำขอ: ${esc(typeName(groups[code][0].typeId))}</span></div><div class="card-b tight"><table class="t"><thead><tr><th>เวอร์ชัน</th><th>ชื่อ</th><th>สถานะ</th><th>มีผล/อ้างอิง/ผู้ยืนยัน</th><th class="num">ใช้กับคำขอ</th><th></th></tr></thead><tbody>
+      ${groups[code].sort((x, y) => y.version - x.version).map(c => `<tr><td><b>v${esc(c.version)}</b></td><td>${esc(c.name)} ${demoBadge(c.isDemo)}<span class="sub">${c.rules.length} ข้อ: ${c.rules.map(r => esc(r.label)).join(' · ')}</span></td>
+        <td>${stBadge(c.status)}</td><td class="small">${thaiDate(c.effectiveDate)}<span class="sub">${esc(c.referenceSource || '— ยังไม่ระบุ —')}</span><span class="sub">ผู้ยืนยัน: ${esc(c.confirmedBy || '—')}</span></td><td class="num">${c.usedBy}</td>
+        <td><div class="actions">${c.status === 'draft' ? `<button class="btn sm" data-cedit="${esc(c.id)}">แก้ไข</button><button class="btn sm primary" data-cact="${esc(c.id)}">เปิดใช้</button>` : `<button class="btn sm" data-cver="${esc(c.id)}">สร้างเวอร์ชันใหม่</button>`}${c.status === 'active' ? `<button class="btn sm ghost-danger" data-cret="${esc(c.id)}">เลิกใช้</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div></div>`).join('') || empty('ยังไม่มีชุดเกณฑ์')}
+  </div>`);
+  $('#c-new').onclick = () => criteriaModal(a, null, null);
+  $$('[data-cedit]').forEach(b => b.onclick = () => criteriaModal(a, a.criteria.find(c => c.id === b.dataset.cedit), null));
+  $$('[data-cver]').forEach(b => b.onclick = () => criteriaModal(a, null, a.criteria.find(c => c.id === b.dataset.cver)));
+  $$('[data-cact]').forEach(b => b.onclick = () => {
+    const c = a.criteria.find(x => x.id === b.dataset.cact);
+    modal({ title: 'เปิดใช้ ' + c.code + ' v' + c.version, okLabel: 'เปิดใช้',
+      body: `${c.isDemo ? `<div class="banner amber mb">${ic('alert')}<div><b>ชุดนี้สำหรับสาธิต</b><div class="sub">ใช้ได้กับคำขอสาธิต (โหมดทดสอบ) เท่านั้น</div></div></div>` : `<div class="banner blue mb">${ic('info')}<div><div class="sub">แหล่งอ้างอิง: ${esc(c.referenceSource || '— ยังไม่ระบุ (ต้องกรอกก่อน)')}<br>วันที่มีผล: ${esc(c.effectiveDate || '— ยังไม่ระบุ')}</div></div></div>`}
+        ${field('ผู้ยืนยันเกณฑ์ (ชื่อ/ตำแหน่ง)', '<input class="input" id="m-conf" placeholder="เช่น ผู้อำนวยการกองบริการการศึกษา">', c.isDemo ? 'ไม่บังคับสำหรับเกณฑ์สาธิต' : 'จำเป็นสำหรับเกณฑ์จริง')}
+        <p class="small muted">ชุดเดิมของรหัสนี้ที่ใช้งานอยู่จะถูกเลิกใช้ (ยังเก็บไว้ และคำขอเดิมยังผูกกับเวอร์ชันเดิม)</p>`,
+      onOk: async bg => { await call('activateCriteria', { id: c.id, confirmedBy: val('#m-conf', bg) }); toast('เปิดใช้แล้ว', 'ok'); render(); } });
+  });
+  $$('[data-cret]').forEach(b => b.onclick = () => askReason('เลิกใช้ชุดเกณฑ์', 'เหตุผล', 'เลิกใช้', async r => { await call('retireCriteria', { id: b.dataset.cret, reason: r }); render(); }));
+};
+
+function ruleRow(r) {
+  r = r || { kind: 'identity_verified', params: {} };
+  const kinds = M().ruleKinds;
+  const p = r.params || {};
+  const multi = (name, dict, sel) => `<div class="chips">${Object.keys(dict).map(k => `<label class="chip-check"><input type="checkbox" data-p="${name}" value="${k}" ${(sel || []).indexOf(k) > -1 ? 'checked' : ''}> ${esc(dict[k])}</label>`).join('')}</div>`;
+  const pf = {
+    person_status: field('สถานะที่ยอมรับ', multi('allowed', M().empStatus, p.allowed)),
+    min_degree: field('คุณวุฒิที่ยอมรับ', multi('allowed', M().degrees, p.allowed)),
+    academic_rank: field('ตำแหน่งที่ยอมรับ', multi('allowed', M().ranks, p.allowed)),
+    min_works: `<div class="form-grid">${field('จำนวนขั้นต่ำ', `<input class="input" data-p="min" type="number" min="1" value="${esc(p.min || '')}">`)}${field('ย้อนหลังกี่ปี (0 = ไม่จำกัด)', `<input class="input" data-p="years" type="number" min="0" value="${esc(p.years || 0)}">`, 'นับรวมปีปัจจุบัน')}</div>` + field('ประเภทผลงานที่นับ (ไม่เลือก = ทุกประเภท)', multi('types', M().workTypes, p.types)),
+    required_documents: field('รหัสเอกสารที่ต้องมี (คั่นด้วย ,)', `<input class="input" data-p="docs" value="${esc((p.docs || []).join(','))}">`, 'ตรงกับรหัสเอกสารในประเภทคำขอ เช่น cv'),
+    manual: field('คำแนะนำให้เจ้าหน้าที่', `<input class="input" data-p="instruction" value="${esc(p.instruction || '')}">`),
+    identity_verified: ''
+  };
+  return `<div class="rule-row"><div class="inline-form"><div class="field" style="max-width:90px"><label>รหัสข้อ</label><input class="input" data-k="id" value="${esc(r.id || '')}"></div>
+    <div class="field" style="max-width:230px"><label>ชนิดการตรวจ</label><select class="select" data-k="kind">${Object.keys(kinds).map(k => opt(k, kinds[k].label, r.kind)).join('')}</select></div>
+    <div class="field" style="flex:3"><label>ข้อความเกณฑ์ (ตามประกาศ)</label><input class="input" data-k="label" value="${esc(r.label || '')}"></div>
+    <button class="btn sm icon ghost-danger" data-rdel aria-label="ลบข้อนี้">${ic('trash', 'sm')}</button></div><div class="mt-s" data-params>${pf[r.kind] || ''}</div></div>`;
+}
+function readRules(bg) {
+  return $$('.rule-row', bg).map(row => {
+    const r = { id: $('[data-k=id]', row).value.trim(), kind: $('[data-k=kind]', row).value, label: $('[data-k=label]', row).value.trim(), params: {} };
+    $$('[data-p]', row).forEach(x => {
+      const k = x.dataset.p;
+      if (x.type === 'checkbox') { r.params[k] = r.params[k] || []; if (x.checked) r.params[k].push(x.value); }
+      else if (k === 'docs') r.params.docs = x.value.split(',').map(s => s.trim()).filter(String);
+      else r.params[k] = x.value;
+    });
+    return r;
+  });
+}
+function criteriaModal(a, cur, from) {
+  const base = cur || from || {};
+  modal({ title: cur ? 'แก้ไขร่าง ' + cur.code + ' v' + cur.version : from ? 'สร้างเวอร์ชันใหม่ของ ' + from.code : 'สร้างชุดเกณฑ์ใหม่', wide: true, okLabel: 'บันทึกเป็นร่าง',
+    body: `<div class="form-grid">
+      ${field('ประเภทคำขอ', `<select class="select" id="c-type" ${from || cur ? 'disabled' : ''}>${a.types.map(t => opt(t.id, t.name, base.typeId)).join('')}</select>`)}
+      ${!cur && !from ? field('รหัสชุดเกณฑ์', '<input class="input" id="c-code" placeholder="เช่น CS-EXAMINER">') : field('รหัสชุดเกณฑ์', `<input class="input" disabled value="${esc(base.code)}">`)}
+      ${field('ชื่อชุดเกณฑ์', `<input class="input" id="c-name" value="${esc(base.name || '')}">`, '', 'full')}
+      ${field('แหล่งอ้างอิง (ประกาศ/ข้อบังคับ ข้อ)', `<input class="input" id="c-ref" value="${esc(base.referenceSource || '')}">`, 'จำเป็นสำหรับเกณฑ์จริง', 'full')}
+      ${field('วันที่มีผล', `<input class="input" type="date" id="c-eff" value="${esc(String(base.effectiveDate || '').slice(0, 10))}">`)}
+      <div class="field"><label>ประเภทเกณฑ์</label><label class="check"><input type="checkbox" id="c-demo" ${base.isDemo ? 'checked' : ''}> สำหรับสาธิต (ห้ามใช้ตัดสินจริง)</label></div>
+      ${field('เงื่อนไข/คำอธิบายเพิ่มเติม', `<textarea class="input" id="c-cond" rows="2">${esc(base.conditionsText || '')}</textarea>`, '', 'full')}</div>
+      <h3 style="margin:18px 0 8px">ข้อเกณฑ์</h3><div id="c-rules">${(base.rules || [null]).map(ruleRow).join('')}</div><button class="btn sm" id="c-add">${ic('plus', 'sm')} เพิ่มข้อ</button>`,
+    onMount: bg => {
+      const bindRows = () => {
+        $$('[data-rdel]', bg).forEach(b => b.onclick = () => b.closest('.rule-row').remove());
+        $$('[data-k=kind]', bg).forEach(s => s.onchange = () => { const row = s.closest('.rule-row'); row.outerHTML = ruleRow({ id: $('[data-k=id]', row).value, kind: s.value, label: $('[data-k=label]', row).value, params: {} }); bindRows(); });
+      };
+      $('#c-add', bg).onclick = () => { $('#c-rules', bg).insertAdjacentHTML('beforeend', ruleRow()); bindRows(); };
+      bindRows();
+    },
+    onOk: async bg => {
+      await call('saveCriteria', { id: cur ? cur.id : '', fromId: from ? from.id : '', typeId: val('#c-type', bg), code: val('#c-code', bg), name: val('#c-name', bg), referenceSource: val('#c-ref', bg),
+        effectiveDate: val('#c-eff', bg), isDemo: !!val('#c-demo', bg), conditionsText: val('#c-cond', bg), rules: readRules(bg) });
+      toast('บันทึกร่างแล้ว — ตรวจทานแล้วกด "เปิดใช้"', 'ok'); render();
+    } });
+}
+
+/* ---------------- ผู้ดูแล: ประเภทคำขอ ---------------- */
+PAGES.types = async () => {
+  setTitle('ประเภทคำขอ');
+  const a = await adminData();
+  view(`<div class="stack"><div class="row"><button class="btn primary" id="t-new">${ic('plus')} เพิ่มประเภทคำขอ</button><span class="small muted">กำหนดเอกสารที่ต้องใช้ — ระบบจะขอเฉพาะเอกสารที่จำเป็นตามประเภทและเงื่อนไข</span></div>
+    <div class="card"><div class="card-b tight"><table class="t"><thead><tr><th>ประเภทคำขอ</th><th>เอกสารที่ต้องใช้</th><th>ชุดเกณฑ์ที่ใช้งาน</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${a.types.map(t => { const c = a.criteria.find(x => x.typeId === t.id && x.status === 'active'); return `<tr><td><b>${esc(t.name)}</b> ${demoBadge(t.isDemo)}<span class="sub">${esc(t.code)} · ${esc(t.description || '')}</span></td>
+      <td class="small">${t.requiredDocs.map(d => `${esc(d.label)} <span class="muted">(${esc(d.code)}${d.when === 'person_not_in_source' ? ', เฉพาะบุคคลภายนอก' : ''})</span>`).join('<br>') || '—'}</td>
+      <td class="small">${c ? esc(c.code) + ' v' + esc(c.version) + ' ' + demoBadge(c.isDemo) : '<span class="badge red">ไม่มี — ยื่นไม่ได้</span>'}</td>
+      <td>${t.active ? '<span class="badge green">เปิด</span>' : '<span class="badge gray">ปิด</span>'}</td><td><button class="btn sm" data-tedit="${esc(t.id)}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div></div>`);
+  const docRow = d => { d = d || {}; return `<div class="inline-form doc-row mb">${field('รหัส', `<input class="input" data-k="code" value="${esc(d.code || '')}" placeholder="cv">`)}${field('ชื่อเอกสาร', `<input class="input" data-k="label" value="${esc(d.label || '')}">`)}
+    ${field('ต้องใช้เมื่อ', `<select class="select" data-k="when">${opt('always', 'ทุกคำขอ', d.when)}${opt('person_not_in_source', 'บุคคลไม่อยู่ใน MUHR', d.when)}</select>`)}${field('คำแนะนำ', `<input class="input" data-k="hint" value="${esc(d.hint || '')}">`)}<button class="btn sm icon ghost-danger" data-ddel aria-label="ลบ">${ic('trash', 'sm')}</button></div>`; };
+  const edit = t => {
+    t = t || { requiredDocs: [], active: true };
+    modal({ title: t.id ? 'แก้ไขประเภทคำขอ' : 'เพิ่มประเภทคำขอ', wide: true, okLabel: 'บันทึก',
+      body: `<div class="form-grid">${field('ชื่อประเภทคำขอ', `<input class="input" id="t-name" value="${esc(t.name || '')}">`)}${field('รหัส', `<input class="input" id="t-code" value="${esc(t.code || '')}" ${t.id ? 'disabled' : ''}>`)}
+        ${field('คำอธิบาย', `<input class="input" id="t-desc" value="${esc(t.description || '')}">`, '', 'full')}${field('บทบาทของบุคคลที่ตรวจ', `<input class="input" id="t-role" value="${esc(t.personRole || '')}" placeholder="เช่น กรรมการสอบ, อาจารย์ประจำหลักสูตร">`)}
+        <div class="field"><label>ตัวเลือก</label><label class="check"><input type="checkbox" id="t-active" ${t.active ? 'checked' : ''}> เปิดใช้งาน</label><label class="check"><input type="checkbox" id="t-demo" ${t.isDemo ? 'checked' : ''}> สำหรับสาธิต</label></div></div>
+        <h3 style="margin:16px 0 8px">เอกสารที่ต้องใช้</h3><div id="t-docs">${t.requiredDocs.map(docRow).join('')}</div><button class="btn sm" id="t-add">${ic('plus', 'sm')} เพิ่มเอกสาร</button>`,
+      onMount: bg => { const bind = () => $$('[data-ddel]', bg).forEach(b => b.onclick = () => b.closest('.doc-row').remove()); $('#t-add', bg).onclick = () => { $('#t-docs', bg).insertAdjacentHTML('beforeend', docRow()); bind(); }; bind(); },
+      onOk: async bg => {
+        await call('saveType', { id: t.id, name: val('#t-name', bg), code: val('#t-code', bg), description: val('#t-desc', bg), personRole: val('#t-role', bg), active: !!val('#t-active', bg), isDemo: !!val('#t-demo', bg),
+          requiredDocs: $$('.doc-row', bg).map(r => ({ code: $('[data-k=code]', r).value, label: $('[data-k=label]', r).value, when: $('[data-k=when]', r).value, hint: $('[data-k=hint]', r).value })) });
+        toast('บันทึกแล้ว', 'ok'); render();
+      } });
+  };
+  $('#t-new').onclick = () => edit();
+  $$('[data-tedit]').forEach(b => b.onclick = () => edit(a.types.find(t => t.id === b.dataset.tedit)));
+};
+
+/* ---------------- ผู้ดูแล: แหล่งข้อมูลและการนำเข้า ---------------- */
+PAGES.data = async () => {
+  setTitle('แหล่งข้อมูลและการนำเข้า');
+  const a = await adminData();
+  const s = a.settings;
+  const pv = S.cache.preview;
+  view(`<div class="stack">
+    <div class="banner amber">${ic('alert')}<div><b>ยังไม่ได้เชื่อมต่อ MUHR และ MUREX จริง</b><div class="sub">ระบบใช้ข้อมูลจำลอง หรือข้อมูลที่นำเข้าจากไฟล์ CSV เท่านั้น โหมด API ยังไม่ได้พัฒนาเพราะยังไม่มีข้อกำหนด/สิทธิ์เข้าถึงจากเจ้าของระบบ — ดูรายการข้อมูลที่ต้องขอในคู่มือ</div></div></div>
+    <div class="grid g2">${a.sources.map(x => `<div class="card"><div class="card-h"><h3>${ic('database')} ${esc(x.label)}</h3><span class="small muted">${esc(x.desc)}</span></div><div class="card-b">
+      <dl class="kv"><dt>การเชื่อมต่อจริง</dt><dd><span class="badge red">${ic('x', 'sm')} ${esc(x.connectedLabel)}</span></dd>
+        <dt>โหมดที่ใช้</dt><dd><select class="select" data-mode="${x.source}">${Object.keys(M().sourceModes).map(k => opt(k, M().sourceModes[k], x.mode)).join('')}</select></dd>
+        <dt>สถานะ</dt><dd>${x.available ? '<span class="badge green">' + ic('ok', 'sm') + 'ใช้งานได้</span>' : '<span class="badge red">' + ic('bad', 'sm') + 'ไม่พร้อม</span>'} <span class="small">${esc(x.message)}</span></dd>
+        <dt>จำนวนระเบียน</dt><dd>${x.records} (ในโหมดปัจจุบัน)</dd>
+        <dt>นำเข้าล่าสุด</dt><dd>${x.lastImport ? `${thaiDate(x.lastImport.at, true)} · ${esc(x.lastImport.fileName)} · ${x.lastImport.rows} แถว · ข้อมูลต้นทางวันที่ ${thaiDate(x.lastImport.sourceUpdatedAt)}` : '—'}</dd>
+        <dt>ทดสอบกรณีขัดข้อง</dt><dd><label class="check"><input type="checkbox" data-outage="${x.source}" ${x.outage ? 'checked' : ''}> จำลองว่าระบบต้นทางขัดข้อง</label></dd></dl></div></div>`).join('')}</div>
+    <div class="card"><div class="card-h"><h3>${ic('upload')} นำเข้าไฟล์ CSV</h3></div><div class="card-b">
+      <div class="inline-form">${field('แหล่งข้อมูล', `<select class="select" id="im-src">${opt('MUHR', 'MUHR (บุคคล)')}${opt('MUREX', 'MUREX (ผลงาน)')}</select>`)}${field('วันที่ข้อมูลต้นทาง', '<input class="input" type="date" id="im-date">', 'วันที่ส่งออกจากระบบต้นทาง')}
+        ${field('หมายเหตุ', '<input class="input" id="im-note">')}<button class="btn primary" id="im-file">${ic('upload')} เลือกไฟล์และตรวจทาน</button></div>
+      <div class="small muted mt-s">ขั้นที่ 1 ระบบอ่านและตรวจไฟล์ แสดงผลให้ตรวจทาน (ยังไม่บันทึก) · ขั้นที่ 2 กด "ยืนยันนำเข้า" จึงบันทึกเฉพาะแถวที่ถูกต้อง · แถวแรกต้องเป็นชื่อคอลัมน์ (UTF-8)</div>
+      <details class="faq mt"><summary>คอลัมน์ที่รับ</summary><div class="a small">${Object.keys(a.importColumns).map(k => `<b>${k}</b>: จำเป็น ${a.importColumns[k].required.join(', ')} · ไม่บังคับ ${a.importColumns[k].optional.join(', ')}`).join('<br>')}
+        <br>ค่าที่รับ: highestDegree = ${Object.keys(M().degrees).join('/')} · academicRank = ${Object.keys(M().ranks).join('/')} · employmentStatus = ${Object.keys(M().empStatus).join('/')} · type = ${Object.keys(M().workTypes).join('/')} (หรือชื่อภาษาไทยตามระบบ)</div></details>
+    </div></div>
+    ${pv ? previewCard(pv) : ''}
+    <div class="card"><div class="card-h"><h3>${ic('clock')} ประวัติการนำเข้า</h3></div><div class="card-b tight"><table class="t"><thead><tr><th>เมื่อ</th><th>แหล่ง</th><th>ไฟล์</th><th>สถานะ</th><th class="num">ถูกต้อง/ผิด</th><th>โดย</th><th></th></tr></thead><tbody>
+      ${a.batches.map(b => `<tr><td>${thaiDate(b.createdAt, true)}</td><td>${esc(b.source)}</td><td>${esc(b.fileName)}</td><td>${b.status === 'committed' ? '<span class="badge green">นำเข้าแล้ว</span>' : b.status === 'preview' ? '<span class="badge amber">รอตรวจทาน</span>' : '<span class="badge gray">ยกเลิก</span>'}</td>
+        <td class="num">${esc(b.validCount)} / ${esc(b.errorCount)}</td><td>${esc(b.createdByName)}</td><td>${b.status === 'preview' ? `<button class="btn sm" data-bview="${esc(b.id)}">ตรวจทาน</button>` : ''}</td></tr>`).join('') || '<tr><td class="muted" colspan="7">ยังไม่มี</td></tr>'}</tbody></table></div></div>
+  </div>`);
+  $$('[data-mode]').forEach(x => x.onchange = () => run(async () => { await call('saveSettings', { settings: { [x.dataset.mode + '_MODE']: x.value } }); toast('เปลี่ยนโหมดแล้ว', 'ok'); S.boot = await call('boot'); render(); }));
+  $$('[data-outage]').forEach(x => x.onchange = () => run(async () => { await call('saveSettings', { settings: { ['SIM_OUTAGE_' + x.dataset.outage]: x.checked } }); S.boot = await call('boot'); render(); }));
+  $('#im-file').onclick = () => run(async () => {
+    const f = await pickFile('.csv'); if (!f) return;
+    if (f.size > 3 * 1024 * 1024) throw new Error('ไฟล์ใหญ่เกิน 3 MB');
+    const text = await f.text();
+    S.cache.preview = await call('importPreview', { source: val('#im-src'), csv: text, fileName: f.name, sourceUpdatedAt: val('#im-date'), note: val('#im-note') });
+    render();
+  });
+  $$('[data-bview]').forEach(b => b.onclick = () => run(async () => { S.cache.preview = await call('importBatch', { batchId: b.dataset.bview }); render(); }));
+  const cm = $('#im-commit'); if (cm) cm.onclick = () => run(async () => { const r = await call('importCommit', { batchId: pv.batch.id }); S.cache.preview = null; toast('นำเข้า ' + r.written + ' แถวแล้ว', 'ok'); S.boot = await call('boot'); render(); });
+  const dc = $('#im-discard'); if (dc) dc.onclick = () => run(async () => { await call('importDiscard', { batchId: pv.batch.id }); S.cache.preview = null; render(); });
+};
+function previewCard(pv) {
+  const actLabel = { new: '<span class="badge green">เพิ่มใหม่</span>', update: '<span class="badge blue">ปรับปรุง</span>', skip: '<span class="badge red">ข้าม (ผิดพลาด)</span>' };
+  const cols = pv.rows.length ? Object.keys(pv.rows[0].data).slice(0, 6) : [];
+  return `<div class="card" style="border:2px solid var(--warning)"><div class="card-h"><h3>${ic('eye')} ตรวจทานก่อนนำเข้า: ${esc(pv.batch.fileName || pv.batch.source)}</h3></div><div class="card-b">
+    <div class="row mb"><span class="badge green">เพิ่มใหม่ ${pv.summary.new}</span><span class="badge blue">ปรับปรุง ${pv.summary.update}</span><span class="badge red">ข้าม ${pv.summary.skip}</span><span class="small muted">ทั้งหมด ${pv.summary.total} แถว</span></div>
+    ${pv.unknownColumns.length ? `<div class="banner amber mb">${ic('alert')}<div><div class="sub">คอลัมน์ที่ไม่รู้จัก (จะไม่นำเข้า): ${esc(pv.unknownColumns.join(', '))}</div></div></div>` : ''}
+    ${pv.batch.status === 'preview' ? `<div class="row mb"><button class="btn primary" id="im-commit" ${pv.summary.new + pv.summary.update ? '' : 'disabled'}>${ic('check')} ยืนยันนำเข้า ${pv.summary.new + pv.summary.update} แถว</button><button class="btn" id="im-discard">ยกเลิกชุดนี้</button></div>` : ''}
+    <div class="table-wrap"><table class="t"><thead><tr><th>แถว</th><th>ผล</th>${cols.map(c => `<th>${esc(c)}</th>`).join('')}<th>ข้อผิดพลาด</th></tr></thead><tbody>
+    ${pv.rows.map(r => `<tr><td>${r.rowNo}</td><td>${actLabel[r.action]}</td>${cols.map(c => `<td class="small">${esc(r.data[c])}</td>`).join('')}<td class="small" style="color:var(--danger)">${esc(r.errors)}</td></tr>`).join('')}</tbody></table></div>
+    ${pv.truncated ? '<div class="small muted">แสดง 300 แถวแรก</div>' : ''}</div></div>`;
+}
+
+/* ---------------- ผู้ดูแล: ผู้ใช้และสิทธิ์ ---------------- */
+PAGES.users = async () => {
+  setTitle('ผู้ใช้และสิทธิ์');
+  const a = await adminData();
+  const unitLabel = u => u.units.indexOf('*') > -1 ? 'ทุกหน่วยงาน' : u.units.map(unitName).join(', ');
+  view(`<div class="stack"><div class="row"><button class="btn primary" id="u-new">${ic('plus')} เพิ่มผู้ใช้</button><span class="small muted">ผู้ใช้เข้าระบบด้วยบัญชี Google ตามอีเมลที่ลงทะเบียน · สิทธิ์ตรวจที่เซิร์ฟเวอร์ทุกครั้ง</span></div>
+    <div class="card"><div class="card-b tight"><table class="t"><thead><tr><th>ผู้ใช้</th><th>บทบาท</th><th>ขอบเขตหน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${a.users.map(u => `<tr><td><b>${esc(u.name)}</b> ${u.isTest ? '<span class="badge amber">บัญชีทดสอบ</span>' : ''}<span class="sub">${esc(u.email)}</span></td><td>${u.roles.map(r => `<span class="badge blue">${esc(M().roles[r].label)}</span>`).join(' ')}</td>
+      <td class="small">${esc(unitLabel(u))}</td><td>${u.active ? '<span class="badge green">ใช้งาน</span>' : '<span class="badge gray">ระงับ</span>'}</td><td><button class="btn sm" data-uedit="${esc(u.id)}">แก้ไข</button></td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h3>${ic('shield')} สิทธิ์ของแต่ละบทบาท</h3></div><div class="card-b small"><dl class="def">${Object.keys(M().roles).map(r => `<dt>${esc(M().roles[r].label)}</dt><dd>${esc(M().roles[r].desc)}</dd>`).join('')}</dl>
+      <p class="muted">ผู้ยื่นเห็นเฉพาะคำขอของตน · เจ้าหน้าที่เห็นคำขอที่ยื่นแล้วในหน่วยงานที่รับผิดชอบ · ผู้พิจารณาเห็นเฉพาะคำขอที่ส่งมาให้ตน · ผู้ดูแลเห็นทั้งหมดเพื่อดูแลระบบ</p></div></div></div>`);
+  const edit = u => {
+    u = u || { roles: [], units: [], active: true };
+    modal({ title: u.id ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้', okLabel: 'บันทึก', wide: true,
+      body: `<div class="form-grid">${field('ชื่อ-นามสกุล', `<input class="input" id="u-name" value="${esc(u.name || '')}">`)}${field('อีเมล (บัญชี Google)', `<input class="input" id="u-email" value="${esc(u.email || '')}" ${u.isTest ? 'disabled' : ''}>`)}</div>
+        ${field('บทบาท', `<div class="chips">${Object.keys(M().roles).map(r => `<label class="chip-check"><input type="checkbox" data-role value="${r}" ${u.roles.indexOf(r) > -1 ? 'checked' : ''}> ${esc(M().roles[r].label)}</label>`).join('')}</div>`)}
+        ${field('หน่วยงานที่รับผิดชอบ', `<div class="chips"><label class="chip-check"><input type="checkbox" data-unit value="*" ${u.units.indexOf('*') > -1 ? 'checked' : ''}> ทุกหน่วยงาน</label>${a.units.map(x => `<label class="chip-check"><input type="checkbox" data-unit value="${esc(x.code)}" ${u.units.indexOf(x.code) > -1 ? 'checked' : ''}> ${esc(x.name)}</label>`).join('')}</div>`, 'กำหนดว่าเห็น/ทำงานกับคำขอของหน่วยงานใด')}
+        <label class="check mt-s"><input type="checkbox" id="u-active" ${u.active ? 'checked' : ''}> เปิดใช้งาน</label>`,
+      onOk: async bg => {
+        await call('saveUser', { id: u.id, isTest: u.isTest, name: val('#u-name', bg), email: val('#u-email', bg) || u.email, active: !!val('#u-active', bg),
+          roles: $$('[data-role]:checked', bg).map(x => x.value), units: $$('[data-unit]:checked', bg).map(x => x.value) });
+        toast('บันทึกแล้ว', 'ok'); render();
+      } });
+  };
+  $('#u-new').onclick = () => edit();
+  $$('[data-uedit]').forEach(b => b.onclick = () => edit(a.users.find(u => u.id === b.dataset.uedit)));
+};
+
+/* ---------------- ผู้ดูแล: ตั้งค่า ---------------- */
+PAGES.settings = async () => {
+  setTitle('ตั้งค่า');
+  const a = await adminData();
+  const s = a.settings;
+  view(`<div class="stack">
+    <div class="card"><div class="card-h"><h3>${ic('settings')} ค่าทั่วไป</h3></div><div class="card-b"><div class="form-grid">
+      ${field('ชื่อหน่วยงาน', `<input class="input" id="s-org" value="${esc(s.ORG_NAME)}">`)}
+      ${field('โหมดทดสอบ', `<label class="check"><input type="checkbox" id="s-test" ${s.TEST_MODE === 'true' ? 'checked' : ''}> เปิด (ให้เลือกใช้บัญชีทดสอบได้)</label>`, 'ต้องปิดก่อนใช้งานจริง และควรล้างข้อมูลสาธิต')}
+      ${field('ข้อมูลถือว่าเก่าเมื่อเกิน (วัน) *', `<input class="input" id="s-stale" type="number" value="${esc(s.STALE_DAYS)}">`, esc(a.toConfirm.STALE_DAYS))}
+      ${field('ขนาดไฟล์สูงสุด (MB) *', `<input class="input" id="s-max" type="number" value="${esc(s.MAX_FILE_MB)}">`, esc(a.toConfirm.MAX_FILE_MB))}
+      ${field('ชนิดไฟล์ที่รับ *', `<input class="input" id="s-ext" value="${esc(s.ALLOWED_EXT)}">`, esc(a.toConfirm.ALLOWED_EXT))}
+      ${field('การแจ้งเตือนภายนอก (อีเมล/ข้อความ)', '<input class="input" disabled value="ปิด — ยังไม่ได้ตั้งค่าช่องทาง">', 'ระบบแจ้งเตือนภายในเว็บเท่านั้น การเปิดอีเมลต้องเพิ่มสิทธิ์และกำหนดผู้รับก่อน (ดูคู่มือ)')}</div>
+      <p class="small muted">* ค่าที่ต้องยืนยันกับหน่วยงานก่อนใช้งานจริง</p><button class="btn primary" id="s-save">${ic('save')} บันทึก</button></div></div>
+    <div class="card"><div class="card-h"><h3>${ic('layers')} หน่วยงาน</h3><span class="spacer"></span><button class="btn sm" id="un-new">${ic('plus', 'sm')} เพิ่ม</button></div><div class="card-b tight"><table class="t"><tbody>
+      ${a.units.map(u => `<tr><td><b>${esc(u.code)}</b></td><td>${esc(u.name)}</td><td>${String(u.active) === 'true' ? '<span class="badge green">ใช้งาน</span>' : '<span class="badge gray">ปิด</span>'}</td><td><button class="btn sm" data-unedit="${esc(u.id)}">แก้ไข</button></td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card" style="border-color:var(--danger)"><div class="card-h"><h3>${ic('trash')} ล้างข้อมูลสาธิตก่อนใช้งานจริง</h3></div><div class="card-b">
+      <p class="small">ลบคำขอสาธิตและข้อมูลที่เกี่ยวข้อง (ผลงาน ไฟล์ ประวัติ ผลตรวจ) · บันทึกการใช้งาน (Audit) ยังเก็บไว้</p>
+      <label class="check"><input type="checkbox" id="pg-mock"> ลบข้อมูลจำลอง MUHR/MUREX</label> <label class="check"><input type="checkbox" id="pg-users"> ลบบัญชีทดสอบ</label>
+      <div class="mt-s"><button class="btn danger" id="pg-go">ล้างข้อมูลสาธิต</button></div></div></div></div>`);
+  $('#s-save').onclick = () => run(async () => {
+    await call('saveSettings', { settings: { ORG_NAME: val('#s-org'), TEST_MODE: !!val('#s-test'), STALE_DAYS: val('#s-stale'), MAX_FILE_MB: val('#s-max'), ALLOWED_EXT: val('#s-ext') } });
+    toast('บันทึกแล้ว', 'ok'); S.boot = await call('boot'); if (!S.boot.user) return renderPicker(); render();
+  });
+  const unitEdit = u => { u = u || {}; modal({ title: u.id ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงาน', okLabel: 'บันทึก',
+    body: field('รหัส', `<input class="input" id="un-code" value="${esc(u.code || '')}" ${u.id ? 'disabled' : ''}>`) + field('ชื่อหน่วยงาน', `<input class="input" id="un-name" value="${esc(u.name || '')}">`) + `<label class="check mt-s"><input type="checkbox" id="un-active" ${u.id ? (String(u.active) === 'true' ? 'checked' : '') : 'checked'}> เปิดใช้งาน</label>`,
+    onOk: async bg => { await call('saveUnit', { id: u.id, code: val('#un-code', bg) || u.code, name: val('#un-name', bg), active: !!val('#un-active', bg) }); S.boot = await call('boot'); render(); } }); };
+  $('#un-new').onclick = () => unitEdit();
+  $$('[data-unedit]').forEach(b => b.onclick = () => unitEdit(a.units.find(u => u.id === b.dataset.unedit)));
+  $('#pg-go').onclick = () => askReason('ยืนยันล้างข้อมูลสาธิต', 'พิมพ์ "ล้างข้อมูลสาธิต" เพื่อยืนยัน', 'ล้างข้อมูล', async r => {
+    const n = await call('purgeDemo', { confirm: r, mockSources: !!val('#pg-mock'), testUsers: !!val('#pg-users') });
+    toast('ลบคำขอสาธิต ' + n.requests + ' รายการแล้ว', 'ok'); S.boot = await call('boot'); if (!S.boot.user) return renderPicker(); render();
+  });
+};
+
+/* ---------------- ผู้ดูแล: บันทึกการใช้งาน ---------------- */
+PAGES.audit = async () => {
+  setTitle('บันทึกการใช้งาน');
+  const f = S.cache.audit = S.cache.audit || { action: '' };
+  const list = await call('listAudit', f);
+  view(`<div class="card"><div class="toolbar">${field('กรองตามการกระทำ', `<input class="input" id="a-act" value="${esc(f.action)}" placeholder="เช่น status, file, criteria">`)}<button class="btn" id="a-go">${ic('search')} กรอง</button>
+    <span class="small muted">บันทึกเฉพาะผู้ทำ การกระทำ เวลา รายการ ฟิลด์ที่เปลี่ยน และเหตุผล — ไม่บันทึกค่าข้อมูลส่วนบุคคล</span></div>
+    <div class="card-b tight"><div class="table-wrap"><table class="t"><thead><tr><th>เวลา</th><th>ผู้ทำ</th><th>การกระทำ</th><th>รายการ</th><th>ฟิลด์</th><th>เหตุผล</th></tr></thead><tbody>
+    ${list.map(r => `<tr><td class="small">${thaiDate(r.at, true)}</td><td>${esc(r.userName)}<span class="sub">${esc((M().roles[r.role] || {}).label || r.role)}</span></td><td><code>${esc(r.action)}</code></td><td class="small">${esc(r.entity)} ${esc(r.entityId)}</td><td class="small">${esc(r.fields)}</td><td class="small">${esc(r.reason)}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card-b small muted">แสดงล่าสุด 300 รายการ · ข้อมูลเต็มอยู่ในชีต Audit</div></div>`);
+  $('#a-go').onclick = () => { f.action = val('#a-act'); render(); };
+};
+
+/* ---------------- คู่มือ ---------------- */
+PAGES.help = async () => {
+  setTitle('คู่มือการใช้งาน');
+  const st = M().statuses;
+  const step = (n, t, d) => `<div class="step"><span class="n">${n}</span><div><b>${t}</b><div class="small">${d}</div></div></div>`;
+  view(`<div class="grid g2 manual">
+    <div class="card"><div class="card-h"><h3>${ic('file')} ขั้นตอนของคำขอ</h3></div><div class="card-b">
+      ${step(1, 'สร้างคำขอและเลือกประเภท', 'ผู้ยื่นเลือกประเภทคำขอ ระบบแสดงเกณฑ์และเอกสารที่ต้องใช้ บันทึกเป็นร่างได้')}
+      ${step(2, 'ค้นหาและยืนยันบุคคล', 'ค้นด้วยรหัสบุคลากร (ยืนยันได้ทันที) หรือชื่อไทย/อังกฤษ/ชื่อเดิม (เจ้าหน้าที่ต้องยืนยัน) ถ้าไม่อยู่ในระบบกรอกเองได้')}
+      ${step(3, 'รวบรวมผลงานและหลักฐาน', 'เลือกผลงานจาก MUREX ที่ระบบดึงมาให้ หรือเพิ่มเอง ระบบตรวจรายการซ้ำแต่ไม่รวมให้เอง')}
+      ${step(4, 'ตรวจความครบถ้วนและยื่น', 'ระบบบอกสิ่งที่ยังขาดก่อนยื่น เมื่อยื่นแล้วระบบตรวจตามเกณฑ์ทันที')}
+      ${step(5, 'เจ้าหน้าที่ตรวจยืนยัน', 'ยืนยันตัวบุคคลและผลงาน ตัดสินรายการซ้ำ ส่งกลับแก้ไขเป็นรายการ หรือส่งต่อผู้พิจารณา')}
+      ${step(6, 'ผู้มีอำนาจพิจารณา', 'ดูผลตรวจรายเกณฑ์และหลักฐาน บันทึกผลพร้อมเหตุผล (แยกจากผลของระบบ)')}
+      ${step(7, 'แจ้งผลและปิดงาน', 'เจ้าหน้าที่แจ้งผลผู้ยื่นในระบบและปิดงาน ประวัติทั้งหมดยังเก็บไว้')}</div></div>
+    <div class="stack">
+      <div class="card"><div class="card-h"><h3>${ic('q')} ผลตรวจ 3 แบบ</h3></div><div class="card-b small">
+        <p>${resultBadge('pass')} ข้อมูลที่ยืนยันแล้วตรงตามเกณฑ์</p>
+        <p>${resultBadge('fail')} ข้อมูลที่ยืนยันแล้วและครบถ้วน ไม่ตรงตามเกณฑ์</p>
+        <p>${resultBadge('inconclusive')} ยังสรุปไม่ได้ — เช่น ค้นไม่พบ ข้อมูลไม่ครบ ข้อมูลเก่า ระบบต้นทางขัดข้อง ยังไม่ยืนยันตัวบุคคล ผลงานรอตรวจ หรือมีรายการสงสัยว่าซ้ำ <b>กรณีเหล่านี้ระบบจะไม่สรุปว่า "ไม่ผ่าน"</b></p>
+        <p>ผลของระบบเป็นข้อมูลประกอบเท่านั้น ผลพิจารณาเป็นของผู้มีอำนาจ</p></div></div>
+      <div class="card"><div class="card-h"><h3>${ic('list')} ความหมายของสถานะ</h3></div><div class="card-b tight"><table class="t"><tbody>${Object.keys(st).map(k => `<tr><td>${statusBadge(k)}</td><td class="small">${esc(st[k].next)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="card"><div class="card-h"><h3>${ic('database')} แหล่งข้อมูล</h3></div><div class="card-b small">MUHR (ข้อมูลบุคคล) และ MUREX (ผลงาน) <b>ยังไม่ได้เชื่อมต่อจริง</b> ระบบใช้ข้อมูลจำลองหรือไฟล์ที่ผู้ดูแลนำเข้า ทุกรายการแสดงป้ายที่มาของข้อมูล และวันที่ดึงข้อมูล</div></div>
+    </div></div>`);
+};
+
+/* ---------------- เริ่มต้น ---------------- */
+function initChrome() {
+  const dark = () => document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  const setIcon = () => { $('#theme-btn').innerHTML = ic(dark() ? 'sun' : 'moon'); };
+  $('#theme-btn').onclick = () => { const t = dark() ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('rv-theme', t); } catch (e) { /* ignore */ } setIcon(); };
+  setIcon();
+  $('#menu-btn').innerHTML = ic('menu');
+  $('#menu-btn').onclick = () => { $('#sidebar').classList.add('open'); $('#backdrop').classList.add('open'); };
+  $('#backdrop').onclick = closeSide;
+  $('#bell-btn').onclick = () => S.boot && S.boot.user && go('notifications');
+  $('#user-chip').onclick = e => { e.stopPropagation(); $('#user-menu').classList.toggle('open'); };
+  document.addEventListener('click', () => $('#user-menu').classList.remove('open'));
+}
+
+window.__rvBooted = true;
+initChrome();
+const h = (location.hash || '').replace('#', '').split('/');
+if (h[0] && PAGES[h[0]]) { S.page = h[0]; if (h[1]) S.params = { id: h[1] }; }
+run(() => reboot());
+})();
+</script>

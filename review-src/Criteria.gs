@@ -285,9 +285,12 @@ function evaluate_(req, trigger, reason) {
   return evaluationView_(ev);
 }
 
+const TRIGGER_LABEL_ = { submit: 'ระบบตรวจอัตโนมัติเมื่อยื่นคำขอ', resubmit: 'ระบบตรวจอัตโนมัติเมื่อยื่นใหม่', forward: 'ระบบตรวจอัตโนมัติก่อนส่งผู้พิจารณา', rerun: 'ประเมินซ้ำ', staff_check: 'ประเมินหลังเจ้าหน้าที่บันทึกผลตรวจ' };
+const AUTO_TRIGGERS_ = ['submit', 'resubmit', 'forward'];
+
 function evaluationView_(e) {
   return Object.assign({}, e, {
     items: parseJson_(e.items, []), snapshot: parseJson_(e.snapshot, {}), sourceStatus: parseJson_(e.sourceStatus, {}),
-    isDemo: toBool_(e.isDemo), byName: e.by ? userName_(e.by) : 'ระบบ'
+    isDemo: toBool_(e.isDemo), byName: e.by ? userName_(e.by) : 'ระบบ', triggerLabel: (TRIGGER_LABEL_[e.trigger] || e.trigger) + (AUTO_TRIGGERS_.indexOf(e.trigger) > -1 ? '' : ' โดย ' + (e.by ? userName_(e.by) : '-'))
   });
 }
