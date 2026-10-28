@@ -22,6 +22,16 @@
  * ห้ามใส่รหัสผ่าน/กุญแจเชื่อมต่อในไฟล์นี้ — ใช้ Script Properties เท่านั้น
  */
 
+/**
+ * ผู้ดูแลระบบคนแรก — ใส่อีเมล @mahidol.ac.th ของผู้ดูแลก่อนรัน setup (คั่นหลายคนด้วย ,)
+ * ถ้าเว้นว่าง และผู้รัน setup ใช้บัญชี @mahidol.ac.th ระบบจะตั้งผู้รันเป็นผู้ดูแล
+ * (ตั้งค่าแทนได้ใน การตั้งค่าโปรเจ็กต์ → พร็อพเพอร์ตี้ของสคริปต์ ชื่อ FIRST_ADMIN_EMAIL)
+ */
+const FIRST_ADMIN_EMAIL = '';
+
+/** โดเมนอีเมลที่อนุญาตให้เข้าสู่ระบบ (แก้ได้ในหน้า ตั้งค่า) */
+const DEFAULT_ALLOWED_DOMAIN = 'mahidol.ac.th';
+
 const APP = {
   name: 'ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ',
   short: 'ตรวจสอบผลงานและคุณสมบัติ',
@@ -84,6 +94,8 @@ const ID_PREFIX = {
 /** ค่าตั้งต้น — ทุกค่าแก้ได้ในหน้า "ตั้งค่า" (ค่าที่มี * ต้องยืนยันกับหน่วยงานก่อนใช้จริง) */
 const DEFAULT_SETTINGS = {
   ORG_NAME: 'หน่วยงาน (ยังไม่ได้ตั้งค่า)',
+  ALLOWED_DOMAIN: DEFAULT_ALLOWED_DOMAIN,
+  AUTO_REGISTER: 'true',
   TEST_MODE: 'true',
   MUHR_MODE: 'mock',
   MUREX_MODE: 'mock',
@@ -428,8 +440,17 @@ function clean_(v, max) { return String(v === undefined || v === null ? '' : v).
  * Auth.gs — ผู้ใช้ บทบาท ขอบเขตงาน และการตรวจสิทธิ์ (ทำที่ฝั่งเซิร์ฟเวอร์ทุกครั้ง)
  *
  * การเข้าสู่ระบบ: ใช้บัญชี Google ของผู้ใช้ (Session.getActiveUser) จับคู่กับชีต Users
+ * เข้าได้เฉพาะบัญชีในโดเมนที่อนุญาต (ค่าเริ่มต้น @mahidol.ac.th) — รวมถึงตอนใช้บัญชีทดสอบ
  * โหมดทดสอบ (TEST_MODE=true): เลือกเข้าใช้เป็น "บัญชีทดสอบ" ได้ เพื่อทดลองทุกบทบาท — ต้องปิดก่อนใช้งานจริง
  */
+
+function allowedDomain_() { return String(setting_('ALLOWED_DOMAIN') || '').trim().toLowerCase().replace(/^@/, ''); }
+
+function emailInDomain_(email) {
+  const d = allowedDomain_();
+  const e = String(email || '').toLowerCase();
+  return !!e && (!d || e.slice(-(d.length + 1)) === '@' + d);
+}
 
 let CURRENT_USER_ = null;
 
@@ -443,6 +464,7 @@ function resolveUser_(p) {
   CURRENT_USER_ = null;
   const email = activeEmail_();
   const testMode = toBool_(setting_('TEST_MODE'));
+  if (!emailInDomain_(email)) return { email: email, user: null, testMode: testMode, domainBlocked: true, domain: allowedDomain_() };
   let rec = null;
   if (p._as) {
     if (!testMode) throw new Error('ปิดโหมดทดสอบแล้ว กรุณาเข้าใช้ด้วยบัญชีจริง (โหลดหน้าใหม่)');
@@ -450,6 +472,7 @@ function resolveUser_(p) {
     if (!rec || !toBool_(rec.isTest)) throw new Error('ไม่พบบัญชีทดสอบนี้');
   } else if (email) {
     rec = DB.all('Users').filter(function (u) { return String(u.email).toLowerCase() === email && !toBool_(u.isTest); })[0] || null;
+    if (!rec && toBool_(setting_('AUTO_REGISTER'))) rec = autoRegister_(email);
   }
   if (!rec) return { email: email, user: null, testMode: testMode };
   if (!toBool_(rec.active)) throw new Error('บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
@@ -462,6 +485,22 @@ function resolveUser_(p) {
     allUnits: units.indexOf('*') > -1, isTest: toBool_(rec.isTest), signedInAs: email
   };
   return { email: email, user: CURRENT_USER_, testMode: testMode };
+}
+
+/** ทุกคนในโดเมนที่อนุญาตเข้าใช้ได้ทันทีในบทบาท "ผู้ยื่นเรื่อง" — บทบาทอื่นผู้ดูแลเป็นผู้กำหนด */
+function autoRegister_(email) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    DB.invalidate_('Users');
+    const again = DB.all('Users').filter(function (u) { return String(u.email).toLowerCase() === email && !toBool_(u.isTest); })[0];
+    if (again) return again;
+    const rec = DB.insert('Users', { email: email, name: email.split('@')[0], roles: 'requester', units: '*', active: true, isTest: false });
+    CURRENT_USER_ = { id: rec.id, role: 'requester' };
+    audit_('user.autoRegister', 'Users', rec.id, { roles: 'requester' }, 'เข้าใช้ครั้งแรก');
+    CURRENT_USER_ = null;
+    return rec;
+  } finally { lock.releaseLock(); }
 }
 
 function me_() {
@@ -2053,6 +2092,7 @@ function saveUser_(p) {
   const units = [].concat(p.units || []).map(function (x) { return clean_(x, 40); }).filter(String);
   if (!name) throw new Error('กรอกชื่อผู้ใช้');
   if (!p.isTest && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง');
+  if (!p.isTest && !emailInDomain_(email)) throw new Error('ต้องเป็นอีเมล @' + allowedDomain_() + ' เท่านั้น');
   if (!roles.length) throw new Error('เลือกบทบาทอย่างน้อย 1 บทบาท');
   if (!units.length) throw new Error('เลือกหน่วยงานที่รับผิดชอบ (หรือ * = ทุกหน่วยงาน)');
   const fields = { email: email, name: name, roles: roles.join(','), units: units.join(','), active: p.active !== false };
@@ -2108,7 +2148,15 @@ function saveType_(p) {
 
 const SETTING_RULES_ = {
   ORG_NAME: function (v) { return clean_(v, 200); },
+  ALLOWED_DOMAIN: function (v) {
+    const d = String(v || '').trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) throw new Error('โดเมนไม่ถูกต้อง (เช่น mahidol.ac.th)');
+    const me = activeEmail_();
+    if (me && me.slice(-(d.length + 1)) !== '@' + d) throw new Error('บัญชีที่คุณใช้อยู่ (' + me + ') ไม่อยู่ในโดเมนนี้ — จะทำให้คุณเข้าระบบไม่ได้');
+    return d;
+  },
   TEST_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
+  AUTO_REGISTER: function (v) { return toBool_(v) ? 'true' : 'false'; },
   MUHR_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUHR ไม่ถูกต้อง'); return v; },
   MUREX_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUREX ไม่ถูกต้อง'); return v; },
   SIM_OUTAGE_MUHR: function (v) { return toBool_(v) ? 'true' : 'false'; },
@@ -2259,7 +2307,7 @@ function api(action, payload) {
     delete p._as; delete p._role;
     const fn = ACTIONS_[action];
     if (!fn) throw new Error('ไม่รู้จักคำสั่ง: ' + action);
-    if (!who.user && action !== 'boot') throw new Error('ไม่มีสิทธิ์ใช้งาน — บัญชีนี้ยังไม่ได้ลงทะเบียนในระบบ');
+    if (!who.user && action !== 'boot') throw new Error(who.domainBlocked ? 'ไม่มีสิทธิ์ใช้งาน — ต้องเข้าสู่ระบบด้วยบัญชี @' + who.domain : 'ไม่มีสิทธิ์ใช้งาน — บัญชีนี้ยังไม่ได้ลงทะเบียนในระบบ');
     if (READ_ONLY_.indexOf(action) === -1) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
     const data = fn(p, who);
     return JSON.parse(JSON.stringify({ ok: true, data: data }));
@@ -2276,8 +2324,8 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email,
-    testAccounts: who.testMode ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
+    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });
   return Object.assign(base, {
@@ -2360,12 +2408,22 @@ function include(name) { return HtmlService.createHtmlOutputFromFile(name).getCo
 function setup() {
   ensureSchema_(true);
   const email = activeEmail_();
-  const users = DB.all('Users');
-  let msg = 'ฐานข้อมูล: ' + getDb_().getUrl();
-  if (email && !users.some(function (u) { return u.email.toLowerCase() === email && !toBool_(u.isTest); })) {
-    CURRENT_USER_ = { id: 'setup', role: 'admin' };
-    DB.insert('Users', { email: email, name: 'ผู้ดูแลระบบ (' + email + ')', roles: 'admin,staff,reviewer,requester', units: '*', active: true, isTest: false });
-    msg += '\nตั้ง ' + email + ' เป็นผู้ดูแลระบบแล้ว';
+  const domain = allowedDomain_();
+  let msg = 'ฐานข้อมูล: ' + getDb_().getUrl() + '\nเข้าสู่ระบบได้เฉพาะบัญชี @' + domain;
+  // ผู้ดูแลคนแรก: จาก FIRST_ADMIN_EMAIL (หรือ Script Property) ถ้าไม่ระบุ ใช้ผู้รัน setup เฉพาะเมื่ออยู่ในโดเมนที่อนุญาต
+  const configured = PropertiesService.getScriptProperties().getProperty('FIRST_ADMIN_EMAIL') || FIRST_ADMIN_EMAIL;
+  const wanted = splitList_(String(configured || '').toLowerCase());
+  if (!wanted.length && emailInDomain_(email)) wanted.push(email);
+  CURRENT_USER_ = { id: 'setup', role: 'admin' };
+  wanted.forEach(function (e) {
+    if (!emailInDomain_(e)) { msg += '\nข้าม ' + e + ' — ไม่ใช่อีเมล @' + domain; return; }
+    if (DB.all('Users').some(function (u) { return u.email.toLowerCase() === e && !toBool_(u.isTest); })) { msg += '\n' + e + ' มีในระบบแล้ว'; return; }
+    DB.insert('Users', { email: e, name: 'ผู้ดูแลระบบ (' + e + ')', roles: 'admin,staff,reviewer,requester', units: '*', active: true, isTest: false });
+    msg += '\nตั้ง ' + e + ' เป็นผู้ดูแลระบบแล้ว';
+  });
+  if (!DB.all('Users').some(function (u) { return !toBool_(u.isTest) && userHasRole_(u, 'admin'); })) {
+    msg += '\n*** ยังไม่มีผู้ดูแลระบบ: ใส่อีเมล @' + domain + ' ใน FIRST_ADMIN_EMAIL (บรรทัดต้นไฟล์) แล้วรัน setup อีกครั้ง' +
+      (email ? ' (บัญชีที่รัน setup คือ ' + email + ' ซึ่งไม่อยู่ในโดเมนนี้)' : '');
   }
   if (!DB.all('RequestTypes').length) { seedDemo_(); msg += '\nสร้างข้อมูลสาธิตและบัญชีทดสอบแล้ว (โหมดทดสอบเปิดอยู่ — ปิดได้ในหน้า ตั้งค่า)'; }
   CURRENT_USER_ = null;
@@ -2379,7 +2437,11 @@ const DEMO_PDF_ = '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj
 
 function demoPdfB64_() { return Utilities.base64Encode(Utilities.newBlob(DEMO_PDF_).getBytes()); }
 
-function asUser_(id, role) { resolveUser_({ _as: id, _role: role }); }
+/** ใช้ตอนสร้างข้อมูลสาธิตเท่านั้น: ทำงานในนามบัญชีทดสอบโดยไม่ผ่านการตรวจโดเมนของผู้รัน setup */
+function asUser_(id, role) {
+  const u = DB.get('Users', id);
+  CURRENT_USER_ = { id: u.id, email: u.email, name: u.name, roles: splitList_(u.roles), role: role, units: splitList_(u.units), allUnits: splitList_(u.units).indexOf('*') > -1, isTest: true, signedInEmail: '' };
+}
 
 function seedDemo_() {
   CURRENT_USER_ = { id: 'seed', role: 'admin' };

@@ -16,6 +16,7 @@ function saveUser_(p) {
   const units = [].concat(p.units || []).map(function (x) { return clean_(x, 40); }).filter(String);
   if (!name) throw new Error('กรอกชื่อผู้ใช้');
   if (!p.isTest && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง');
+  if (!p.isTest && !emailInDomain_(email)) throw new Error('ต้องเป็นอีเมล @' + allowedDomain_() + ' เท่านั้น');
   if (!roles.length) throw new Error('เลือกบทบาทอย่างน้อย 1 บทบาท');
   if (!units.length) throw new Error('เลือกหน่วยงานที่รับผิดชอบ (หรือ * = ทุกหน่วยงาน)');
   const fields = { email: email, name: name, roles: roles.join(','), units: units.join(','), active: p.active !== false };
@@ -71,7 +72,15 @@ function saveType_(p) {
 
 const SETTING_RULES_ = {
   ORG_NAME: function (v) { return clean_(v, 200); },
+  ALLOWED_DOMAIN: function (v) {
+    const d = String(v || '').trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) throw new Error('โดเมนไม่ถูกต้อง (เช่น mahidol.ac.th)');
+    const me = activeEmail_();
+    if (me && me.slice(-(d.length + 1)) !== '@' + d) throw new Error('บัญชีที่คุณใช้อยู่ (' + me + ') ไม่อยู่ในโดเมนนี้ — จะทำให้คุณเข้าระบบไม่ได้');
+    return d;
+  },
   TEST_MODE: function (v) { return toBool_(v) ? 'true' : 'false'; },
+  AUTO_REGISTER: function (v) { return toBool_(v) ? 'true' : 'false'; },
   MUHR_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUHR ไม่ถูกต้อง'); return v; },
   MUREX_MODE: function (v) { if (!SOURCE_MODES[v]) throw new Error('โหมด MUREX ไม่ถูกต้อง'); return v; },
   SIM_OUTAGE_MUHR: function (v) { return toBool_(v) ? 'true' : 'false'; },

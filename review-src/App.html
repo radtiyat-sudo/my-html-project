@@ -267,6 +267,13 @@ function renderPicker() {
   $('#nav').innerHTML = ''; $('#user-chip').innerHTML = ''; $('#bell-btn').style.display = 'none'; $('#mode-banner').innerHTML = '';
   setTitle('เข้าสู่ระบบ');
   const b = B();
+  if (b.domainBlocked) {
+    view(`<div class="card" style="max-width:660px;margin:40px auto"><div class="card-b"><div class="banner red">${ic('lock')}<div><b>ต้องเข้าสู่ระบบด้วยบัญชี @${esc(b.allowedDomain)}</b>
+      <div class="sub">${b.signedInEmail ? 'ขณะนี้เข้าสู่ระบบด้วย: ' + esc(b.signedInEmail) : 'ระบบไม่ทราบอีเมลของคุณ (ยังไม่ได้เข้าสู่ระบบ Google หรือใช้บัญชีนอกโดเมน)'}<br>
+      ออกจากระบบ Google แล้วเข้าใหม่ด้วยบัญชี @${esc(b.allowedDomain)} หรือเปิดลิงก์ในหน้าต่างที่ใช้บัญชีมหาวิทยาลัย</div>
+      <a class="btn sm mt-s" href="https://accounts.google.com/Logout" target="_top">${ic('logout', 'sm')} ออกจากระบบ Google</a></div></div></div></div>`);
+    return;
+  }
   if (!b.testMode) {
     view(`<div class="card" style="max-width:640px;margin:40px auto"><div class="card-b"><div class="banner amber">${ic('lock')}<div><b>บัญชีนี้ยังไม่มีสิทธิ์ใช้งาน</b>
       <div class="sub">เข้าระบบในชื่อ: ${esc(b.signedInEmail || '(ไม่ทราบอีเมล — ต้อง Deploy แบบให้ผู้ใช้อยู่ในโดเมนเดียวกัน)')}<br>กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มบัญชีและกำหนดบทบาท</div></div></div></div></div>`);
@@ -1042,7 +1049,7 @@ PAGES.users = async () => {
   setTitle('ผู้ใช้และสิทธิ์');
   const a = await adminData();
   const unitLabel = u => u.units.indexOf('*') > -1 ? 'ทุกหน่วยงาน' : u.units.map(unitName).join(', ');
-  view(`<div class="stack"><div class="row"><button class="btn primary" id="u-new">${ic('plus')} เพิ่มผู้ใช้</button><span class="small muted">ผู้ใช้เข้าระบบด้วยบัญชี Google ตามอีเมลที่ลงทะเบียน · สิทธิ์ตรวจที่เซิร์ฟเวอร์ทุกครั้ง</span></div>
+  view(`<div class="stack"><div class="row"><button class="btn primary" id="u-new">${ic('plus')} เพิ่มผู้ใช้</button><span class="small muted">ผู้ใช้เข้าระบบด้วยบัญชี Google @${esc(a.settings.ALLOWED_DOMAIN)} ตามอีเมลที่ลงทะเบียน · สิทธิ์ตรวจที่เซิร์ฟเวอร์ทุกครั้ง</span></div>
     <div class="card"><div class="card-b tight"><table class="t"><thead><tr><th>ผู้ใช้</th><th>บทบาท</th><th>ขอบเขตหน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>
     ${a.users.map(u => `<tr><td><b>${esc(u.name)}</b> ${u.isTest ? '<span class="badge amber">บัญชีทดสอบ</span>' : ''}<span class="sub">${esc(u.email)}</span></td><td>${u.roles.map(r => `<span class="badge blue">${esc(M().roles[r].label)}</span>`).join(' ')}</td>
       <td class="small">${esc(unitLabel(u))}</td><td>${u.active ? '<span class="badge green">ใช้งาน</span>' : '<span class="badge gray">ระงับ</span>'}</td><td><button class="btn sm" data-uedit="${esc(u.id)}">แก้ไข</button></td></tr>`).join('')}</tbody></table></div></div>
@@ -1073,6 +1080,8 @@ PAGES.settings = async () => {
   view(`<div class="stack">
     <div class="card"><div class="card-h"><h3>${ic('settings')} ค่าทั่วไป</h3></div><div class="card-b"><div class="form-grid">
       ${field('ชื่อหน่วยงาน', `<input class="input" id="s-org" value="${esc(s.ORG_NAME)}">`)}
+      ${field('โดเมนอีเมลที่เข้าสู่ระบบได้', `<div class="row" style="flex-wrap:nowrap"><span>@</span><input class="input" id="s-domain" value="${esc(s.ALLOWED_DOMAIN)}"></div>`, 'ผู้ใช้ต้องเข้าด้วยบัญชี Google ของโดเมนนี้ (รวมตอนใช้บัญชีทดสอบ)')}
+      ${field('ให้ทุกคนในโดเมนเข้าใช้ได้ทันที', `<label class="check"><input type="checkbox" id="s-auto" ${s.AUTO_REGISTER === 'true' ? 'checked' : ''}> เปิด (ลงทะเบียนอัตโนมัติเป็น "ผู้ยื่นเรื่อง")</label>`, 'ปิด = ผู้ดูแลต้องเพิ่มผู้ใช้ก่อนจึงจะเข้าได้ · บทบาทเจ้าหน้าที่/ผู้พิจารณา/ผู้ดูแล กำหนดในหน้า ผู้ใช้และสิทธิ์')}
       ${field('โหมดทดสอบ', `<label class="check"><input type="checkbox" id="s-test" ${s.TEST_MODE === 'true' ? 'checked' : ''}> เปิด (ให้เลือกใช้บัญชีทดสอบได้)</label>`, 'ต้องปิดก่อนใช้งานจริง และควรล้างข้อมูลสาธิต')}
       ${field('ข้อมูลถือว่าเก่าเมื่อเกิน (วัน) *', `<input class="input" id="s-stale" type="number" value="${esc(s.STALE_DAYS)}">`, esc(a.toConfirm.STALE_DAYS))}
       ${field('ขนาดไฟล์สูงสุด (MB) *', `<input class="input" id="s-max" type="number" value="${esc(s.MAX_FILE_MB)}">`, esc(a.toConfirm.MAX_FILE_MB))}
@@ -1086,7 +1095,7 @@ PAGES.settings = async () => {
       <label class="check"><input type="checkbox" id="pg-mock"> ลบข้อมูลจำลอง MUHR/MUREX</label> <label class="check"><input type="checkbox" id="pg-users"> ลบบัญชีทดสอบ</label>
       <div class="mt-s"><button class="btn danger" id="pg-go">ล้างข้อมูลสาธิต</button></div></div></div></div>`);
   $('#s-save').onclick = () => run(async () => {
-    await call('saveSettings', { settings: { ORG_NAME: val('#s-org'), TEST_MODE: !!val('#s-test'), STALE_DAYS: val('#s-stale'), MAX_FILE_MB: val('#s-max'), ALLOWED_EXT: val('#s-ext') } });
+    await call('saveSettings', { settings: { ORG_NAME: val('#s-org'), ALLOWED_DOMAIN: val('#s-domain'), AUTO_REGISTER: !!val('#s-auto'), TEST_MODE: !!val('#s-test'), STALE_DAYS: val('#s-stale'), MAX_FILE_MB: val('#s-max'), ALLOWED_EXT: val('#s-ext') } });
     toast('บันทึกแล้ว', 'ok'); S.boot = await call('boot'); if (!S.boot.user) return renderPicker(); render();
   });
   const unitEdit = u => { u = u || {}; modal({ title: u.id ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงาน', okLabel: 'บันทึก',

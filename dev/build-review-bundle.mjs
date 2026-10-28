@@ -68,7 +68,7 @@ writeFileSync(join(root, 'review', 'appsscript.json'), JSON.stringify(manifest, 
 const services = ['SpreadsheetApp', 'PropertiesService', 'Session', 'LockService', 'Utilities', 'DriveApp', 'Logger', 'HtmlService', 'ScriptApp', 'CacheService', 'UrlFetchApp'];
 const harness = `<script>${rd('dev', 'gas-mock.js')}</script><script>
 const __q = new URLSearchParams(location.search);
-const __opts = { email: 'owner@example.test', reset: true };
+const __opts = { email: 'owner@mahidol.ac.th', reset: true };
 const __gas = createGasMock(__opts);
 __gas.Logger = { log: function () {} };
 const __server = (function (${services.join(', ')}) {

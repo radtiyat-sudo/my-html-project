@@ -14,15 +14,18 @@ async function open(name, as, role, hash, opts) {
   page.on('pageerror', e => errors.push(name + ': ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_|Failed to load/.test(m.text())) errors.push(name + ' console: ' + m.text()); });
   await page.goto(URL0 + (hash && hash[0] === '?' ? hash : '' + (hash || '')));
-  await page.waitForSelector(as ? '#nav a' : '.acc-card', { timeout: 15000 });
+  await page.waitForSelector(as ? '#nav a' : (opts && opts.wait) || '.acc-card', { timeout: 15000 });
   await page.waitForTimeout(400);
   return { page, ctx };
 }
 const shot = async (page, name, full) => { await page.waitForTimeout(350); await page.screenshot({ path: `${out}/${name}.png`, fullPage: full !== false }); };
 const openReq = async (page, text) => { await page.click(`tr[data-open]:has-text("${text}")`); await page.waitForSelector('.req-head'); await page.waitForTimeout(300); };
 
-let s = await open('picker', null, null, '?email=visitor@example.test');
+let s = await open('picker', null, null, '?email=visitor@mahidol.ac.th', { wait: '#nav a' });
+await s.page.click('#user-chip'); await s.page.click('[data-switch]'); await s.page.waitForSelector('.acc-card');
 await shot(s.page, '01-test-accounts'); await s.ctx.close();
+s = await open('outside-domain', null, null, '?email=someone@gmail.com', { wait: '.banner.red' });
+await shot(s.page, '00-outside-domain-blocked', false); await s.ctx.close();
 
 s = await open('req-dash', 'UT-REQ1', 'requester');
 await shot(s.page, '02-requester-dashboard');

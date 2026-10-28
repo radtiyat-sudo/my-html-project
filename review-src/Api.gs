@@ -81,7 +81,7 @@ function api(action, payload) {
     delete p._as; delete p._role;
     const fn = ACTIONS_[action];
     if (!fn) throw new Error('ไม่รู้จักคำสั่ง: ' + action);
-    if (!who.user && action !== 'boot') throw new Error('ไม่มีสิทธิ์ใช้งาน — บัญชีนี้ยังไม่ได้ลงทะเบียนในระบบ');
+    if (!who.user && action !== 'boot') throw new Error(who.domainBlocked ? 'ไม่มีสิทธิ์ใช้งาน — ต้องเข้าสู่ระบบด้วยบัญชี @' + who.domain : 'ไม่มีสิทธิ์ใช้งาน — บัญชีนี้ยังไม่ได้ลงทะเบียนในระบบ');
     if (READ_ONLY_.indexOf(action) === -1) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
     const data = fn(p, who);
     return JSON.parse(JSON.stringify({ ok: true, data: data }));
@@ -98,8 +98,8 @@ function api(action, payload) {
 function boot_(p, who) {
   const s = getSettings_();
   const base = {
-    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email,
-    testAccounts: who.testMode ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
+    app: APP, org: s.ORG_NAME, testMode: who.testMode, signedInEmail: who.email, domainBlocked: !!who.domainBlocked, allowedDomain: allowedDomain_(),
+    testAccounts: who.testMode && !who.domainBlocked ? DB.all('Users').filter(function (u) { return toBool_(u.isTest) && toBool_(u.active); }).map(function (u) { return { id: u.id, name: u.name, roles: splitList_(u.roles), units: splitList_(u.units) }; }) : []
   };
   if (!who.user) return Object.assign(base, { user: null });
   return Object.assign(base, {

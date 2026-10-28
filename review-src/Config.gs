@@ -5,6 +5,16 @@
  * ห้ามใส่รหัสผ่าน/กุญแจเชื่อมต่อในไฟล์นี้ — ใช้ Script Properties เท่านั้น
  */
 
+/**
+ * ผู้ดูแลระบบคนแรก — ใส่อีเมล @mahidol.ac.th ของผู้ดูแลก่อนรัน setup (คั่นหลายคนด้วย ,)
+ * ถ้าเว้นว่าง และผู้รัน setup ใช้บัญชี @mahidol.ac.th ระบบจะตั้งผู้รันเป็นผู้ดูแล
+ * (ตั้งค่าแทนได้ใน การตั้งค่าโปรเจ็กต์ → พร็อพเพอร์ตี้ของสคริปต์ ชื่อ FIRST_ADMIN_EMAIL)
+ */
+const FIRST_ADMIN_EMAIL = '';
+
+/** โดเมนอีเมลที่อนุญาตให้เข้าสู่ระบบ (แก้ได้ในหน้า ตั้งค่า) */
+const DEFAULT_ALLOWED_DOMAIN = 'mahidol.ac.th';
+
 const APP = {
   name: 'ระบบตรวจสอบผลงานทางวิชาการและคุณสมบัติอาจารย์/กรรมการ',
   short: 'ตรวจสอบผลงานและคุณสมบัติ',
@@ -67,6 +77,8 @@ const ID_PREFIX = {
 /** ค่าตั้งต้น — ทุกค่าแก้ได้ในหน้า "ตั้งค่า" (ค่าที่มี * ต้องยืนยันกับหน่วยงานก่อนใช้จริง) */
 const DEFAULT_SETTINGS = {
   ORG_NAME: 'หน่วยงาน (ยังไม่ได้ตั้งค่า)',
+  ALLOWED_DOMAIN: DEFAULT_ALLOWED_DOMAIN,
+  AUTO_REGISTER: 'true',
   TEST_MODE: 'true',
   MUHR_MODE: 'mock',
   MUREX_MODE: 'mock',

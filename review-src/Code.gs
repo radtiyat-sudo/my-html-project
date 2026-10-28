@@ -22,12 +22,22 @@ function include(name) { return HtmlService.createHtmlOutputFromFile(name).getCo
 function setup() {
   ensureSchema_(true);
   const email = activeEmail_();
-  const users = DB.all('Users');
-  let msg = 'ฐานข้อมูล: ' + getDb_().getUrl();
-  if (email && !users.some(function (u) { return u.email.toLowerCase() === email && !toBool_(u.isTest); })) {
-    CURRENT_USER_ = { id: 'setup', role: 'admin' };
-    DB.insert('Users', { email: email, name: 'ผู้ดูแลระบบ (' + email + ')', roles: 'admin,staff,reviewer,requester', units: '*', active: true, isTest: false });
-    msg += '\nตั้ง ' + email + ' เป็นผู้ดูแลระบบแล้ว';
+  const domain = allowedDomain_();
+  let msg = 'ฐานข้อมูล: ' + getDb_().getUrl() + '\nเข้าสู่ระบบได้เฉพาะบัญชี @' + domain;
+  // ผู้ดูแลคนแรก: จาก FIRST_ADMIN_EMAIL (หรือ Script Property) ถ้าไม่ระบุ ใช้ผู้รัน setup เฉพาะเมื่ออยู่ในโดเมนที่อนุญาต
+  const configured = PropertiesService.getScriptProperties().getProperty('FIRST_ADMIN_EMAIL') || FIRST_ADMIN_EMAIL;
+  const wanted = splitList_(String(configured || '').toLowerCase());
+  if (!wanted.length && emailInDomain_(email)) wanted.push(email);
+  CURRENT_USER_ = { id: 'setup', role: 'admin' };
+  wanted.forEach(function (e) {
+    if (!emailInDomain_(e)) { msg += '\nข้าม ' + e + ' — ไม่ใช่อีเมล @' + domain; return; }
+    if (DB.all('Users').some(function (u) { return u.email.toLowerCase() === e && !toBool_(u.isTest); })) { msg += '\n' + e + ' มีในระบบแล้ว'; return; }
+    DB.insert('Users', { email: e, name: 'ผู้ดูแลระบบ (' + e + ')', roles: 'admin,staff,reviewer,requester', units: '*', active: true, isTest: false });
+    msg += '\nตั้ง ' + e + ' เป็นผู้ดูแลระบบแล้ว';
+  });
+  if (!DB.all('Users').some(function (u) { return !toBool_(u.isTest) && userHasRole_(u, 'admin'); })) {
+    msg += '\n*** ยังไม่มีผู้ดูแลระบบ: ใส่อีเมล @' + domain + ' ใน FIRST_ADMIN_EMAIL (บรรทัดต้นไฟล์) แล้วรัน setup อีกครั้ง' +
+      (email ? ' (บัญชีที่รัน setup คือ ' + email + ' ซึ่งไม่อยู่ในโดเมนนี้)' : '');
   }
   if (!DB.all('RequestTypes').length) { seedDemo_(); msg += '\nสร้างข้อมูลสาธิตและบัญชีทดสอบแล้ว (โหมดทดสอบเปิดอยู่ — ปิดได้ในหน้า ตั้งค่า)'; }
   CURRENT_USER_ = null;
@@ -41,7 +51,11 @@ const DEMO_PDF_ = '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj
 
 function demoPdfB64_() { return Utilities.base64Encode(Utilities.newBlob(DEMO_PDF_).getBytes()); }
 
-function asUser_(id, role) { resolveUser_({ _as: id, _role: role }); }
+/** ใช้ตอนสร้างข้อมูลสาธิตเท่านั้น: ทำงานในนามบัญชีทดสอบโดยไม่ผ่านการตรวจโดเมนของผู้รัน setup */
+function asUser_(id, role) {
+  const u = DB.get('Users', id);
+  CURRENT_USER_ = { id: u.id, email: u.email, name: u.name, roles: splitList_(u.roles), role: role, units: splitList_(u.units), allUnits: splitList_(u.units).indexOf('*') > -1, isTest: true, signedInEmail: '' };
+}
 
 function seedDemo_() {
   CURRENT_USER_ = { id: 'seed', role: 'admin' };

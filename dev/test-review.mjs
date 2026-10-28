@@ -9,7 +9,7 @@ const code = process.env.BUNDLE ? readFileSync(root + 'review/Code.gs', 'utf8') 
 const ctx = { console, TextEncoder, crypto, btoa, atob, localStorage: undefined, location: { href: '' } };
 vm.createContext(ctx);
 vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), ctx);
-ctx.__opts = { email: 'owner@uni.example', reset: true };
+ctx.__opts = { email: 'owner@mahidol.ac.th', reset: true };
 vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger={log(){}}, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp, CacheService=__g.CacheService, UrlFetchApp=__g.UrlFetchApp;', ctx);
 vm.runInContext(code, ctx);
 
@@ -29,21 +29,36 @@ const reqs = () => rows('Requests');
 const byPurpose = s => reqs().find(r => r.purpose.indexOf(s) > -1);
 
 t('setup: schema, deployer is admin, demo data via real workflow', () => {
-  assert.match(msg, /owner@uni\.example/);
+  assert.match(msg, /owner@mahidol\.ac\.th/);
   const st = Object.fromEntries(reqs().map(r => [r.purpose.slice(0, 30), r.status]));
   assert.deepEqual(Object.values(st).sort(), ['closed', 'draft', 'returned', 'submitted']);
-  const admin = rows('Users').find(u => u.email === 'owner@uni.example');
+  const admin = rows('Users').find(u => u.email === 'owner@mahidol.ac.th');
   assert.match(admin.roles, /admin/);
   assert.ok(rows('Persons').every(p => p.origin === 'mock'), 'all persons are mock');
   assert.ok(rows('CriteriaSets').every(c => c.isDemo === 'true' && /สาธิต/.test(c.name)), 'seed criteria are demo-labelled');
 });
 
-t('boot: unregistered user gets no data; test accounts listed only in test mode', () => {
-  realLogin('stranger@uni.example');
+t('anyone @mahidol.ac.th gets in as requester only; sees nobody else\'s requests', () => {
+  realLogin('newcomer@mahidol.ac.th');
+  const b = ok('boot');
+  assert.deepEqual(JSON.parse(JSON.stringify(b.user.roles)), ['requester']); assert.ok(b.testAccounts.length >= 7);
+  assert.equal(ok('listRequests', {}).length, 0);
+  no('getRequest', { id: reqs()[0].id }, /ไม่มีสิทธิ์/);
+  no('claim', { id: reqs()[0].id });
+  assert.equal(ok('boot').user.id, b.user.id, 'registered once');
+  assert.equal(rows('Users').filter(u => u.email === 'newcomer@mahidol.ac.th').length, 1);
+});
+
+t('auto-register off: unregistered user gets no data', () => {
+  realLogin('owner@mahidol.ac.th');
+  ok('saveSettings', { settings: { AUTO_REGISTER: false } });
+  realLogin('stranger@mahidol.ac.th');
   const b = ok('boot');
   assert.equal(b.user, null); assert.ok(b.testAccounts.length >= 7);
   no('listRequests', {}, /ไม่มีสิทธิ์/);
   no('getRequest', { id: reqs()[0].id }, /ไม่มีสิทธิ์/);
+  realLogin('owner@mahidol.ac.th');
+  ok('saveSettings', { settings: { AUTO_REGISTER: true } });
 });
 
 t('role permissions are enforced server-side (incl. spoofed role)', () => {
@@ -311,15 +326,54 @@ t('audit log records who/what/fields without personal data', () => {
   assert.ok(audit.some(a => a.action === 'status' && /status=returned/.test(a.fields)));
 });
 
+t('only @mahidol.ac.th accounts can sign in (even with test accounts)', () => {
+  realLogin('someone@gmail.com');
+  const b = ok('boot');
+  assert.equal(b.user, null); assert.equal(b.domainBlocked, true); assert.equal(b.testAccounts.length, 0);
+  as = 'UT-ADMIN'; role = 'admin';
+  no('listRequests', {}, /@mahidol\.ac\.th/);
+  realLogin('owner@mahidol.ac.th');
+  no('saveUser', { name: 'x', email: 'x@gmail.com', roles: ['staff'], units: ['FAC-A'] }, /mahidol/);
+  no('saveSettings', { settings: { ALLOWED_DOMAIN: 'gmail.com' } }, /ไม่อยู่ในโดเมน/);
+  const u = ok('saveUser', { name: 'เจ้าหน้าที่จริง', email: 'Staff.Real@mahidol.ac.th', roles: ['staff'], units: ['FAC-A'] });
+  realLogin('staff.real@mahidol.ac.th');
+  assert.equal(ok('boot').user.id, u.id);
+  realLogin('owner@mahidol.ac.th');
+});
+
+t('setup: creator outside the domain is not made admin; FIRST_ADMIN_EMAIL is used', () => {
+  realLogin('creator@gmail.com');
+  assert.match(ctx.setup(), /เฉพาะบัญชี @mahidol\.ac\.th/);
+  assert.equal(rows('Users').some(u => u.email === 'creator@gmail.com'), false);
+  vm.runInContext("PropertiesService.getScriptProperties().setProperty('FIRST_ADMIN_EMAIL', 'boss@mahidol.ac.th, x@gmail.com')", ctx);
+  const m = ctx.setup();
+  assert.match(m, /ตั้ง boss@mahidol\.ac\.th เป็นผู้ดูแลระบบแล้ว/); assert.match(m, /ข้าม x@gmail\.com/);
+  realLogin('boss@mahidol.ac.th');
+  assert.ok(ok('boot').user.roles.includes('admin'));
+  realLogin('owner@mahidol.ac.th');
+});
+
 t('test mode off: test accounts refused, real users still work', () => {
   login('UT-ADMIN', 'admin');
   ok('saveSettings', { settings: { TEST_MODE: false } });
   no('boot', {}, /ปิดโหมดทดสอบ/);
-  realLogin('owner@uni.example');
+  realLogin('owner@mahidol.ac.th');
   const b = ok('boot');
   assert.equal(b.testAccounts.length, 0); assert.equal(b.user.role, 'admin');
-  realLogin('stranger@uni.example');
-  assert.equal(ok('boot').user, null);
+  realLogin('another@mahidol.ac.th');
+  assert.equal(ok('boot').user.role, 'requester', 'real domain users still auto-registered');
+});
+
+t('fresh install run by an account outside the domain: demo data still created, no admin until configured', () => {
+  const c2 = { console, TextEncoder, crypto, btoa, atob, location: { href: '' } };
+  vm.createContext(c2);
+  vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), c2);
+  c2.__opts = { email: 'creator@gmail.com', reset: true };
+  vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger={log(){}}, HtmlService=__g.HtmlService;', c2);
+  vm.runInContext(code, c2);
+  assert.match(c2.setup(), /ยังไม่มีผู้ดูแลระบบ.*creator@gmail\.com/);
+  assert.equal(vm.runInContext("DB.all('Requests').length", c2), 4);
+  assert.equal(vm.runInContext("DB.all('Users').filter(u => u.isTest !== 'true').length", c2), 0);
 });
 
 console.log(`\n${n} review-system tests passed`);

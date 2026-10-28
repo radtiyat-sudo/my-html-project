@@ -2,8 +2,17 @@
  * Auth.gs — ผู้ใช้ บทบาท ขอบเขตงาน และการตรวจสิทธิ์ (ทำที่ฝั่งเซิร์ฟเวอร์ทุกครั้ง)
  *
  * การเข้าสู่ระบบ: ใช้บัญชี Google ของผู้ใช้ (Session.getActiveUser) จับคู่กับชีต Users
+ * เข้าได้เฉพาะบัญชีในโดเมนที่อนุญาต (ค่าเริ่มต้น @mahidol.ac.th) — รวมถึงตอนใช้บัญชีทดสอบ
  * โหมดทดสอบ (TEST_MODE=true): เลือกเข้าใช้เป็น "บัญชีทดสอบ" ได้ เพื่อทดลองทุกบทบาท — ต้องปิดก่อนใช้งานจริง
  */
+
+function allowedDomain_() { return String(setting_('ALLOWED_DOMAIN') || '').trim().toLowerCase().replace(/^@/, ''); }
+
+function emailInDomain_(email) {
+  const d = allowedDomain_();
+  const e = String(email || '').toLowerCase();
+  return !!e && (!d || e.slice(-(d.length + 1)) === '@' + d);
+}
 
 let CURRENT_USER_ = null;
 
@@ -17,6 +26,7 @@ function resolveUser_(p) {
   CURRENT_USER_ = null;
   const email = activeEmail_();
   const testMode = toBool_(setting_('TEST_MODE'));
+  if (!emailInDomain_(email)) return { email: email, user: null, testMode: testMode, domainBlocked: true, domain: allowedDomain_() };
   let rec = null;
   if (p._as) {
     if (!testMode) throw new Error('ปิดโหมดทดสอบแล้ว กรุณาเข้าใช้ด้วยบัญชีจริง (โหลดหน้าใหม่)');
@@ -24,6 +34,7 @@ function resolveUser_(p) {
     if (!rec || !toBool_(rec.isTest)) throw new Error('ไม่พบบัญชีทดสอบนี้');
   } else if (email) {
     rec = DB.all('Users').filter(function (u) { return String(u.email).toLowerCase() === email && !toBool_(u.isTest); })[0] || null;
+    if (!rec && toBool_(setting_('AUTO_REGISTER'))) rec = autoRegister_(email);
   }
   if (!rec) return { email: email, user: null, testMode: testMode };
   if (!toBool_(rec.active)) throw new Error('บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
@@ -36,6 +47,22 @@ function resolveUser_(p) {
     allUnits: units.indexOf('*') > -1, isTest: toBool_(rec.isTest), signedInAs: email
   };
   return { email: email, user: CURRENT_USER_, testMode: testMode };
+}
+
+/** ทุกคนในโดเมนที่อนุญาตเข้าใช้ได้ทันทีในบทบาท "ผู้ยื่นเรื่อง" — บทบาทอื่นผู้ดูแลเป็นผู้กำหนด */
+function autoRegister_(email) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    DB.invalidate_('Users');
+    const again = DB.all('Users').filter(function (u) { return String(u.email).toLowerCase() === email && !toBool_(u.isTest); })[0];
+    if (again) return again;
+    const rec = DB.insert('Users', { email: email, name: email.split('@')[0], roles: 'requester', units: '*', active: true, isTest: false });
+    CURRENT_USER_ = { id: rec.id, role: 'requester' };
+    audit_('user.autoRegister', 'Users', rec.id, { roles: 'requester' }, 'เข้าใช้ครั้งแรก');
+    CURRENT_USER_ = null;
+    return rec;
+  } finally { lock.releaseLock(); }
 }
 
 function me_() {
