@@ -1,0 +1,251 @@
+/**
+ * Db.gs — ชั้นจัดการข้อมูลบน Google Sheets (โครงเดียวกับระบบ MUGR) (1 ชีต = 1 ตาราง, แถวแรกเป็นหัวคอลัมน์)
+ */
+
+let SS_ = null;
+const TABLE_CACHE_ = {};
+
+const NO_DB_ACCESS_ = 'บัญชีนี้ไม่มีสิทธิ์เปิดไฟล์ฐานข้อมูล (Google Sheets) ของระบบ\n' +
+  'วิธีแก้ (ผู้ดูแลระบบ): Deploy แบบ "ดำเนินการในฐานะ: ฉัน" + "ผู้มีสิทธิ์เข้าถึง: ทุกคนในมหาวิทยาลัยมหิดล" (แนะนำ) ' +
+  'หรือถ้าใช้ "ผู้ใช้ที่เข้าถึงเว็บแอป" ต้องแชร์ไฟล์ Google Sheets ให้บัญชีนี้เป็น "ผู้แก้ไข"';
+
+/**
+ * คืนค่า Spreadsheet ที่ใช้เก็บข้อมูล — ใช้ไฟล์ที่ผูกกับสคริปต์ก่อนเสมอ
+ * (ไม่สร้างไฟล์ใหม่เมื่อเปิดไม่ได้ เพื่อไม่ให้ข้อมูลแยกไปอยู่คนละไฟล์)
+ */
+function getDb_() {
+  if (SS_) return SS_;
+  const props = PropertiesService.getScriptProperties();
+  let active = null;
+  try { active = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { active = null; }
+  if (active) {
+    try { active.getId(); } catch (e) { throw new Error(NO_DB_ACCESS_); }
+    SS_ = active;
+    if (props.getProperty('DB_ID') !== SS_.getId()) props.setProperty('DB_ID', SS_.getId());
+    return SS_;
+  }
+  const id = props.getProperty('DB_ID');
+  if (id) {
+    try { SS_ = SpreadsheetApp.openById(id); return SS_; }
+    catch (e) { throw new Error(NO_DB_ACCESS_ + '\n(' + e.message + ')'); }
+  }
+  SS_ = SpreadsheetApp.create(APP.dbName);
+  props.setProperty('DB_ID', SS_.getId());
+  return SS_;
+}
+
+/** สร้างชีตและหัวคอลัมน์ที่ขาด (ทำครั้งเดียวต่อ schemaVersion) */
+function ensureSchema_(force) {
+  const props = PropertiesService.getScriptProperties();
+  const key = 'SCHEMA_' + getDb_().getId();
+  if (!force && props.getProperty(key) === String(APP.schemaVersion)) return;
+  const ss = getDb_();
+  Object.keys(TABLES).forEach(function (name) {
+    const cols = TABLES[name];
+    let sh = ss.getSheetByName(name);
+    if (!sh) {
+      sh = ss.insertSheet(name);
+      sh.getRange(1, 1, Math.max(sh.getMaxRows(), 2), Math.max(sh.getMaxColumns(), cols.length)).setNumberFormat('@');
+    }
+    const lastCol = sh.getLastColumn();
+    const header = lastCol ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
+    const missing = cols.filter(function (c) { return header.indexOf(c) === -1; });
+    if (missing.length) {
+      const start = header.filter(String).length + 1;
+      sh.getRange(1, start, 1, missing.length).setValues([missing]);
+      sh.getRange(1, 1, 1, start + missing.length - 1).setFontWeight('bold').setBackground('#e8edf8');
+      sh.setFrozenRows(1);
+    }
+  });
+  const def = ss.getSheetByName('Sheet1') || ss.getSheetByName('แผ่น1');
+  if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
+  props.setProperty(key, String(APP.schemaVersion));
+}
+
+function sheet_(name) {
+  const sh = getDb_().getSheetByName(name);
+  if (!sh) { ensureSchema_(true); return getDb_().getSheetByName(name); }
+  return sh;
+}
+
+function cellOut_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Bangkok', "yyyy-MM-dd'T'HH:mm:ss");
+  return v;
+}
+
+function cellIn_(v) {
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (Array.isArray(v)) return v.join(',');
+  return String(v);
+}
+
+const DB = {
+  /** อ่านทั้งตาราง → [{...}] พร้อม _row (เลขแถวในชีต) */
+  read_: function (name) {
+    if (TABLE_CACHE_[name]) return TABLE_CACHE_[name];
+    const sh = sheet_(name);
+    const values = sh.getDataRange().getValues();
+    const header = (values[0] || []).map(String);
+    const rows = [];
+    for (let i = 1; i < values.length; i++) {
+      const r = values[i];
+      if (r.every(function (c) { return c === '' || c === null; })) continue;
+      const o = { _row: i + 1 };
+      header.forEach(function (h, j) { if (h) o[h] = cellOut_(r[j]); });
+      rows.push(o);
+    }
+    TABLE_CACHE_[name] = { header: header, rows: rows };
+    return TABLE_CACHE_[name];
+  },
+
+  invalidate_: function (name) { delete TABLE_CACHE_[name]; },
+
+  all: function (name) {
+    return this.read_(name).rows.map(function (r) {
+      const o = Object.assign({}, r); delete o._row; return o;
+    });
+  },
+
+  get: function (name, id) {
+    return this.all(name).filter(function (r) { return String(r.id) === String(id); })[0] || null;
+  },
+
+  insert: function (name, obj) {
+    const t = this.read_(name);
+    const rec = Object.assign({}, obj);
+    if (TABLES[name][0] === 'id' && !rec.id) rec.id = newId_(name);
+    if (TABLES[name].indexOf('createdAt') > -1 && !rec.createdAt) rec.createdAt = nowIso_();
+    sheet_(name).appendRow(t.header.map(function (h) { return cellIn_(rec[h]); }));
+    this.invalidate_(name);
+    return rec;
+  },
+
+  /** เพิ่มหลายแถวพร้อมกัน (เร็วกว่า appendRow ทีละแถว) */
+  insertMany: function (name, list) {
+    if (!list.length) return [];
+    const t = this.read_(name);
+    const sh = sheet_(name);
+    const recs = list.map(function (obj) {
+      const rec = Object.assign({}, obj);
+      if (TABLES[name][0] === 'id' && !rec.id) rec.id = newId_(name);
+      if (TABLES[name].indexOf('createdAt') > -1 && !rec.createdAt) rec.createdAt = nowIso_();
+      return rec;
+    });
+    const start = Math.max(sh.getLastRow(), 1) + 1;
+    sh.getRange(start, 1, recs.length, t.header.length)
+      .setValues(recs.map(function (rec) { return t.header.map(function (h) { return cellIn_(rec[h]); }); }));
+    this.invalidate_(name);
+    return recs;
+  },
+
+  update: function (name, id, patch) {
+    const t = this.read_(name);
+    const row = t.rows.filter(function (r) { return String(r.id) === String(id); })[0];
+    if (!row) throw new Error('ไม่พบข้อมูล (' + name + ' ' + id + ')');
+    const rec = Object.assign({}, row, patch, { id: row.id });
+    if (TABLES[name].indexOf('updatedAt') > -1) rec.updatedAt = nowIso_();
+    sheet_(name).getRange(row._row, 1, 1, t.header.length)
+      .setValues([t.header.map(function (h) { return cellIn_(rec[h]); })]);
+    this.invalidate_(name);
+    delete rec._row;
+    return rec;
+  },
+
+  remove: function (name, id) {
+    const row = this.read_(name).rows.filter(function (r) { return String(r.id) === String(id); })[0];
+    if (!row) return false;
+    sheet_(name).deleteRow(row._row);
+    this.invalidate_(name);
+    return true;
+  },
+
+  /** ลบทุกแถวที่ pred คืนค่า true (เขียนทับทั้งตารางครั้งเดียว) */
+  removeWhere: function (name, pred) {
+    const t = this.read_(name);
+    const keep = t.rows.filter(function (r) { return !pred(r); });
+    const removed = t.rows.length - keep.length;
+    if (!removed) return 0;
+    const sh = sheet_(name);
+    const width = t.header.length;
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, width).clearContent();
+    if (keep.length) {
+      sh.getRange(2, 1, keep.length, width)
+        .setValues(keep.map(function (r) { return t.header.map(function (h) { return cellIn_(r[h]); }); }));
+    }
+    this.invalidate_(name);
+    return removed;
+  }
+};
+
+
+/* ---------------- Settings ---------------- */
+
+function getSettings_() {
+  const s = Object.assign({}, DEFAULT_SETTINGS);
+  DB.all('Settings').forEach(function (r) { if (r.key) s[r.key] = String(r.value); });
+  return s;
+}
+
+function setting_(k) { return getSettings_()[k]; }
+
+function setSettings_(patch) {
+  const t = DB.read_('Settings');
+  const sh = sheet_('Settings');
+  Object.keys(patch).forEach(function (k) {
+    const row = t.rows.filter(function (r) { return r.key === k; })[0];
+    if (row) sh.getRange(row._row, 2).setValue(cellIn_(patch[k]));
+    else sh.appendRow([k, cellIn_(patch[k])]);
+  });
+  DB.invalidate_('Settings');
+}
+
+/* ---------------- Audit ----------------
+ * บันทึกว่าใคร ทำอะไร เมื่อไร กับรายการใด ฟิลด์ใดเปลี่ยน และเหตุผล
+ * เก็บเฉพาะ "ชื่อฟิลด์" ไม่เก็บค่าข้อมูลส่วนบุคคลลง log (ยกเว้นค่าสถานะที่ไม่ใช่ข้อมูลส่วนบุคคล)
+ */
+const AUDIT_VALUE_FIELDS_ = ['status', 'decision', 'result', 'version', 'mode', 'active', 'roles', 'units', 'identityStatus', 'worksComplete'];
+
+function audit_(action, entity, entityId, fields, reason) {
+  try {
+    const u = CURRENT_USER_ || {};
+    let f = '';
+    if (fields && typeof fields === 'object' && !Array.isArray(fields)) {
+      f = Object.keys(fields).map(function (k) {
+        return AUDIT_VALUE_FIELDS_.indexOf(k) > -1 ? k + '=' + String(fields[k]).slice(0, 60) : k;
+      }).join(', ');
+    } else if (Array.isArray(fields)) f = fields.join(', ');
+    else f = String(fields || '');
+    DB.insert('Audit', { at: nowIso_(), userId: u.id || '', role: u.role || '', action: action, entity: entity || '', entityId: entityId || '', fields: f.slice(0, 400), reason: String(reason || '').slice(0, 300) });
+  } catch (e) { /* ไม่ให้การบันทึก log ทำให้งานหลักล้ม */ }
+}
+
+/* ---------------- Utils ---------------- */
+
+function newId_(name) {
+  return (ID_PREFIX[name] || 'X') + Utilities.getUuid().replace(/-/g, '').slice(0, 10).toUpperCase();
+}
+
+function nowIso_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Bangkok', "yyyy-MM-dd'T'HH:mm:ss");
+}
+
+function toBool_(v) { return v === true || String(v).toLowerCase() === 'true' || v === 1 || v === '1'; }
+
+function splitList_(v) {
+  return String(v || '').split(/[,|]/).map(function (s) { return s.trim(); }).filter(String);
+}
+
+function parseJson_(v, def) {
+  if (v === undefined || v === null || v === '') return def;
+  try { return JSON.parse(v); } catch (e) { return def; }
+}
+
+function daysBetween_(a, b) {
+  const da = new Date(a), db = new Date(b || nowIso_());
+  if (isNaN(da) || isNaN(db)) return null;
+  return (db.getTime() - da.getTime()) / 86400000;
+}
+
+function clean_(v, max) { return String(v === undefined || v === null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, max || 500); }
+
