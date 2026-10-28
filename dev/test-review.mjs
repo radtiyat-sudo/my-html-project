@@ -1,0 +1,325 @@
+// ทดสอบระบบตรวจสอบผลงานและคุณสมบัติ (review-src): node dev/test-review.mjs   (BUNDLE=1 = ทดสอบไฟล์รวม review/Code.gs)
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const root = new URL('..', import.meta.url).pathname;
+export const RV_ORDER = ['Config', 'Db', 'Auth', 'Connectors', 'Matching', 'Criteria', 'Workflow', 'Files', 'Reports', 'Admin', 'Api', 'Code'];
+const code = process.env.BUNDLE ? readFileSync(root + 'review/Code.gs', 'utf8') : RV_ORDER.map(f => readFileSync(root + 'review-src/' + f + '.gs', 'utf8')).join('\n');
+
+const ctx = { console, TextEncoder, crypto, btoa, atob, localStorage: undefined, location: { href: '' } };
+vm.createContext(ctx);
+vm.runInContext(readFileSync(root + 'dev/gas-mock.js', 'utf8'), ctx);
+ctx.__opts = { email: 'owner@uni.example', reset: true };
+vm.runInContext('const __g = createGasMock(__opts); var SpreadsheetApp=__g.SpreadsheetApp, PropertiesService=__g.PropertiesService, Session=__g.Session, LockService=__g.LockService, Utilities=__g.Utilities, DriveApp=__g.DriveApp, Logger={log(){}}, HtmlService=__g.HtmlService, ScriptApp=__g.ScriptApp, CacheService=__g.CacheService, UrlFetchApp=__g.UrlFetchApp;', ctx);
+vm.runInContext(code, ctx);
+
+const fresh = () => vm.runInContext('for (const k in TABLE_CACHE_) delete TABLE_CACHE_[k]; for (const k in USER_NAME_CACHE_) delete USER_NAME_CACHE_[k];', ctx);
+let as = null, role = null;
+const login = (id, r) => { as = id; role = r; };
+const realLogin = email => { as = null; role = null; ctx.__opts.email = email; };
+const api = (a, p) => { fresh(); const pl = Object.assign({}, p || {}); if (as) pl._as = as; if (role) pl._role = role; return JSON.parse(JSON.stringify(ctx.api(a, pl))); };
+const ok = (a, p) => { const r = api(a, p); assert.equal(r.ok, true, a + ': ' + r.error); return r.data; };
+const no = (a, p, re) => { const r = api(a, p); assert.equal(r.ok, false, a + ' should be refused'); if (re) assert.match(r.error, re); return r; };
+const rows = t => { fresh(); return JSON.parse(JSON.stringify(vm.runInContext(`DB.all(${JSON.stringify(t)})`, ctx))); };
+const pdf = Buffer.from('%PDF-1.4\n% test file\n').toString('base64');
+let n = 0; const t = (name, fn) => { fn(); n++; console.log('✓', name); };
+
+const msg = ctx.setup();
+const reqs = () => rows('Requests');
+const byPurpose = s => reqs().find(r => r.purpose.indexOf(s) > -1);
+
+t('setup: schema, deployer is admin, demo data via real workflow', () => {
+  assert.match(msg, /owner@uni\.example/);
+  const st = Object.fromEntries(reqs().map(r => [r.purpose.slice(0, 30), r.status]));
+  assert.deepEqual(Object.values(st).sort(), ['closed', 'draft', 'returned', 'submitted']);
+  const admin = rows('Users').find(u => u.email === 'owner@uni.example');
+  assert.match(admin.roles, /admin/);
+  assert.ok(rows('Persons').every(p => p.origin === 'mock'), 'all persons are mock');
+  assert.ok(rows('CriteriaSets').every(c => c.isDemo === 'true' && /สาธิต/.test(c.name)), 'seed criteria are demo-labelled');
+});
+
+t('boot: unregistered user gets no data; test accounts listed only in test mode', () => {
+  realLogin('stranger@uni.example');
+  const b = ok('boot');
+  assert.equal(b.user, null); assert.ok(b.testAccounts.length >= 7);
+  no('listRequests', {}, /ไม่มีสิทธิ์/);
+  no('getRequest', { id: reqs()[0].id }, /ไม่มีสิทธิ์/);
+});
+
+t('role permissions are enforced server-side (incl. spoofed role)', () => {
+  login('UT-REQ1', 'admin'); // ขอบทบาท admin แต่บัญชีไม่มี → ได้ requester
+  assert.equal(ok('boot').user.role, 'requester');
+  no('saveSettings', { settings: { TEST_MODE: false } }, /ไม่มีสิทธิ์/);
+  no('adminOverview', {}, /ไม่มีสิทธิ์/);
+  const sub = byPurpose('บุคคลที่ข้อมูลต้นทางเก่า');
+  no('getRequest', { id: sub.id }, /ไม่มีสิทธิ์/); // คำขอของคนอื่น
+  no('claim', { id: sub.id });
+  login('UT-STAFF2', 'staff');
+  assert.ok(ok('listRequests', {}).every(r => r.unit === 'FAC-B'), 'staff sees only own unit');
+  no('getRequest', { id: byPurpose('ชื่อซ้ำ').id }, /ไม่มีสิทธิ์/);
+  assert.equal(ok('listRequests', {}).some(r => r.status === 'draft'), false, 'staff never sees drafts');
+  login('UT-REV2', 'reviewer');
+  assert.equal(ok('listRequests', {}).length, 0, 'reviewer sees only requests sent to them');
+  no('decide', { id: sub.id, decision: 'approve', reason: 'xxxxx' });
+  login('UT-REV1', 'reviewer');
+  assert.equal(ok('listRequests', {}).length, 1);
+});
+
+t('duplicate names: search by name is ambiguous and never confirms identity', () => {
+  login('UT-REQ1', 'requester');
+  const s = ok('searchPersons', { name: 'ผศ.ดร. สมชาย ทดสอบดี' });
+  assert.equal(s.results.length, 2); assert.equal(s.ambiguous, true);
+  assert.ok(s.results.every(r => r.duplicateName && r.sameNameCount === 2));
+  assert.equal(s.source.connected, false, 'never claims a real connection');
+  const fm = ok('searchPersons', { name: 'Malee Sommatisakul' });
+  assert.equal(fm.results[0].staffCode, 'T0003'); assert.equal(fm.results[0].matchBasis, 'former_name');
+  const r = byPurpose('ชื่อซ้ำ');
+  assert.equal(r.identityStatus, 'needs_staff_check');
+  const d = ok('getRequest', { id: r.id });
+  const idItem = d.evaluations[0].items.find(i => i.kind === 'identity_verified');
+  assert.equal(idItem.result, 'inconclusive'); assert.match(idItem.reason, /ชื่อเดียวกันหลายคน/);
+  const byCode = ok('searchPersons', { staffCode: 't0001' });
+  assert.equal(byCode.results.length, 1); assert.equal(byCode.results[0].matchBasis, 'staffCode');
+});
+
+t('duplicate works: flagged by DOI first and by similar title, never auto-merged', () => {
+  const r = byPurpose('ชื่อซ้ำ');
+  const pairs = rows('DupPairs').filter(d => d.requestId === r.id);
+  assert.equal(pairs.length, 1); assert.equal(pairs[0].basis, 'doi'); assert.equal(pairs[0].status, 'suspected');
+  const works = rows('RequestWorks').filter(w => w.requestId === r.id);
+  assert.equal(works.length, 4); assert.ok(works.every(w => w.status === 'pending'), 'both duplicates still present');
+  // คำขอร่าง: เพิ่มผลงานเองที่ชื่อคล้ายกัน (ไม่มี DOI) → ถูกตั้งเป็นคู่สงสัย
+  login('UT-REQ1', 'requester');
+  const draft = byPurpose('ร่างคำขอ');
+  const res = ok('saveManualWork', { id: draft.id, work: { title: 'Sample external paper (ข้อมูลสมมติ).', type: 'journal', year: new Date().getFullYear() - 1 + 543 } });
+  assert.equal(res.suspectedDuplicates, 1);
+  assert.equal(rows('DupPairs').filter(d => d.requestId === draft.id)[0].basis, 'title_year');
+  // DOI ต่างกัน → ไม่ถือว่าซ้ำแม้ชื่อเหมือน
+  ok('saveManualWork', { id: draft.id, work: { title: 'Another Title', type: 'journal', year: 2024, doi: '10.1111/a' } });
+  const r2 = ok('saveManualWork', { id: draft.id, work: { title: 'Another Title', type: 'journal', year: 2024, doi: '10.1111/b' } });
+  assert.equal(r2.suspectedDuplicates, 0);
+});
+
+t('incomplete data blocks submit with a list; missing data is never "fail"', () => {
+  login('UT-REQ1', 'requester');
+  const types = ok('boot').types;
+  const fac = types.find(x => x.code === 'DEMO-FACULTY');
+  const r = ok('createRequest', { typeId: fac.id, unit: 'FAC-A' });
+  const e = no('submit', { id: r.id });
+  assert.match(e.error, /วัตถุประสงค์/); assert.match(e.error, /เลือกบุคคล/); assert.match(e.error, /CV/);
+  no('createRequest', { typeId: fac.id, unit: 'FAC-B' }, /หน่วยงาน/); // ไม่อยู่ในขอบเขต
+  ok('updateInfo', { id: r.id, purpose: 'ทดสอบข้อมูลไม่ครบ' });
+  const p = ok('searchPersons', { staffCode: 'T0006' }).results[0];
+  ok('setPerson', { id: r.id, personId: p.personId, staffCode: 'T0006' });
+  ok('uploadFile', { id: r.id, docType: 'cv', fileName: 'cv.pdf', data: pdf });
+  const s = ok('submit', { id: r.id });
+  const items = Object.fromEntries(s.evaluation.items.map(i => [i.kind, i]));
+  assert.equal(items.identity_verified.result, 'pass');
+  assert.equal(items.academic_rank.result, 'inconclusive'); assert.match(items.academic_rank.reason, /ไม่มีข้อมูล/);
+  assert.equal(items.min_works.result, 'inconclusive');
+  assert.equal(s.evaluation.overall, 'inconclusive');
+});
+
+t('source outage / not connected: search errors clearly, rules become inconclusive', () => {
+  login('UT-ADMIN', 'admin');
+  ok('saveSettings', { settings: { SIM_OUTAGE_MUHR: true } });
+  login('UT-REQ1', 'requester');
+  const e = no('searchPersons', { staffCode: 'T0001' }, /ขัดข้อง/);
+  assert.equal(e.sourceError.code, 'outage');
+  login('UT-STAFF2', 'staff');
+  const sub = byPurpose('บุคคลที่ข้อมูลต้นทางเก่า');
+  ok('claim', { id: sub.id });
+  const ev = ok('rerun', { id: sub.id, reason: 'ทดสอบต้นทางขัดข้อง' });
+  const deg = ev.items.find(i => i.kind === 'min_degree');
+  assert.equal(deg.result, 'inconclusive'); assert.match(deg.reason, /ขัดข้อง/);
+  assert.notEqual(ev.overall, 'fail');
+  login('UT-ADMIN', 'admin');
+  ok('saveSettings', { settings: { SIM_OUTAGE_MUHR: false, MUREX_MODE: 'api' } });
+  const ov = ok('adminOverview');
+  const murex = ov.sources.find(x => x.source === 'MUREX');
+  assert.equal(murex.connected, false); assert.equal(murex.available, false); assert.match(murex.message, /ยังไม่ได้เชื่อมต่อ/);
+  login('UT-STAFF2', 'staff');
+  const ev2 = ok('rerun', { id: sub.id, reason: 'MUREX ยังไม่เชื่อม' });
+  const deg2 = ev2.items.find(i => i.kind === 'min_degree');
+  assert.equal(deg2.result, 'inconclusive'); assert.match(deg2.reason, /เก่ากว่า/, 'stale MUHR data is inconclusive');
+  const mw = ev2.items.find(i => i.kind === 'min_works');
+  assert.equal(mw.result, 'inconclusive'); assert.match(mw.reason, /MUREX/);
+  login('UT-ADMIN', 'admin');
+  ok('saveSettings', { settings: { MUREX_MODE: 'mock' } });
+});
+
+t('return for revision: edit only listed sections, answer items, resubmit keeps history', () => {
+  const r = byPurpose('ชื่อซ้ำ');
+  login('UT-REQ1', 'requester');
+  let d = ok('getRequest', { id: r.id });
+  assert.deepEqual(d.editable, ['documents']);
+  no('saveManualWork', { id: r.id, work: { title: 'x', type: 'journal', year: 2024 } }, /แก้ได้เฉพาะส่วน/);
+  no('setPerson', { id: r.id, manual: { nameTh: 'x', affiliation: 'y' } }, /แก้ได้เฉพาะส่วน/);
+  const oldCv = d.attachments.find(a => a.docType === 'cv');
+  ok('removeFile', { fileId: oldCv.id });
+  ok('uploadFile', { id: r.id, docType: 'cv', fileName: 'cv-2.pdf', data: pdf });
+  no('submit', { id: r.id }, /ยังไม่ได้ตอบรายการแก้ไข/);
+  ok('respondRevision', { id: r.id, itemId: d.revisionItems[0].id, response: 'แนบ CV ฉบับใหม่แล้ว' });
+  const s = ok('submit', { id: r.id });
+  assert.equal(s.request.round, '2'); assert.equal(s.request.status, 'submitted');
+  assert.equal(s.request.assigneeId, 'UT-STAFF1', 'goes back to the same staff');
+  const atts = rows('Attachments').filter(a => a.requestId === r.id);
+  assert.equal(atts.length, 2); assert.ok(atts.some(a => a.status === 'removed'), 'old file kept as removed');
+  const hist = rows('StatusHistory').filter(h => h.requestId === r.id).map(h => h.toStatus);
+  assert.deepEqual(hist, ['draft', 'submitted', 'in_review', 'returned', 'submitted']);
+  assert.equal(rows('Evaluations').filter(e => e.requestId === r.id).length, 2, 'previous evaluation kept');
+});
+
+t('staff verification gates forwarding; duplicates resolved without deleting', () => {
+  const r = byPurpose('ชื่อซ้ำ');
+  login('UT-STAFF1', 'staff');
+  ok('claim', { id: r.id });
+  no('forward', { id: r.id, reviewerId: 'UT-REV1', summary: 'x' }, /ยืนยันตัวบุคคล/);
+  no('confirmIdentity', { id: r.id, note: '' }, /ระบุหลักฐาน/);
+  ok('confirmIdentity', { id: r.id, note: 'ตรวจรหัสบุคลากร T0001 กับหน่วยงานแล้ว' });
+  let d = ok('getRequest', { id: r.id });
+  const pair = d.dupPairs[0];
+  no('resolveDup', { pairId: pair.id, decision: 'distinct' }, /เหตุผล/);
+  ok('resolveDup', { pairId: pair.id, decision: 'duplicate', keepWorkId: pair.workA, note: 'DOI เดียวกัน' });
+  d = ok('getRequest', { id: r.id });
+  assert.equal(d.works.filter(w => w.status === 'excluded_duplicate').length, 1);
+  assert.equal(d.works.length, 4, 'nothing deleted');
+  no('forward', { id: r.id, reviewerId: 'UT-REV1', summary: 'x' }, /ตรวจผลงานที่ยังค้าง/);
+  d.works.filter(w => w.status === 'pending').forEach(w => ok('verifyWork', { workId: w.id, status: 'verified', note: 'ok' }));
+  no('forward', { id: r.id, reviewerId: 'UT-REV2', summary: 'x' }, /ไม่ได้รับผิดชอบ/);
+  const f = ok('forward', { id: r.id, reviewerId: 'UT-REV1', summary: 'ข้อมูลครบ' });
+  assert.equal(f.request.status, 'pending_decision');
+});
+
+t('decision is separate from system result, needs reason, only by assigned reviewer', () => {
+  const r = byPurpose('ชื่อซ้ำ');
+  login('UT-REV1', 'reviewer');
+  const d = ok('getRequest', { id: r.id });
+  assert.ok(d.actions.includes('decide'));
+  no('decide', { id: r.id, decision: 'approve', reason: '' }, /เหตุผล/);
+  const res = ok('decide', { id: r.id, decision: 'reject', reason: 'ทดสอบ: ตัดสินต่างจากผลระบบได้' });
+  assert.equal(res.request.status, 'decided');
+  const ev = rows('Evaluations').filter(e => e.requestId === r.id).pop();
+  assert.equal(res.decision.evaluationId, ev.id);
+  assert.equal(res.decision.isDemo, true);
+  login('UT-STAFF1', 'staff');
+  ok('close', { id: r.id });
+  assert.ok(rows('Notifications').some(x => x.userId === 'UT-REQ1' && /ไม่อนุมัติ/.test(x.message) && /สาธิต/.test(x.message)));
+});
+
+t('criteria version change: new version, old results kept, re-run is explicit', () => {
+  login('UT-ADMIN', 'admin');
+  const ov = ok('adminOverview');
+  const v1 = ov.criteria.find(c => c.code === 'CS-DEMO-FACULTY');
+  no('saveCriteria', { id: v1.id, typeId: v1.typeId, name: v1.name, rules: v1.rules }, /ฉบับร่าง/);
+  const rules = v1.rules.map(x => x.kind === 'min_works' ? Object.assign({}, x, { params: Object.assign({}, x.params, { min: 2 }) }) : x);
+  const v2 = ok('saveCriteria', { fromId: v1.id, typeId: v1.typeId, name: v1.name + ' (ปรับปรุง)', rules, isDemo: true, effectiveDate: '2020-01-01' });
+  assert.equal(v2.version, '2'); assert.equal(v2.status, 'draft');
+  ok('activateCriteria', { id: v2.id });
+  assert.equal(rows('CriteriaSets').find(c => c.id === v1.id).status, 'retired');
+  const r = byPurpose('ทดสอบข้อมูลไม่ครบ');
+  const before = rows('Evaluations').filter(e => e.requestId === r.id);
+  assert.equal(before[0].criteriaVersion, '1');
+  login('UT-STAFF1', 'staff');
+  ok('claim', { id: r.id });
+  const d = ok('getRequest', { id: r.id });
+  assert.equal(d.newerCriteria.version, '2');
+  const ev = ok('rerun', { id: r.id, reason: 'ประกาศใหม่', useLatestCriteria: true });
+  assert.equal(ev.criteriaVersion, '2');
+  const after = rows('Evaluations').filter(e => e.requestId === r.id);
+  assert.equal(after.length, before.length + 1); assert.equal(after[0].criteriaVersion, '1');
+});
+
+t('real criteria need reference + confirmer; demo criteria never judge real requests', () => {
+  login('UT-ADMIN', 'admin');
+  const type = ok('saveType', { name: 'ประเภทจริง (ทดสอบ)', requiredDocs: [{ code: 'cv', label: 'CV', when: 'always' }] });
+  const rules = [{ id: 'R1', kind: 'identity_verified', label: 'ยืนยันตัวบุคคล' }];
+  const real = ok('saveCriteria', { typeId: type.id, name: 'เกณฑ์จริง', rules, isDemo: false });
+  no('activateCriteria', { id: real.id }, /แหล่งอ้างอิง.*วันที่มีผล.*ผู้ยืนยัน/);
+  ok('saveCriteria', { id: real.id, typeId: type.id, name: 'เกณฑ์จริง', rules, isDemo: false, referenceSource: 'ประกาศทดสอบ ข้อ 1', effectiveDate: '2020-01-01' });
+  ok('activateCriteria', { id: real.id, confirmedBy: 'ผู้ยืนยันทดสอบ' });
+  login('UT-REQ1', 'requester');
+  const r = ok('createRequest', { typeId: type.id, unit: 'FAC-A', purpose: 'คำขอจริง' });
+  assert.equal(r.isDemo, false);
+  login('UT-ADMIN', 'admin');
+  const demo = ok('saveCriteria', { fromId: real.id, typeId: type.id, name: 'สาธิตทับ', rules, isDemo: true, effectiveDate: '2021-01-01' });
+  ok('activateCriteria', { id: demo.id });
+  login('UT-REQ1', 'requester');
+  ok('setPerson', { id: r.id, personId: ok('searchPersons', { staffCode: 'T0003' }).results[0].personId, staffCode: 'T0003' });
+  ok('uploadFile', { id: r.id, docType: 'cv', fileName: 'a.pdf', data: pdf });
+  no('submit', { id: r.id }, /เกณฑ์สาธิต\/เกณฑ์จริง/);
+});
+
+t('files: type/size/content checks and no access without permission', () => {
+  login('UT-REQ1', 'requester');
+  const draft = byPurpose('ร่างคำขอ');
+  no('uploadFile', { id: draft.id, docType: 'cv', fileName: 'a.exe', data: pdf }, /ชนิดไฟล์ไม่อนุญาต/);
+  no('uploadFile', { id: draft.id, docType: 'cv', fileName: 'fake.pdf', data: Buffer.from('MZ fake exe').toString('base64') }, /เนื้อไฟล์ไม่ตรง/);
+  ctx.__big = Buffer.concat([Buffer.from('%PDF'), Buffer.alloc(11 * 1024 * 1024)]).toString('base64');
+  no('uploadFile', { id: draft.id, docType: 'cv', fileName: 'big.pdf', data: ctx.__big }, /ใหญ่เกิน/);
+  const closed = reqs().find(x => x.status === 'closed' && /กรรมการสอบ/.test(x.purpose));
+  const fileId = rows('Attachments').find(a => a.requestId === closed.id).id;
+  const d = ok('getRequest', { id: closed.id });
+  assert.equal(JSON.stringify(d).indexOf('storageId'), -1, 'Drive file id never sent to the browser');
+  assert.equal(ok('downloadFile', { fileId }).mime, 'application/pdf');
+  login('UT-REQ2', 'requester'); no('downloadFile', { fileId }, /ไม่มีสิทธิ์/);
+  login('UT-STAFF2', 'staff'); no('downloadFile', { fileId }, /ไม่มีสิทธิ์/);
+  login('UT-REV2', 'reviewer'); no('downloadFile', { fileId }, /ไม่มีสิทธิ์/);
+  login('UT-STAFF1', 'staff'); assert.ok(ok('downloadFile', { fileId }).data.length > 10);
+  assert.ok(rows('Audit').some(a => a.action === 'file.denied'));
+});
+
+t('CSV import: preview first, invalid rows skipped, labelled as imported', () => {
+  login('UT-STAFF1', 'staff');
+  no('importPreview', { source: 'MUHR', csv: 'a' }, /ไม่มีสิทธิ์/);
+  login('UT-ADMIN', 'admin');
+  no('importPreview', { source: 'MUHR', csv: 'name\nx' }, /staffCode/);
+  const csv = 'staffCode,firstNameTh,lastNameTh,firstNameEn,lastNameEn,highestDegree,employmentStatus,sourceUpdatedAt\n' +
+    'I001,ทดลอง,นำเข้า,Tod,Namkhao,ปริญญาเอก,active,2026-01-10\nI002,,ไม่มีชื่อ,,,,,\nI003,ซ้ำ,หนึ่ง,,,phd?,active,\nI001,ซ้ำ,รหัส,,,,,';
+  const pv = ok('importPreview', { source: 'MUHR', csv, fileName: 'muhr.csv' });
+  assert.deepEqual(pv.summary, { total: 4, new: 1, update: 0, skip: 3 });
+  assert.equal(rows('Persons').filter(p => p.origin === 'import').length, 0, 'nothing written before commit');
+  ok('importCommit', { batchId: pv.batch.id });
+  const p = rows('Persons').filter(x => x.origin === 'import');
+  assert.equal(p.length, 1); assert.equal(p[0].highestDegree, 'doctorate'); assert.ok(p[0].fetchedAt);
+  ok('saveSettings', { settings: { MUHR_MODE: 'import' } });
+  login('UT-REQ1', 'requester');
+  assert.equal(ok('searchPersons', { name: 'ทดลอง นำเข้า' }).results[0].origin, 'import');
+  assert.equal(ok('searchPersons', { name: 'มาลี' }).results.length, 0, 'mock data not mixed into import mode');
+  login('UT-ADMIN', 'admin'); ok('saveSettings', { settings: { MUHR_MODE: 'mock' } });
+});
+
+t('reports with definitions; external notifications cannot be enabled', () => {
+  login('UT-STAFF1', 'staff');
+  const rep = ok('report', { includeDemo: true });
+  assert.ok(rep.definitions.length >= 5);
+  assert.ok(rep.counts.created >= 3);
+  assert.ok(rep.cycle.n >= 1);
+  assert.ok(rep.returns.events >= 1);
+  assert.ok(rep.stages.find(s => s.status === 'in_review').done.n >= 1);
+  assert.equal(JSON.stringify(rep).search(/ประหยัด|saving/i), -1);
+  assert.equal(ok('report', {}).counts.created, 1, 'demo excluded by default');
+  login('UT-ADMIN', 'admin');
+  no('saveSettings', { settings: { EXTERNAL_NOTIFY: 'email' } }, /ยังเปิด/);
+});
+
+t('audit log records who/what/fields without personal data', () => {
+  const audit = rows('Audit');
+  assert.ok(audit.length > 20);
+  const text = JSON.stringify(audit);
+  ['สมชาย', 'มาลี', 'Thotsobdee', 'กมล', 'ทดลอง'].forEach(s => assert.equal(text.indexOf(s), -1, 'personal name in log: ' + s));
+  assert.ok(audit.some(a => a.action === 'status' && /status=returned/.test(a.fields)));
+});
+
+t('test mode off: test accounts refused, real users still work', () => {
+  login('UT-ADMIN', 'admin');
+  ok('saveSettings', { settings: { TEST_MODE: false } });
+  no('boot', {}, /ปิดโหมดทดสอบ/);
+  realLogin('owner@uni.example');
+  const b = ok('boot');
+  assert.equal(b.testAccounts.length, 0); assert.equal(b.user.role, 'admin');
+  realLogin('stranger@uni.example');
+  assert.equal(ok('boot').user, null);
+});
+
+console.log(`\n${n} review-system tests passed`);

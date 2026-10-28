@@ -163,13 +163,29 @@ function createGasMock(opts) {
       getUuid: () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()),
       formatDate: d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
       base64Encode: bytes => { let s = ''; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s); },
-      newBlob: (content) => ({ getAs: () => { const blob = { setName: () => blob, getBytes: () => Array.from(enc.encode(content)) }; return blob; } }),
+      newBlob: (content, mime, name) => {
+        const bytes = Array.isArray(content) ? content.slice() : Array.from(enc.encode(content));
+        const blob = { setName: n => { name = n; return blob; }, getName: () => name, getContentType: () => mime, getBytes: () => bytes.slice(), getAs: () => blob };
+        return blob;
+      },
       base64Decode: s => Array.from(atob(s), c => c.charCodeAt(0)),
       base64EncodeWebSafe: bytes => btoa(String.fromCharCode.apply(null, bytes)).replace(/\+/g, '-').replace(/\//g, '_'),
       computeDigest: (alg, s) => { let h = 0; const out = []; for (const ch of String(s)) { h = (h * 31 + ch.charCodeAt(0)) >>> 0; } for (let i = 0; i < 16; i++) out.push((h >>> (i % 4 * 8)) & 255 ^ i); return out; },
       DigestAlgorithm: { MD5: 'MD5' }
     },
-    DriveApp: { getFoldersByName: () => ({ hasNext: () => false }), createFolder: () => ({ createFile: () => ({ getUrl: () => 'https://drive.google.com/file/d/preview-evidence' }) }) },
+    DriveApp: (() => {
+      // ไฟล์จำลองเก็บในหน่วยความจำ — ใช้ทดสอบการแนบไฟล์และการตรวจสิทธิ์เปิดไฟล์
+      const files = {}, folders = {};
+      const fileObj = id => ({ getId: () => id, getUrl: () => 'https://drive.google.com/file/d/' + id, getBlob: () => ({ getBytes: () => files[id].bytes.slice() }), setTrashed: v => { files[id].trashed = v; } });
+      const folderObj = id => ({ getId: () => id, createFile: blob => { const fid = 'file' + (Object.keys(files).length + 1); files[fid] = { bytes: blob.getBytes ? blob.getBytes() : [], name: blob.getName ? blob.getName() : '' , folder: id }; return fileObj(fid); } });
+      return {
+        files,
+        getFoldersByName: () => ({ hasNext: () => false }),
+        createFolder: name => { const id = 'folder' + (Object.keys(folders).length + 1); folders[id] = name; return folderObj(id); },
+        getFolderById: id => { if (!folders[id]) throw new Error('no folder'); return folderObj(id); },
+        getFileById: id => { if (!files[id]) throw new Error('no file'); return fileObj(id); }
+      };
+    })(),
     Logger: { log: (...a) => console.log(...a) },
     HtmlService: {}, ScriptApp: { getService: () => ({ getUrl: () => location.href }) }
   };
