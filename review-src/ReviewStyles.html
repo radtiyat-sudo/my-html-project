@@ -66,7 +66,11 @@ body.simple .topbar h1{display:flex;align-items:center;gap:10px}
 .qs-name{position:relative}
 .qs-name input{height:58px;font-size:18px;border-radius:14px;padding:0 16px 0 50px;border:2px solid var(--border-strong);width:100%;outline:none;background:var(--surface)}
 .qs-name input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-soft)}
-.qs-name svg{position:absolute;left:16px;top:19px;width:22px;height:22px;color:var(--muted)}
+.qs-name > svg{position:absolute;left:16px;top:19px;width:22px;height:22px;color:var(--muted)}
+.qs-name input{padding-right:52px}
+.qs-clear{position:absolute;right:10px;top:10px;width:38px;height:38px;border-radius:50%;border:0;background:var(--surface-3);color:var(--text-2);display:grid;place-items:center;cursor:pointer}
+.qs-clear:hover{background:var(--border);color:var(--text)}
+.qs-clear[hidden]{display:none}
 .qs-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
 .qs-row .field{min-width:120px}
 .qs-row .grow{flex:1}

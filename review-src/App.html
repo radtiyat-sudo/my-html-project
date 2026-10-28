@@ -334,7 +334,8 @@ PAGES.search = async () => {
   view(`<div class="qs-wrap">
     <div class="qs-hero no-print"><div class="logo">${ic('search', 'lg')}</div><h2>ค้นหาผลงานวิชาการ</h2><p>กรอกชื่อ เลือกช่วงปี แล้วกดค้นหา — ระบบค้น Scopus, Web of Science, PubMed, ERIC, TCI/ThaiJO และ OpenAlex ให้พร้อมกัน</p></div>
     <form class="qs-box no-print" id="qs-form" autocomplete="off">
-      <div class="qs-name">${ic('user')}<input id="qs-name" value="${esc(f.name)}" placeholder="ชื่อ-นามสกุล (ไทยหรืออังกฤษ) เช่น Somchai Jaidee" aria-label="ชื่อ-นามสกุล"></div>
+      <div class="qs-name">${ic('user')}<input id="qs-name" value="${esc(f.name)}" placeholder="ชื่อ-นามสกุล (ไทยหรืออังกฤษ) เช่น Somchai Jaidee" aria-label="ชื่อ-นามสกุล">
+        <button type="button" class="qs-clear" id="qs-clear" aria-label="ลบชื่อ" title="ลบชื่อ (Esc)" ${f.name ? '' : 'hidden'}>${ic('x')}</button></div>
       <div class="qs-row">
         ${field('ตั้งแต่ปี', `<select class="select" id="qs-from">${yOpts(f.fromYear)}</select>`)}
         ${field('ถึงปี', `<select class="select" id="qs-to">${yOpts(f.toYear)}</select>`)}
@@ -350,7 +351,23 @@ PAGES.search = async () => {
     </form>
     <div id="qs-out" class="mt">${f.result ? '' : `<div class="qs-empty no-print">${ic('info')} ผลการค้นจากชื่ออาจรวมผลงานของคนชื่อเดียวกัน — ตรวจทุกรายการด้วยลิงก์ยืนยันที่แนบไว้</div>`}</div>
   </div>`);
-  $('#qs-name').focus();
+  const nameEl = $('#qs-name');
+  nameEl.focus();
+  const clearAll = () => {
+    Object.assign(f, { name: '', nameEn: '', scopusId: '', orcid: '', result: null, filter: 'all' });
+    ['#qs-name', '#qs-en', '#qs-sid', '#qs-orcid'].forEach(s => { $(s).value = ''; });
+    $('#qs-clear').hidden = true;
+    $('#qs-out').innerHTML = '';
+    nameEl.focus();
+  };
+  S.qsClear = clearAll;
+  $('#qs-clear').onclick = clearAll;
+  nameEl.oninput = () => {
+    $('#qs-clear').hidden = !nameEl.value;
+    // พิมพ์ชื่อคนใหม่หลังค้นเสร็จ → ล้างชื่ออังกฤษ/Scopus ID/ORCID ของคนเดิม เพื่อไม่ให้ค้นผิดคน
+    if (f.result && (f.nameEn || f.scopusId || f.orcid)) { ['#qs-en', '#qs-sid', '#qs-orcid'].forEach(s => { $(s).value = ''; }); Object.assign(f, { nameEn: '', scopusId: '', orcid: '' }); }
+  };
+  nameEl.onkeydown = e => { if (e.key === 'Escape' && nameEl.value) { e.stopPropagation(); clearAll(); } };
   $$('[data-range]').forEach(b => b.onclick = () => { $('#qs-to').value = be; $('#qs-from').value = be - Number(b.dataset.range) + 1; });
   const readForm = () => Object.assign(f, { name: val('#qs-name'), fromYear: Number(val('#qs-from')), toYear: Number(val('#qs-to')), nameEn: val('#qs-en'), scopusId: val('#qs-sid'), orcid: val('#qs-orcid'), affil: val('#qs-aff') });
   $('#qs-form').onsubmit = e => { e.preventDefault(); readForm(); doQuickSearch(f); };
@@ -381,7 +398,7 @@ function renderQuickResult(f) {
   const who = q.nameEn || q.nameTh || (q.scopusId ? 'Scopus ID ' + q.scopusId : 'ORCID ' + q.orcid);
   out.innerHTML = `
     <div class="row between no-print"><div><b style="font-size:17px">ผลการค้น: ${esc(who)}</b><div class="small muted">ปี พ.ศ. ${q.fromYear}–${q.toYear} · ค้นเมื่อ ${thaiDate(r.searchedAt, true)}</div></div>
-      <div class="row"><button class="btn sm" id="qs-csv">${ic('download', 'sm')} ดาวน์โหลด CSV</button><button class="btn sm" onclick="window.print()">พิมพ์</button></div></div>
+      <div class="row"><button class="btn sm primary" id="qs-new">${ic('plus', 'sm')} ค้นคนใหม่</button><button class="btn sm" id="qs-csv">${ic('download', 'sm')} ดาวน์โหลด CSV</button><button class="btn sm" onclick="window.print()">พิมพ์</button></div></div>
     <div class="print-only" style="display:none"><h2>ผลงานวิชาการ: ${esc(who)} (พ.ศ. ${q.fromYear}–${q.toYear})</h2></div>
     ${r.notes.map(n => `<div class="banner amber mt-s">${ic('info')}<div><div class="sub" style="color:var(--text)">${esc(n)}</div></div></div>`).join('')}
     ${!r.scopusKey ? `<div class="banner blue mt-s no-print">${ic('info')}<div><div class="sub" style="color:var(--text)">ยังไม่ได้ใส่ Scopus API key ในระบบหลังบ้าน — ผลจาก Scopus จึงตรวจผ่านรายชื่อวารสารเท่านั้น (แจ้งผู้ดูแลระบบ)</div></div></div>` : ''}
@@ -400,6 +417,7 @@ function renderQuickResult(f) {
       </div></div>`).join('') : `<div class="qs-empty">${ic('search')}<div><b>ไม่พบผลงานในกลุ่มนี้</b></div><div class="small">การค้นไม่พบไม่ได้แปลว่าไม่มีผลงาน — ลองใส่ชื่ออังกฤษ, ลบสังกัด, ขยายช่วงปี หรือใส่ Scopus Author ID ใน "ตัวเลือกเพิ่มเติม"</div></div>`}
     <div class="small muted mt">หมายเหตุ: ผลค้นจากชื่ออาจรวมผลงานของคนชื่อเดียวกัน · กลุ่มฐานข้อมูลเป็นข้อมูลการจัดทำดัชนี ไม่ใช่ผลการพิจารณาคุณสมบัติ · ตรวจยืนยันด้วยลิงก์ของแต่ละรายการ</div>`;
   bindCommon();
+  $('#qs-new').onclick = () => { if (S.qsClear) S.qsClear(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   $$('[data-filter]', out).forEach(b => b.onclick = () => { f.filter = b.dataset.filter; renderQuickResult(f); });
   const rc = $('#qs-recand'); if (rc) rc.onclick = () => doQuickSearch(f, val('#qs-cand'));
   $('#qs-csv').onclick = () => {
